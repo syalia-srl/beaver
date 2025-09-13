@@ -8,10 +8,19 @@ This project is currently in its initial phase, with the core asynchronous pub/s
 
 ## Core Features (Current)
 
-- **Async Pub/Sub:** A fully asynchronous, Redis-like publish-subscribe system for real-time messaging between components of your application.
 - **Zero Dependencies:** Built using only the standard Python `sqlite3` and `asyncio` libraries. No external packages to install.
+- **Async Pub/Sub:** A fully asynchronous, Redis-like publish-subscribe system for real-time messaging between components of your application.
 - **Single-File & Persistent:** All data is stored in a single SQLite file, making it incredibly portable and easy to back up. Your event log persists across application restarts.
 - **Works with Existing Databases:** `beaver` can be pointed at an existing SQLite file and will create its tables without disturbing other data.
+
+## Use Cases
+
+I built `beaver` to have a local, embedded database for building small AI-powered projects without having to pay for a server-based database.
+
+Examples include:
+
+- Streaming messages and tokens from a local FastAPI to a local Streamlit app.
+- Storing user files for Retrieval Augmented Generation in single-user applications.
 
 ## Installation
 
@@ -83,6 +92,12 @@ if __name__ == "__main__":
 - **Persistent Key-Value Store:** A simple get/set interface for storing configuration, session data, or any other JSON-serializable object.
 - **JSON Document Store with Full-Text Search:** Store flexible JSON documents and get powerful full-text search across all text fields by default, powered by SQLite's FTS5 extension.
 - **Standard Relational Interface:** While beaver provides high-level features, you will always be able to use the underlying SQLite connection for normal relational tasks, such as creating and managing users or products tables with standard SQL.
+
+## Performance
+
+Despite its local, embedded nature, `beaver` is highly performant by small use cases. Here are some metrics, measured on a single laptop, Intel Core i7, 7th generation.
+
+- Process 100,000 messages (1000 messages times 100 asynchronous clients) in less than 30 seconds, giving over 3K messages per second with an average latency of only 100 ms (time elapsed between message generation and client processing).
 
 ## Why Beaver?
 
