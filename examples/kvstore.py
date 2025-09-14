@@ -30,5 +30,5 @@ def kv_store_demo():
 
 if __name__ == "__main__":
     # To run this demo, save the file as beaver.py and run `python beaver.py`
-    print("--- BeaverDB Pub/Sub Demo ---")
+    print("--- BeaverDB KV Store Demo ---")
     kv_store_demo()
