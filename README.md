@@ -1,109 +1,101 @@
 # beaver 🦫
 
-A single-file, multi-modal database for Python, built with the standard sqlite3 library.
+A fast, single-file, multi-modal database for Python, built with the standard sqlite3 library.
 
-`beaver` is the **B**ackend for **E**mbedded **A**synchronous **V**ector & **E**vent **R**etrieval. It's an industrious, all-in-one database designed to manage complex, modern data types without leaving the comfort of a single file.
+`beaver` is the Backend for Embedded Asynchronous Vector & Event Retrieval. It's an industrious, all-in-one database designed to manage complex, modern data types without requiring a database server.
 
-This project is currently in its initial phase, with the core asynchronous pub/sub functionality fully implemented.
+Design Philosophy
+`beaver` is built with a minimalistic philosophy for small, local use cases where a full-blown database server would be overkill.
 
-## Core Features (Current)
+- **Minimalistic & Zero-Dependency**: Uses only Python's standard libraries (sqlite3, asyncio). No external packages are required, making it incredibly lightweight and portable.
+- **Async-First (When It Matters)**: The pub/sub system is fully asynchronous for high-performance, real-time messaging. Simpler features like key-value and list operations remain synchronous for ease of use.
+- **Built for Local Applications**: Perfect for local AI tools, chatbots (streaming tokens), task management apps, desktop utilities, and prototypes that need persistent, structured data without network overhead.
+- **Fast by Default**: It's built on SQLite, which is famously fast, reliable, and will likely serve your needs for a long way before you need a "professional" database.
 
-- **Zero Dependencies:** Built using only the standard Python `sqlite3` and `asyncio` libraries. No external packages to install.
-- **Async Pub/Sub:** A fully asynchronous, Redis-like publish-subscribe system for real-time messaging between components of your application.
-- **Single-File & Persistent:** All data is stored in a single SQLite file, making it incredibly portable and easy to back up. Your event log persists across application restarts.
-- **Works with Existing Databases:** `beaver` can be pointed at an existing SQLite file and will create its tables without disturbing other data.
+## Core Features
 
-## Use Cases
-
-I built `beaver` to have a local, embedded database for building small AI-powered projects without having to pay for a server-based database.
-
-Examples include:
-
-- Streaming messages and tokens from a local FastAPI to a local Streamlit app.
-- Storing user files for Retrieval Augmented Generation in single-user applications.
+- **Asynchronous Pub/Sub**: A fully asynchronous, Redis-like publish-subscribe system for real-time messaging.
+- **Persistent Key-Value Store**: A simple set/get interface for storing configuration, session data, or any other JSON-serializable object.
+- **Pythonic List Management**: A fluent, Redis-like interface (db.list("name").push()) for managing persistent, ordered lists with support for indexing and slicing.
+- **Single-File & Portable**: All data is stored in a single SQLite file, making it incredibly easy to move, back up, or embed in your application.
 
 ## Installation
 
-To use `beaver`, just run `pip install beaver-db` and import the main class.
+```bash
+pip install beaver-db
+```
+
+## Quickstart & API Guide
+
+### 1. Initialization
+
+All you need to do is import and instantiate the BeaverDB class with a file path.
+
+```python
+from beaver import BeaverDB
+
+db = BeaverDB("my_application.db")
+```
+
+### 2. Key-Value Store
+
+Use `set()` and `get()` for simple data storage. The value can be any JSON-encodable object.
+
+```python
+# Set a value
+db.set("app_config", {"theme": "dark", "user_id": 123})
+
+# Get a value
+config = db.get("app_config")
+print(f"Theme: {config['theme']}") # Output: Theme: dark
+```
+
+### 3. List Management
+
+Get a list wrapper with `db.list()` and use Pythonic methods to manage it.
+
+```python
+# Get a wrapper for the 'tasks' list
+tasks = db.list("daily_tasks")
+
+# Push items to the list
+tasks.push("Write the project report")
+tasks.push("Send follow-up emails")
+tasks.prepend("Plan the day's agenda") # Push to the front
+
+# Use len() and indexing (including slices!)
+print(f"There are {len(tasks)} tasks.")
+print(f"The first task is: {tasks[0]}")
+print(f"The rest is: {tasks[1:]}")
+```
+
+### 4. Asynchronous Pub/Sub
+
+Publish events from one part of your app and listen in another using asyncio.
 
 ```python
 import asyncio
-from beaver import BeaverDB
 
+async def listener():
+    async with db.subscribe("system_events") as sub:
+        async for message in sub:
+            print(f"LISTENER: Received event -> {message['event']}")
 
-# --- Example Usage ---
-async def listener(db: BeaverDB):
-    """A sample task that listens for messages."""
-    print("LISTENER: Waiting for messages on the 'system_events' channel...")
-    try:
-        async with db.subscribe("system_events") as subscriber:
-            async for message in subscriber:
-                print(f"LISTENER: Received -> {message}")
-    except asyncio.CancelledError:
-        print("LISTENER: Shutting down.")
-
-
-async def publisher(db: BeaverDB):
-    """A sample task that publishes messages."""
-    print("PUBLISHER: Ready to send events.")
-    await asyncio.sleep(1) # Give the listener a moment to start
-
-    print("PUBLISHER: Sending user login event.")
-    await db.publish(
-        "system_events",
-        {"event": "user_login", "username": "alice", "status": "success"}
-    )
-
-    await asyncio.sleep(2)
-
-    print("PUBLISHER: Sending system alert.")
-    await db.publish(
-        "system_events",
-        {"event": "system_alert", "level": "warning", "detail": "CPU usage at 85%"}
-    )
+async def publisher():
     await asyncio.sleep(1)
+    await db.publish("system_events", {"event": "user_login", "user": "alice"})
 
-
-async def main():
-    """Runs the listener and publisher concurrently."""
-    db = BeaverDB("demo.db")
-
-    # Run both tasks and wait for them to complete
-    listener_task = asyncio.create_task(listener(db))
-    publisher_task = asyncio.create_task(publisher(db))
-
-    await asyncio.sleep(5) # Let them run for a bit
-    listener_task.cancel() # Cleanly shut down the listener
-    await asyncio.gather(listener_task, publisher_task, return_exceptions=True)
-    print("\nDemo finished.")
-
-
-if __name__ == "__main__":
-    # To run this demo, save the file as beaver.py and run `python beaver.py`
-    print("--- BeaverDB Pub/Sub Demo ---")
-    asyncio.run(main())
+# To run them concurrently:
+# asyncio.run(asyncio.gather(listener(), publisher()))
 ```
 
 ## Roadmap
 
-`beaver` aims to be a complete, self-contained data toolkit for modern Python applications. The following features are planned for future releases, all accessible through a high-level API while still allowing direct SQL access:
+`beaver` aims to be a complete, self-contained data toolkit. The following features are planned:
 
-- **Vector Storage & Search:** Store numpy vector embeddings alongside your data and perform efficient k-nearest neighbor (k-NN) searches.
-- **Persistent Key-Value Store:** A simple get/set interface for storing configuration, session data, or any other JSON-serializable object.
-- **JSON Document Store with Full-Text Search:** Store flexible JSON documents and get powerful full-text search across all text fields by default, powered by SQLite's FTS5 extension.
-- **Standard Relational Interface:** While beaver provides high-level features, you will always be able to use the underlying SQLite connection for normal relational tasks, such as creating and managing users or products tables with standard SQL.
-
-## Performance
-
-Despite its local, embedded nature, `beaver` is highly performant by small use cases. Here are some metrics, measured on a single laptop, Intel Core i7, 7th generation.
-
-- Process 100,000 messages (1000 messages times 100 asynchronous clients) in less than 30 seconds, giving over 3K messages per second with an average latency of only 100 ms (time elapsed between message generation and client processing).
-
-## Why Beaver?
-
-Beavers are nature's engineers. They build a single, robust, and complex home—the lodge—from many different materials.
-
-Similarly, beaver builds a powerful, multi-modal database but contains it all within a single, self-contained file. It's an industrious, no-nonsense tool for building modern applications.
+- **Vector Storage & Search**: Store NumPy vector embeddings and perform efficient k-nearest neighbor (k-NN) searches using `scipy.spatial.cKDTree`.
+- **JSON Document Store with Full-Text Search**: Store flexible JSON documents and get powerful full-text search across all text fields, powered by SQLite's FTS5 extension.
+- **Standard Relational Interface**: While `beaver` provides high-level features, you can always use the same SQLite file for normal relational tasks (e.g., managing users, products) with standard SQL.
 
 ## License
 
