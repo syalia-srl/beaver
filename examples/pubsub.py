@@ -1,55 +1,67 @@
-import asyncio
+import threading
+import time
 from beaver import BeaverDB
 
 
-# --- Example Usage ---
-async def listener(db: BeaverDB):
-    """A sample task that listens for messages."""
+def listener(db: BeaverDB):
+    """A sample task that listens for messages in a blocking manner."""
     print("LISTENER: Waiting for messages on the 'system_events' channel...")
-    try:
-        async with db.subscribe("system_events") as subscriber:
-            async for message in subscriber:
-                print(f"LISTENER: Received -> {message}")
-    except asyncio.CancelledError:
-        print("LISTENER: Shutting down.")
+
+    # The subscriber is now a blocking iterator. This loop will pause
+    # until a new message arrives.
+    for message in db.subscribe("system_events"):
+        print(f"LISTENER: Received -> {message}")
+        # Add a condition to gracefully shut down the listener thread
+        if message.get("event") == "shutdown":
+            break
+
+    print("LISTENER: Shutting down.")
 
 
-async def publisher(db: BeaverDB):
+def publisher(db: BeaverDB):
     """A sample task that publishes messages."""
     print("PUBLISHER: Ready to send events.")
-    await asyncio.sleep(1) # Give the listener a moment to start
+    time.sleep(1)  # Give the listener a moment to start
 
     print("PUBLISHER: Sending user login event.")
-    await db.publish(
+    db.publish(
         "system_events",
-        {"event": "user_login", "username": "alice", "status": "success"}
+        {"event": "user_login", "username": "alice", "status": "success"},
     )
 
-    await asyncio.sleep(2)
+    time.sleep(2)
 
     print("PUBLISHER: Sending system alert.")
-    await db.publish(
+    db.publish(
         "system_events",
-        {"event": "system_alert", "level": "warning", "detail": "CPU usage at 85%"}
+        {"event": "system_alert", "level": "warning", "detail": "CPU usage at 85%"},
     )
-    await asyncio.sleep(1)
+    time.sleep(1)
+
+    # Send a final message to tell the listener to stop
+    print("PUBLISHER: Sending shutdown signal.")
+    db.publish("system_events", {"event": "shutdown"})
 
 
-async def main():
-    """Runs the listener and publisher concurrently."""
+def main():
+    """Runs the listener and publisher concurrently using threads."""
     db = BeaverDB("demo.db")
 
-    # Run both tasks and wait for them to complete
-    listener_task = asyncio.create_task(listener(db))
-    publisher_task = asyncio.create_task(publisher(db))
+    # Create separate threads for the listener and publisher
+    listener_thread = threading.Thread(target=listener, args=(db,))
+    publisher_thread = threading.Thread(target=publisher, args=(db,))
 
-    await asyncio.sleep(5) # Let them run for a bit
-    listener_task.cancel() # Cleanly shut down the listener
-    await asyncio.gather(listener_task, publisher_task, return_exceptions=True)
+    # Start the threads
+    listener_thread.start()
+    publisher_thread.start()
+
+    # Wait for both threads to complete their execution
+    listener_thread.join()
+    publisher_thread.join()
+
     print("\nDemo finished.")
 
 
 if __name__ == "__main__":
-    # To run this demo, save the file as beaver.py and run `python beaver.py`
-    print("--- BeaverDB Pub/Sub Demo ---")
-    asyncio.run(main())
+    print("--- BeaverDB Synchronous Pub/Sub Demo ---")
+    main()

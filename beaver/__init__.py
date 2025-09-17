@@ -1,1 +1,2 @@
-from .core import BeaverDB, Document
+from .core import BeaverDB
+from .collections import Document, WalkDirection
