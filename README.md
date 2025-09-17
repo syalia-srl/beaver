@@ -1,6 +1,6 @@
 # beaver 🦫
 
-A fast, single-file, multi-modal database for Python, built with the standard sqlite3 library.
+A fast, single-file, multi-modal database for Python, built with the standard `sqlite3` library.
 
 `beaver` is the **B**ackend for **E**mbedded **A**synchronous **V**ector & **E**vent Retrieval. It's an industrious, all-in-one database designed to manage complex, modern data types without requiring a database server.
 
@@ -9,16 +9,18 @@ A fast, single-file, multi-modal database for Python, built with the standard sq
 `beaver` is built with a minimalistic philosophy for small, local use cases where a full-blown database server would be overkill.
 
   - **Minimalistic & Zero-Dependency**: Uses only Python's standard libraries (`sqlite3`, `asyncio`) and `numpy`.
-  - **Async-First (When It Matters)**: The pub/sub system is fully asynchronous for high-performance, real-time messaging. Other features like key-value, list, and vector operations are synchronous for ease of use.
+  - **Async-First (When It Matters)**: The pub/sub system is fully asynchronous for high-performance, real-time messaging. Other features like key-value, list, and search operations are synchronous for ease of use.
   - **Built for Local Applications**: Perfect for local AI tools, RAG prototypes, chatbots, and desktop utilities that need persistent, structured data without network overhead.
   - **Fast by Default**: It's built on SQLite, which is famously fast and reliable for local applications.
+  - **Standard Relational Interface**: While `beaver` provides high-level features, you can always use the same SQLite file for normal relational tasks with standard SQL.
 
 ## Core Features
 
   - **Asynchronous Pub/Sub**: A fully asynchronous, Redis-like publish-subscribe system for real-time messaging.
   - **Persistent Key-Value Store**: A simple `set`/`get` interface for storing any JSON-serializable object.
   - **Pythonic List Management**: A fluent, Redis-like interface for managing persistent, ordered lists.
-  - **Vector Storage & Search**: Store vector embeddings and perform simple, brute-force k-nearest neighbor searches, ideal for small-scale RAG.
+  - **Vector Storage & Search**: Store vector embeddings and perform simple, brute-force k-nearest neighbor searches.
+  - **Full-Text Search**: Automatically index and search through document metadata using SQLite's powerful FTS5 engine.
   - **Single-File & Portable**: All data is stored in a single SQLite file, making it incredibly easy to move, back up, or embed in your application.
 
 ## Installation
@@ -63,29 +65,33 @@ tasks.prepend("Plan the day's agenda")
 print(f"The first task is: {tasks[0]}")
 ```
 
-### Vector Storage & Search
+### Vector & Text Search
 
-Store `Document` objects containing vector embeddings and metadata. The search is a linear scan, which is sufficient for small-to-medium collections.
+Store `Document` objects containing vector embeddings and metadata. When you index a document, its string fields are automatically made available for full-text search.
 
 ```python
 # Get a handle to a collection
-docs = db.collection("my_documents")
+docs = db.collection("articles")
 
-# Create and index a document (ID will be a UUID)
-doc1 = Document(embedding=[0.1, 0.2, 0.7], text="A cat sat on the mat.")
-docs.index(doc1)
+# Create and index a multi-modal document
+doc = Document(
+    id="sql-001",
+    embedding=[0.8, 0.1, 0.1],
+    content="SQLite is a powerful embedded database ideal for local apps.",
+    author="John Smith"
+)
+docs.index(doc)
 
-# Create and index a document with a specific ID (for upserting)
-doc2 = Document(id="article-42", embedding=[0.9, 0.1, 0.1], text="A dog chased a ball.")
-docs.index(doc2)
+# 1. Perform a vector search to find semantically similar documents
+query_vector = [0.7, 0.2, 0.2]
+vector_results = docs.search(vector=query_vector, top_k=1)
+top_doc, distance = vector_results[0]
+print(f"Vector Search Result: {top_doc.content} (distance: {distance:.2f})")
 
-# Search for the 2 most similar documents
-query_vector = [0.15, 0.25, 0.65]
-results = docs.search(vector=query_vector, top_k=2)
-
-# Results are a list of (Document, distance) tuples
-top_document, distance = results[0]
-print(f"Closest document: {top_document.text} (distance: {distance:.4f})")
+# 2. Perform a full-text search to find documents with specific words
+text_results = docs.match(query="database", top_k=1)
+top_doc, rank = text_results[0]
+print(f"Full-Text Search Result: {top_doc.content} (rank: {rank:.2f})")
 ```
 
 ### Asynchronous Pub/Sub
@@ -113,8 +119,6 @@ async def publisher():
 `beaver` aims to be a complete, self-contained data toolkit. The following features are planned:
 
   - **More Efficient Vector Search**: Integrate an approximate nearest neighbor (ANN) index like `scipy.spatial.cKDTree` to improve search speed on larger datasets.
-  - **JSON Document Store with Full-Text Search**: Store flexible JSON documents and get powerful full-text search across all text fields, powered by SQLite's FTS5 extension.
-  - **Standard Relational Interface**: While `beaver` provides high-level features, you can always use the same SQLite file for normal relational tasks with standard SQL.
 
 ## License
 
