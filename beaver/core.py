@@ -1,4 +1,6 @@
 import asyncio
+import uuid
+import numpy as np
 import json
 import sqlite3
 import time
@@ -26,6 +28,7 @@ class BeaverDB:
         self._create_pubsub_table()
         self._create_kv_table()
         self._create_list_table()
+        self._create_collections_table()
 
     def _create_pubsub_table(self):
         """Creates the pub/sub log table if it doesn't exist."""
@@ -61,6 +64,19 @@ class BeaverDB:
                     item_order REAL NOT NULL,
                     item_value TEXT NOT NULL,
                     PRIMARY KEY (list_name, item_order)
+                )
+            """)
+
+    def _create_collections_table(self):
+        """Creates the collections table if it doesn't exist."""
+        with self._conn:
+            self._conn.execute("""
+                CREATE TABLE IF NOT EXISTS beaver_collections (
+                    collection TEXT NOT NULL,
+                    item_id TEXT NOT NULL,
+                    item_vector BLOB NOT NULL,
+                    metadata TEXT,
+                    PRIMARY KEY (collection, item_id)
                 )
             """)
 
@@ -138,6 +154,10 @@ class BeaverDB:
         if not isinstance(name, str) or not name:
             raise TypeError("List name must be a non-empty string.")
         return ListWrapper(name, self._conn)
+
+    def collection(self, name: str) -> "CollectionWrapper":
+        """Returns a wrapper for interacting with a vector collection."""
+        return CollectionWrapper(name, self._conn)
 
     # --- Asynchronous Pub/Sub Methods ---
 
@@ -385,3 +405,88 @@ class Subscriber(AsyncIterator):
     async def __anext__(self) -> Any:
         """Allows 'async for' to pull messages from the internal queue."""
         return await self._queue.get()
+
+
+class Document:
+    """A data class for a vector and its metadata, with a unique ID."""
+    def __init__(self, embedding: list[float], id: str|None = None, **metadata):
+        if not isinstance(embedding, list) or not all(isinstance(x, (int, float)) for x in embedding):
+            raise TypeError("Embedding must be a list of numbers.")
+
+        self.id = id or str(uuid.uuid4())
+        self.embedding = np.array(embedding, dtype=np.float32)
+
+        for key, value in metadata.items():
+            setattr(self, key, value)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serializes metadata to a dictionary."""
+        metadata = self.__dict__.copy()
+        # Exclude internal attributes from the metadata payload
+        metadata.pop('embedding', None)
+        metadata.pop('id', None)
+        return metadata
+
+    def __repr__(self):
+        metadata_str = ', '.join(f"{k}={v!r}" for k, v in self.to_dict().items())
+        return f"Document(id='{self.id}', {metadata_str})"
+
+
+class CollectionWrapper:
+    """A wrapper for vector collection operations with upsert logic."""
+    def __init__(self, name: str, conn: sqlite3.Connection):
+        self._name = name
+        self._conn = conn
+
+    def index(self, document: Document):
+        """
+        Indexes a Document, performing an upsert based on the document's ID.
+        If the ID exists, the record is replaced.
+        If the ID is new (or auto-generated), a new record is inserted.
+
+        Args:
+            document: The Document object to index.
+        """
+        with self._conn:
+            self._conn.execute(
+                "INSERT OR REPLACE INTO beaver_collections (collection, item_id, item_vector, metadata) VALUES (?, ?, ?, ?)",
+                (
+                    self._name,
+                    document.id,
+                    document.embedding.tobytes(),
+                    json.dumps(document.to_dict())
+                )
+            )
+
+    def search(self, vector: list[float], top_k: int = 10) -> list[tuple[Document, float]]:
+        """
+        Performs a vector search and returns Document objects.
+        """
+        query_vector = np.array(vector, dtype=np.float32)
+
+        cursor = self._conn.cursor()
+        cursor.execute(
+            "SELECT item_id, item_vector, metadata FROM beaver_collections WHERE collection = ?",
+            (self._name,)
+        )
+
+        all_docs_data = cursor.fetchall()
+        cursor.close()
+
+        if not all_docs_data:
+            return []
+
+        results = []
+        for row in all_docs_data:
+            doc_id = row['item_id']
+            embedding = np.frombuffer(row['item_vector'], dtype=np.float32).tolist()
+            metadata = json.loads(row['metadata'])
+
+            distance = np.linalg.norm(embedding - query_vector)
+
+            # Reconstruct the Document object with its original ID
+            doc = Document(id=doc_id, embedding=list(embedding), **metadata)
+            results.append((doc, float(distance)))
+
+        results.sort(key=lambda x: x[1])
+        return results[:top_k]

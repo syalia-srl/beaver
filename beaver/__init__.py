@@ -1,1 +1,1 @@
-from .core import BeaverDB, Subscriber
+from .core import BeaverDB, Document

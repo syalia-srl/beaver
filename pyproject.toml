@@ -1,10 +1,12 @@
 [project]
 name = "beaver-db"
-version = "0.2.0"
+version = "0.3.0"
 description = "Asynchronous, embedded, modern DB based on SQLite."
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "numpy>=2.3.3",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["beaver"]
