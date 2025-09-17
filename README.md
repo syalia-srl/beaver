@@ -8,19 +8,20 @@ A fast, single-file, multi-modal database for Python, built with the standard `s
 
 `beaver` is built with a minimalistic philosophy for small, local use cases where a full-blown database server would be overkill.
 
-  - **Minimalistic & Zero-Dependency**: Uses only Python's standard libraries (`sqlite3`, `asyncio`) and `numpy`.
-  - **Async-First (When It Matters)**: The pub/sub system is fully asynchronous for high-performance, real-time messaging. Other features like key-value, list, and search operations are synchronous for ease of use.
+  - **Minimalistic & Zero-Dependency**: Uses only Python's standard libraries (`sqlite3`) and `numpy`/`scipy`.
+  - **Synchronous & Thread-Safe**: Designed for simplicity and safety in multi-threaded environments.
   - **Built for Local Applications**: Perfect for local AI tools, RAG prototypes, chatbots, and desktop utilities that need persistent, structured data without network overhead.
-  - **Fast by Default**: It's built on SQLite, which is famously fast and reliable for local applications.
+  - **Fast by Default**: It's built on SQLite, which is famously fast and reliable for local applications. The vector search is accelerated with an in-memory k-d tree.
   - **Standard Relational Interface**: While `beaver` provides high-level features, you can always use the same SQLite file for normal relational tasks with standard SQL.
 
 ## Core Features
 
-  - **Asynchronous Pub/Sub**: A fully asynchronous, Redis-like publish-subscribe system for real-time messaging.
+  - **Synchronous Pub/Sub**: A simple, thread-safe, Redis-like publish-subscribe system for real-time messaging.
   - **Persistent Key-Value Store**: A simple `set`/`get` interface for storing any JSON-serializable object.
   - **Pythonic List Management**: A fluent, Redis-like interface for managing persistent, ordered lists.
-  - **Vector Storage & Search**: Store vector embeddings and perform simple, brute-force k-nearest neighbor searches.
+  - **Efficient Vector Storage & Search**: Store vector embeddings and perform fast approximate nearest neighbor searches using an in-memory k-d tree.
   - **Full-Text Search**: Automatically index and search through document metadata using SQLite's powerful FTS5 engine.
+  - **Graph Traversal**: Create relationships between documents and traverse the graph to find neighbors or perform multi-hop walks.
   - **Single-File & Portable**: All data is stored in a single SQLite file, making it incredibly easy to move, back up, or embed in your application.
 
 ## Installation
@@ -51,7 +52,7 @@ db.set("app_config", {"theme": "dark", "user_id": 123})
 
 # Get a value
 config = db.get("app_config")
-print(f"Theme: {config['theme']}") # Output: Theme: dark
+print(f"Theme: {config.get('theme')}") # Output: Theme: dark
 ```
 
 ### List Management
@@ -94,31 +95,67 @@ top_doc, rank = text_results[0]
 print(f"Full-Text Search Result: {top_doc.content} (rank: {rank:.2f})")
 ```
 
-### Asynchronous Pub/Sub
+### Graph Traversal
 
-Publish events from one part of your app and listen in another using `asyncio`.
+Create relationships between documents and traverse them.
 
 ```python
-import asyncio
+from beaver import WalkDirection
 
-async def listener():
-    async with db.subscribe("system_events") as sub:
-        async for message in sub:
-            print(f"LISTENER: Received event -> {message['event']}")
+# Create documents
+alice = Document(id="alice", name="Alice")
+bob = Document(id="bob", name="Bob")
+charlie = Document(id="charlie", name="Charlie")
 
-async def publisher():
-    await asyncio.sleep(1)
-    await db.publish("system_events", {"event": "user_login", "user": "alice"})
+# Index them
+social_net = db.collection("social")
+social_net.index(alice)
+social_net.index(bob)
+social_net.index(charlie)
 
-# To run them concurrently:
-# asyncio.run(asyncio.gather(listener(), publisher()))
+# Create edges
+social_net.connect(alice, bob, label="FOLLOWS")
+social_net.connect(bob, charlie, label="FOLLOWS")
+
+# Find direct neighbors
+following = social_net.neighbors(alice, label="FOLLOWS")
+print(f"Alice follows: {[p.id for p in following]}")
+
+# Perform a multi-hop walk to find friends of friends
+foaf = social_net.walk(
+    source=alice,
+    labels=["FOLLOWS"],
+    depth=2,
+    direction=WalkDirection.OUTGOING,
+)
+print(f"Alice's extended network: {[p.id for p in foaf]}")
 ```
 
-## Roadmap
+### Synchronous Pub/Sub
 
-`beaver` aims to be a complete, self-contained data toolkit. The following features are planned:
+Publish events from one part of your app and listen in another using threads.
 
-  - **More Efficient Vector Search**: Integrate an approximate nearest neighbor (ANN) index like `scipy.spatial.cKDTree` to improve search speed on larger datasets.
+```python
+import threading
+
+def listener():
+    for message in db.subscribe("system_events"):
+        print(f"LISTENER: Received -> {message}")
+        if message.get("event") == "shutdown":
+            break
+
+def publisher():
+    db.publish("system_events", {"event": "user_login", "user": "alice"})
+    db.publish("system_events", {"event": "shutdown"})
+
+# Run them concurrently
+listener_thread = threading.Thread(target=listener)
+publisher_thread = threading.Thread(target=publisher)
+listener_thread.start()
+publisher_thread.start()
+listener_thread.join()
+publisher_thread.join()
+```
 
 ## License
 
