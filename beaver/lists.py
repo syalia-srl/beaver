@@ -1,10 +1,9 @@
 import json
 import sqlite3
-from typing import Any, Union
-
+from typing import Any, Union, Iterator
 
 class ListWrapper:
-    """A wrapper providing a Pythonic interface to a list in the database."""
+    """A wrapper providing a Pythonic, full-featured interface to a list in the database."""
 
     def __init__(self, name: str, conn: sqlite3.Connection):
         self._name = name
@@ -60,6 +59,87 @@ class ListWrapper:
 
         else:
             raise TypeError("List indices must be integers or slices.")
+
+    def __setitem__(self, key: int, value: Any):
+        """Sets the value of an item at a specific index (e.g., `my_list[0] = 'new'`)."""
+        if not isinstance(key, int):
+            raise TypeError("List indices must be integers.")
+
+        list_len = len(self)
+        if key < -list_len or key >= list_len:
+            raise IndexError("List index out of range.")
+
+        offset = key if key >= 0 else list_len + key
+
+        with self._conn:
+            cursor = self._conn.cursor()
+            # Find the rowid of the item to update
+            cursor.execute(
+                "SELECT rowid FROM beaver_lists WHERE list_name = ? ORDER BY item_order ASC LIMIT 1 OFFSET ?",
+                (self._name, offset)
+            )
+            result = cursor.fetchone()
+            if not result:
+                raise IndexError("List index out of range during update.")
+
+            rowid_to_update = result['rowid']
+            # Update the value for that specific row
+            cursor.execute(
+                "UPDATE beaver_lists SET item_value = ? WHERE rowid = ?",
+                (json.dumps(value), rowid_to_update)
+            )
+
+    def __delitem__(self, key: int):
+        """Deletes an item at a specific index (e.g., `del my_list[0]`)."""
+        if not isinstance(key, int):
+            raise TypeError("List indices must be integers.")
+
+        list_len = len(self)
+        if key < -list_len or key >= list_len:
+            raise IndexError("List index out of range.")
+
+        offset = key if key >= 0 else list_len + key
+
+        with self._conn:
+            cursor = self._conn.cursor()
+            # Find the rowid of the item to delete
+            cursor.execute(
+                "SELECT rowid FROM beaver_lists WHERE list_name = ? ORDER BY item_order ASC LIMIT 1 OFFSET ?",
+                (self._name, offset)
+            )
+            result = cursor.fetchone()
+            if not result:
+                raise IndexError("List index out of range during delete.")
+
+            rowid_to_delete = result['rowid']
+            # Delete that specific row
+            cursor.execute("DELETE FROM beaver_lists WHERE rowid = ?", (rowid_to_delete,))
+
+    def __iter__(self) -> Iterator[Any]:
+        """Returns an iterator for the list."""
+        cursor = self._conn.cursor()
+        cursor.execute(
+            "SELECT item_value FROM beaver_lists WHERE list_name = ? ORDER BY item_order ASC",
+            (self._name,)
+        )
+        for row in cursor:
+            yield json.loads(row['item_value'])
+        cursor.close()
+
+    def __contains__(self, value: Any) -> bool:
+        """Checks for the existence of an item in the list (e.g., `'item' in my_list`)."""
+        cursor = self._conn.cursor()
+        cursor.execute(
+            "SELECT 1 FROM beaver_lists WHERE list_name = ? AND item_value = ? LIMIT 1",
+            (self._name, json.dumps(value))
+        )
+        result = cursor.fetchone()
+        cursor.close()
+        return result is not None
+
+    def __repr__(self) -> str:
+        """Returns a developer-friendly representation of the object."""
+        return f"ListWrapper(name='{self._name}')"
 
     def _get_order_at_index(self, index: int) -> float:
         """Helper to get the float `item_order` at a specific index."""
