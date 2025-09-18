@@ -1,5 +1,9 @@
 # beaver 🦫
 
+![PyPI - Downloads](https://img.shields.io/pypi/dm/beaver-db)
+![PyPI](https://img.shields.io/pypi/v/beaver-db)
+![License](https://img.shields.io/github/license/apiad/beaver)
+
 A fast, single-file, multi-modal database for Python, built with the standard `sqlite3` library.
 
 `beaver` is the **B**ackend for **E**mbedded, **A**ll-in-one **V**ector, **E**ntity, and **R**elationship storage. It's a simple, local, and embedded database designed to manage complex, modern data types without requiring a database server, built on top of SQLite.
