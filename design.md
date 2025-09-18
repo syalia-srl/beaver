@@ -37,10 +37,10 @@ These principles guide all development and design decisions for beaver-db.
 
 ### 3.2. Data Models & Features
 
-#### Key-Value Store
+### Key-Value Dictionaries (DictWrapper)
 
-* **Implementation:** A simple table (`_beaver_kv_store`) with key (TEXT) and value (TEXT) columns.
-* **Design:** Values are serialized to JSON strings. This is simple, robust, and flexible enough for storing configuration, user settings, or small metadata objects. The `get()` and `set()` methods provide a straightforward synchronous API.
+* **Implementation**: A single table (`beaver_dicts`) stores key-value pairs partitioned by a `dict_name` (TEXT). The primary key is a composite of `(dict_name, key)`.
+* **Design**: The `db.dict("namespace")` method returns a `DictWrapper` that provides a complete and standard Pythonic dictionary-like interface. This includes subscripting (`__getitem__`, `__setitem__`), explicit `get()`/`set()` methods, and iterators (`keys()`, `values()`, `items()`). This feature is ideal for managing structured configurations or namespaced key-value data while adhering to the principle of a Simple and Pythonic API.
 
 #### Lists (ListWrapper)
 

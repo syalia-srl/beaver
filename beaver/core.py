@@ -3,6 +3,7 @@ import sqlite3
 import time
 from typing import Any
 
+from .dicts import DictWrapper
 from .lists import ListWrapper
 from .subscribers import SubWrapper
 from .collections import CollectionWrapper
@@ -30,22 +31,24 @@ class BeaverDB:
 
     def _create_all_tables(self):
         """Initializes all required tables in the database file."""
-        self._create_kv_table()
         self._create_pubsub_table()
         self._create_list_table()
         self._create_collections_table()
         self._create_fts_table()
         self._create_edges_table()
         self._create_versions_table()
+        self._create_dict_table()
 
-    def _create_kv_table(self):
-        """Creates the key-value store table."""
+    def _create_dict_table(self):
+        """Creates the namespaced dictionary table."""
         with self._conn:
             self._conn.execute(
                 """
-                CREATE TABLE IF NOT EXISTS _beaver_kv_store (
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL
+                CREATE TABLE IF NOT EXISTS beaver_dicts (
+                    dict_name TEXT NOT NULL,
+                    key TEXT NOT NULL,
+                    value TEXT NOT NULL,
+                    PRIMARY KEY (dict_name, key)
                 )
             """
             )
@@ -148,39 +151,11 @@ class BeaverDB:
 
     # --- Factory and Passthrough Methods ---
 
-    def set(self, key: str, value: Any):
-        """
-        Stores a JSON-serializable value for a given key.
-        This operation is synchronous.
-        """
-        if not isinstance(key, str):
-            raise TypeError("Key must be a string.")
-
-        try:
-            json_value = json.dumps(value)
-        except TypeError as e:
-            raise TypeError("Value must be JSON-serializable.") from e
-
-        with self._conn:
-            self._conn.execute(
-                "INSERT OR REPLACE INTO _beaver_kv_store (key, value) VALUES (?, ?)",
-                (key, json_value),
-            )
-
-    def get(self, key: str) -> Any:
-        """
-        Retrieves a value for a given key.
-        This operation is synchronous.
-        """
-        if not isinstance(key, str):
-            raise TypeError("Key must be a string.")
-
-        cursor = self._conn.cursor()
-        cursor.execute("SELECT value FROM _beaver_kv_store WHERE key = ?", (key,))
-        result = cursor.fetchone()
-        cursor.close()
-
-        return json.loads(result["value"]) if result else None
+    def dict(self, name: str) -> DictWrapper:
+        """Returns a wrapper object for interacting with a named dictionary."""
+        if not isinstance(name, str) or not name:
+            raise TypeError("Dictionary name must be a non-empty string.")
+        return DictWrapper(name, self._conn)
 
     def list(self, name: str) -> ListWrapper:
         """Returns a wrapper object for interacting with a named list."""
