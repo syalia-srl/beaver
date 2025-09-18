@@ -331,7 +331,7 @@ class CollectionWrapper:
 
 
 def rerank(
-    results: list[list[Document]],
+    *results: list[Document],
     weights: list[float] | None = None,
     k: int = 60
 ) -> list[Document]:
@@ -340,7 +340,7 @@ def rerank(
     This function is specifically designed to work with beaver.collections.Document objects.
 
     Args:
-        results (list[list[Document]]): A list of search result lists, where each
+        results (sequence of list[Document]): A sequence of search result lists, where each
             inner list contains Document objects.
         weights (list[float], optional): A list of weights corresponding to each
             result list. If None, all lists are weighted equally. Defaults to None.

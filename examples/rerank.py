@@ -56,7 +56,7 @@ print(f"Vector search for 'high-performance': {[d.id for d in vector_results]}")
 # - vector_results:  ['py-fast', 'js-fast', 'py-data']
 #
 # The document "py-fast" is ranked high in both. Reranking should promote it to the top.
-final_ranked_list = rerank([keyword_results, vector_results])
+final_ranked_list = rerank(keyword_results, vector_results)
 
 print("\n--- FINAL RERANKED RESULTS ---")
 print("Combined and reranked order:", [d.id for d in final_ranked_list])

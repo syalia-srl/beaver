@@ -85,14 +85,18 @@ docs.index(doc)
 
 # 1. Perform a vector search to find semantically similar documents
 query_vector = [0.7, 0.2, 0.2]
-vector_results = docs.search(vector=query_vector, top_k=1)
+vector_results = docs.search(vector=query_vector, top_k=3)
 top_doc, distance = vector_results[0]
 print(f"Vector Search Result: {top_doc.content} (distance: {distance:.2f})")
 
 # 2. Perform a full-text search to find documents with specific words
-text_results = docs.match(query="database", top_k=1)
+text_results = docs.match(query="database", top_k=3)
 top_doc, rank = text_results[0]
 print(f"Full-Text Search Result: {top_doc.content} (rank: {rank:.2f})")
+
+# 3. Combine both vector and text search for refined results
+from beaver.collections import rerank
+combined_results = rerank([d for d,_ in vector_results], [d for d,_ in text_results], weights=[2,1])
 ```
 
 ### Graph Traversal
