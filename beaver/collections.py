@@ -175,6 +175,9 @@ class CollectionWrapper:
         if not self._kdtree:
             return []
 
+        if top_k > len(self._doc_ids):
+            top_k = len(self._doc_ids)
+
         distances, indices = self._kdtree.query(
             np.array(vector, dtype=np.float32), k=top_k
         )
@@ -325,3 +328,58 @@ class CollectionWrapper:
             )
             for row in rows
         ]
+
+
+def rerank(
+    results: list[list[Document]],
+    weights: list[float] | None = None,
+    k: int = 60
+) -> list[Document]:
+    """
+    Reranks documents from multiple search result lists using Reverse Rank Fusion (RRF).
+    This function is specifically designed to work with beaver.collections.Document objects.
+
+    Args:
+        results (list[list[Document]]): A list of search result lists, where each
+            inner list contains Document objects.
+        weights (list[float], optional): A list of weights corresponding to each
+            result list. If None, all lists are weighted equally. Defaults to None.
+        k (int, optional): A constant used in the RRF formula. Defaults to 60.
+
+    Returns:
+        list[Document]: A single, reranked list of unique Document objects, sorted
+        by their fused rank score in descending order.
+    """
+    if not results:
+        return []
+
+    # Assign a default weight of 1.0 if none are provided
+    if weights is None:
+        weights = [1.0] * len(results)
+
+    if len(results) != len(weights):
+        raise ValueError("The number of result lists must match the number of weights.")
+
+    # Use dictionaries to store scores and unique documents by their ID
+    rrf_scores: dict[str, float] = {}
+    doc_store: dict[str, Document] = {}
+
+    # Iterate through each list of Document objects and its weight
+    for result_list, weight in zip(results, weights):
+        for rank, doc in enumerate(result_list):
+            # Use the .id attribute from the Document object
+            doc_id = doc.id
+            if doc_id not in doc_store:
+                doc_store[doc_id] = doc
+
+            # Calculate the reciprocal rank score, scaled by the weight
+            score = weight * (1 / (k + rank))
+
+            # Add the score to the document's running total
+            rrf_scores[doc_id] = rrf_scores.get(doc_id, 0.0) + score
+
+    # Sort the document IDs by their final aggregated scores
+    sorted_doc_ids = sorted(rrf_scores.keys(), key=rrf_scores.get, reverse=True)
+
+    # Return the final list of Document objects in the new, reranked order
+    return [doc_store[doc_id] for doc_id in sorted_doc_ids]
