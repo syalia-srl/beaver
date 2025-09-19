@@ -21,8 +21,8 @@ A fast, single-file, multi-modal database for Python, built with the standard `s
 ## Core Features
 
   - **Synchronous Pub/Sub**: A simple, thread-safe, Redis-like publish-subscribe system for real-time messaging.
-  - **Namespaced Key-Value Dictionaries**: A Pythonic, dictionary-like interface for storing any JSON-serializable object within separate namespaces.
-  - **Pythonic List Management**: A fluent, Redis-like interface for managing persistent, ordered lists.
+  - **Namespaced Key-Value Dictionaries**: A Pythonic, dictionary-like interface for storing any JSON-serializable object within separate namespaces with optional TTL for cache implementations.
+  - **Pythonic List Management**: A fluent, Redis-like interface for managing persistent, ordered lists, with all operations in constant time.
   - **Efficient Vector Storage & Search**: Store vector embeddings and perform fast approximate nearest neighbor searches using an in-memory k-d tree.
   - **Full-Text Search**: Automatically index and search through document metadata using SQLite's powerful FTS5 engine.
   - **Graph Traversal**: Create relationships between documents and traverse the graph to find neighbors or perform multi-hop walks.
