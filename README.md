@@ -176,6 +176,7 @@ These are some of the features and improvements planned for future releases:
 - **Fuzzy search**: Implement fuzzy matching capabilities for text search.
 - **Faster ANN**: Explore integrating more advanced ANN libraries like `faiss` for improved vector search performance.
 - **Priority Queues**: Introduce a priority queue data structure for task management.
+- **Improved Pub/Sub**: Fan-out implementation with a more Pythonic API.
 
 Check out the [roadmap](roadmap.md) for a detailed list of upcoming features and design ideas.
 
