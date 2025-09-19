@@ -177,6 +177,7 @@ These are some of the features and improvements planned for future releases:
 - **Faster ANN**: Explore integrating more advanced ANN libraries like `faiss` for improved vector search performance.
 - **Priority Queues**: Introduce a priority queue data structure for task management.
 - **Improved Pub/Sub**: Fan-out implementation with a more Pythonic API.
+- **Async API**: Comprehensive async support with on-demand wrappers for all collections.
 
 Check out the [roadmap](roadmap.md) for a detailed list of upcoming features and design ideas.
 
