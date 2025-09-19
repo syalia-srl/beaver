@@ -48,6 +48,7 @@ class BeaverDB:
                     dict_name TEXT NOT NULL,
                     key TEXT NOT NULL,
                     value TEXT NOT NULL,
+                    expires_at REAL,
                     PRIMARY KEY (dict_name, key)
                 )
             """

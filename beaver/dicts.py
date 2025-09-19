@@ -1,7 +1,7 @@
 import json
 import sqlite3
+import time # Add this import
 from typing import Any, Iterator, Tuple
-
 
 class DictWrapper:
     """A wrapper providing a Pythonic interface to a dictionary in the database."""
@@ -10,37 +10,55 @@ class DictWrapper:
         self._name = name
         self._conn = conn
 
-    def set(self, key: str, value: Any):
-        """Sets a value for a key in the dictionary."""
-        self.__setitem__(key, value)
+    def set(self, key: str, value: Any, ttl_seconds: int | None = None):
+        """Sets a value for a key, with an optional TTL."""
+        self.__setitem__(key, value, ttl_seconds=ttl_seconds)
 
-    def __setitem__(self, key: str, value: Any):
+    def __setitem__(self, key: str, value: Any, ttl_seconds: int | None = None):
         """Sets a value for a key (e.g., `my_dict[key] = value`)."""
+        expires_at = None
+        if ttl_seconds is not None:
+            if not isinstance(ttl_seconds, int) or ttl_seconds <= 0:
+                raise ValueError("ttl_seconds must be a positive integer.")
+            expires_at = time.time() + ttl_seconds
+
         with self._conn:
             self._conn.execute(
-                "INSERT OR REPLACE INTO beaver_dicts (dict_name, key, value) VALUES (?, ?, ?)",
-                (self._name, key, json.dumps(value)),
+                "INSERT OR REPLACE INTO beaver_dicts (dict_name, key, value, expires_at) VALUES (?, ?, ?, ?)",
+                (self._name, key, json.dumps(value), expires_at),
             )
 
     def get(self, key: str, default: Any = None) -> Any:
-        """Gets a value for a key, with a default if it doesn't exist."""
+        """Gets a value for a key, with a default if it doesn't exist or is expired."""
         try:
             return self[key]
         except KeyError:
             return default
 
     def __getitem__(self, key: str) -> Any:
-        """Retrieves a value for a given key (e.g., `my_dict[key]`)."""
+        """Retrieves a value for a given key, raising KeyError if expired."""
         cursor = self._conn.cursor()
         cursor.execute(
-            "SELECT value FROM beaver_dicts WHERE dict_name = ? AND key = ?",
+            "SELECT value, expires_at FROM beaver_dicts WHERE dict_name = ? AND key = ?",
             (self._name, key),
         )
         result = cursor.fetchone()
-        cursor.close()
+
         if result is None:
+            cursor.close()
             raise KeyError(f"Key '{key}' not found in dictionary '{self._name}'")
-        return json.loads(result["value"])
+
+        value, expires_at = result["value"], result["expires_at"]
+
+        if expires_at is not None and time.time() > expires_at:
+            # Expired: delete the key and raise KeyError
+            cursor.execute("DELETE FROM beaver_dicts WHERE dict_name = ? AND key = ?", (self._name, key))
+            self._conn.commit()
+            cursor.close()
+            raise KeyError(f"Key '{key}' not found in dictionary '{self._name}' (expired)")
+
+        cursor.close()
+        return json.loads(value)
 
     def __delitem__(self, key: str):
         """Deletes a key-value pair (e.g., `del my_dict[key]`)."""
