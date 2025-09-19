@@ -45,7 +45,7 @@ class Document:
         return f"Document(id='{self.id}', {metadata_str})"
 
 
-class CollectionWrapper:
+class CollectionManager:
     """
     A wrapper for multi-modal collection operations with an in-memory ANN index,
     FTS, and graph capabilities.

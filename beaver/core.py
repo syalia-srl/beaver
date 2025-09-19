@@ -3,10 +3,10 @@ import sqlite3
 import time
 from typing import Any
 
-from .dicts import DictWrapper
-from .lists import ListWrapper
-from .subscribers import SubWrapper
-from .collections import CollectionWrapper
+from .dicts import DictManager
+from .lists import ListManager
+from .channels import ChannelManager
+from .collections import CollectionManager
 
 
 class BeaverDB:
@@ -152,21 +152,21 @@ class BeaverDB:
 
     # --- Factory and Passthrough Methods ---
 
-    def dict(self, name: str) -> DictWrapper:
+    def dict(self, name: str) -> DictManager:
         """Returns a wrapper object for interacting with a named dictionary."""
         if not isinstance(name, str) or not name:
             raise TypeError("Dictionary name must be a non-empty string.")
-        return DictWrapper(name, self._conn)
+        return DictManager(name, self._conn)
 
-    def list(self, name: str) -> ListWrapper:
+    def list(self, name: str) -> ListManager:
         """Returns a wrapper object for interacting with a named list."""
         if not isinstance(name, str) or not name:
             raise TypeError("List name must be a non-empty string.")
-        return ListWrapper(name, self._conn)
+        return ListManager(name, self._conn)
 
-    def collection(self, name: str) -> CollectionWrapper:
+    def collection(self, name: str) -> CollectionManager:
         """Returns a wrapper for interacting with a document collection."""
-        return CollectionWrapper(name, self._conn)
+        return CollectionManager(name, self._conn)
 
     def publish(self, channel_name: str, payload: Any):
         """Publishes a JSON-serializable message to a channel. This is synchronous."""
@@ -183,6 +183,6 @@ class BeaverDB:
                 (time.time(), channel_name, json_payload),
             )
 
-    def subscribe(self, channel_name: str) -> SubWrapper:
+    def subscribe(self, channel_name: str) -> ChannelManager:
         """Subscribes to a channel, returning a synchronous iterator."""
-        return SubWrapper(self._conn, channel_name)
+        return ChannelManager(self._conn, channel_name)

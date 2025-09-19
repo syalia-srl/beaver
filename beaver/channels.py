@@ -4,7 +4,7 @@ import time
 from typing import Any, Iterator
 
 
-class SubWrapper(Iterator):
+class ChannelManager(Iterator):
     """
     A synchronous, blocking iterator that polls a channel for new messages.
     """
@@ -25,7 +25,7 @@ class SubWrapper(Iterator):
         self._poll_interval = poll_interval
         self._last_seen_timestamp = time.time()
 
-    def __iter__(self) -> "SubWrapper":
+    def __iter__(self) -> "ChannelManager":
         """Returns the iterator object itself."""
         return self
 

@@ -2,7 +2,7 @@ import json
 import sqlite3
 from typing import Any, Union, Iterator
 
-class ListWrapper:
+class ListManager:
     """A wrapper providing a Pythonic, full-featured interface to a list in the database."""
 
     def __init__(self, name: str, conn: sqlite3.Connection):

@@ -3,7 +3,7 @@ import sqlite3
 import time # Add this import
 from typing import Any, Iterator, Tuple
 
-class DictWrapper:
+class DictManager:
     """A wrapper providing a Pythonic interface to a dictionary in the database."""
 
     def __init__(self, name: str, conn: sqlite3.Connection):
