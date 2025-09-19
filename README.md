@@ -22,7 +22,7 @@ A fast, single-file, multi-modal database for Python, built with the standard `s
 
   - **Synchronous Pub/Sub**: A simple, thread-safe, Redis-like publish-subscribe system for real-time messaging.
   - **Namespaced Key-Value Dictionaries**: A Pythonic, dictionary-like interface for storing any JSON-serializable object within separate namespaces with optional TTL for cache implementations.
-  - **Pythonic List Management**: A fluent, Redis-like interface for managing persistent, ordered lists, with all operations in constant time.
+  - **Pythonic List Management**: A fluent, Redis-like interface for managing persistent, ordered lists.
   - **Efficient Vector Storage & Search**: Store vector embeddings and perform fast approximate nearest neighbor searches using an in-memory k-d tree.
   - **Full-Text Search**: Automatically index and search through document metadata using SQLite's powerful FTS5 engine.
   - **Graph Traversal**: Create relationships between documents and traverse the graph to find neighbors or perform multi-hop walks.
@@ -34,152 +34,134 @@ A fast, single-file, multi-modal database for Python, built with the standard `s
 pip install beaver-db
 ```
 
-## Quickstart & API Guide
+## Quickstart
 
-### Initialization
-
-All you need to do is import and instantiate the `BeaverDB` class with a file path.
+Get up and running in 30 seconds. This example showcases a dictionary, a list, and full-text search in a single script.
 
 ```python
 from beaver import BeaverDB, Document
 
-db = BeaverDB("my_application.db")
-```
+# 1. Initialize the database
+db = BeaverDB("data.db")
 
-### Namespaced Dictionaries
-
-Use `db.dict()` to get a dictionary-like object for a specific namespace. The value can be any JSON-encodable object.
-
-```python
-# Get a handle to the 'app_config' namespace
+# 2. Use a namespaced dictionary for app configuration
 config = db.dict("app_config")
-
-# Set values using standard dictionary syntax
 config["theme"] = "dark"
-config["user_id"] = 123
+print(f"Theme set to: {config['theme']}")
 
-# Get a value
-theme = config.get("theme")
-print(f"Theme: {theme}") # Output: Theme: dark
-```
-
-### List Management
-
-Get a list wrapper with `db.list()` and use Pythonic methods to manage it.
-
-```python
+# 3. Use a persistent list to manage a task queue
 tasks = db.list("daily_tasks")
 tasks.push("Write the project report")
-tasks.prepend("Plan the day's agenda")
-print(f"The first task is: {tasks[0]}")
-```
+tasks.push("Deploy the new feature")
+print(f"First task is: {tasks[0]}")
 
-### Vector & Text Search
-
-Store `Document` objects containing vector embeddings and metadata. When you index a document, its string fields are automatically made available for full-text search.
-
-```python
-# Get a handle to a collection
-docs = db.collection("articles")
-
-# Create and index a multi-modal document
+# 4. Use a collection for document storage and search
+articles = db.collection("articles")
 doc = Document(
-    id="sql-001",
-    embedding=[0.8, 0.1, 0.1],
-    content="SQLite is a powerful embedded database ideal for local apps.",
-    author="John Smith"
+    id="sqlite-001",
+    content="SQLite is a powerful embedded database ideal for local apps."
 )
-docs.index(doc)
+articles.index(doc)
 
-# 1. Perform a vector search to find semantically similar documents
-query_vector = [0.7, 0.2, 0.2]
-vector_results = docs.search(vector=query_vector, top_k=3)
-top_doc, distance = vector_results[0]
-print(f"Vector Search Result: {top_doc.content} (distance: {distance:.2f})")
+# Perform a full-text search
+results = articles.match(query="database")
+top_doc, rank = results[0]
+print(f"FTS Result: '{top_doc.content}'")
 
-# 2. Perform a full-text search to find documents with specific words
-text_results = docs.match(query="database", top_k=3)
-top_doc, rank = text_results[0]
-print(f"Full-Text Search Result: {top_doc.content} (rank: {rank:.2f})")
+db.close()
+```
 
-# 3. Combine both vector and text search for refined results
+## Things You Can Build with Beaver
+
+Here are a few ideas to inspire your next project, showcasing how to combine Beaver's features to build powerful local applications.
+
+### 1. User Authentication and Profile Store
+
+Use a **namespaced dictionary** to create a simple and secure user store. The key can be the username, and the value can be a dictionary containing the hashed password and other profile information.
+
+```python
+users = db.dict("user_profiles")
+
+# Create a new user
+users["alice"] = {
+    "hashed_password": "...",
+    "email": "alice@example.com",
+    "permissions": ["read", "write"]
+}
+
+# Retrieve a user's profile
+alice_profile = users.get("alice")
+```
+
+### 2. Chatbot Conversation History
+
+A **persistent list** is perfect for storing the history of a conversation. Each time the user or the bot sends a message, just `push` it to the list. This maintains a chronological record of the entire dialogue.
+
+```python
+chat_history = db.list("conversation_with_user_123")
+
+chat_history.push({"role": "user", "content": "Hello, Beaver!"})
+chat_history.push({"role": "assistant", "content": "Hello! How can I help you today?"})
+
+# Retrieve the full conversation
+for message in chat_history:
+    print(f"{message['role']}: {message['content']}")
+```
+
+### 3. Build a RAG (Retrieval-Augmented Generation) System
+
+Combine **vector search** and **full-text search** to build a powerful RAG pipeline for your local documents.
+
+```python
+# Get context for a user query like "fast python web frameworks"
+vector_results = [doc for doc, _ in docs.search(vector=query_vector)]
+text_results = [doc for doc, _ in docs.match(query="python web framework")]
+
+# Combine and rerank for the best context
 from beaver.collections import rerank
-combined_results = rerank([d for d,_ in vector_results], [d for d,_ in text_results], weights=[2,1])
+best_context = rerank(vector_results, text_results, weights=[0.6, 0.4])
 ```
 
-### Graph Traversal
+### 4. Caching for Expensive API Calls
 
-Create relationships between documents and traverse them.
+Leverage a **dictionary with a TTL (Time-To-Live)** to cache the results of slow network requests. This can dramatically speed up your application and reduce your reliance on external services.
 
 ```python
-from beaver import WalkDirection
+api_cache = db.dict("external_api_cache")
 
-# Create documents
-alice = Document(id="alice", name="Alice")
-bob = Document(id="bob", name="Bob")
-charlie = Document(id="charlie", name="Charlie")
-
-# Index them
-social_net = db.collection("social")
-social_net.index(alice)
-social_net.index(bob)
-social_net.index(charlie)
-
-# Create edges
-social_net.connect(alice, bob, label="FOLLOWS")
-social_net.connect(bob, charlie, label="FOLLOWS")
-
-# Find direct neighbors
-following = social_net.neighbors(alice, label="FOLLOWS")
-print(f"Alice follows: {[p.id for p in following]}")
-
-# Perform a multi-hop walk to find friends of friends
-foaf = social_net.walk(
-    source=alice,
-    labels=["FOLLOWS"],
-    depth=2,
-    direction=WalkDirection.OUTGOING,
-)
-print(f"Alice's extended network: {[p.id for p in foaf]}")
+# Check the cache first
+response = api_cache.get("weather_new_york")
+if response is None:
+    # If not in cache, make the real API call
+    response = make_slow_weather_api_call("New York")
+    # Cache the result for 1 hour
+    api_cache.set("weather_new_york", response, ttl_seconds=3600)
 ```
 
-### Synchronous Pub/Sub
+## More Examples
 
-Publish events from one part of your app and listen in another using threads.
+For more in-depth examples, check out the scripts in the `examples/` directory:
 
-```python
-import threading
-
-def listener():
-    for message in db.subscribe("system_events"):
-        print(f"LISTENER: Received -> {message}")
-        if message.get("event") == "shutdown":
-            break
-
-def publisher():
-    db.publish("system_events", {"event": "user_login", "user": "alice"})
-    db.publish("system_events", {"event": "shutdown"})
-
-# Run them concurrently
-listener_thread = threading.Thread(target=listener)
-publisher_thread = threading.Thread(target=publisher)
-listener_thread.start()
-publisher_thread.start()
-listener_thread.join()
-publisher_thread.join()
-```
+  - [`examples/kvstore.py`](https://www.google.com/search?q=examples/kvstore.py): A comprehensive demo of the namespaced dictionary feature.
+  - [`examples/list.py`](https://www.google.com/search?q=examples/list.py): Shows the full capabilities of the persistent list, including slicing and in-place updates.
+  - [`examples/vector.py`](https://www.google.com/search?q=examples/vector.py): Demonstrates how to index and search vector embeddings, including upserts.
+  - [`examples/fts.py`](https://www.google.com/search?q=examples/fts.py): A detailed look at full-text search, including targeted searches on specific metadata fields.
+  - [`examples/graph.py`](https://www.google.com/search?q=examples/graph.py): Shows how to create relationships between documents and perform multi-hop graph traversals.
+  - [`examples/pubsub.py`](https://www.google.com/search?q=examples/pubsub.py): A demonstration of the synchronous, thread-safe publish/subscribe system.
+  - [`examples/cache.py`](https://www.google.com/search?q=examples/cache.py): A practical example of using a dictionary with TTL as a cache for API calls.
+  - [`examples/rerank.py`](https://www.google.com/search?q=examples/rerank.py): Shows how to combine results from vector and text search for more refined results.
 
 ## Roadmap
 
 These are some of the features and improvements planned for future releases:
 
-- **Fuzzy search**: Implement fuzzy matching capabilities for text search.
-- **Faster ANN**: Explore integrating more advanced ANN libraries like `faiss` for improved vector search performance.
-- **Priority Queues**: Introduce a priority queue data structure for task management.
-- **Improved Pub/Sub**: Fan-out implementation with a more Pythonic API.
-- **Async API**: Comprehensive async support with on-demand wrappers for all collections.
+  - **Fuzzy search**: Implement fuzzy matching capabilities for text search.
+  - **Faster ANN**: Explore integrating more advanced ANN libraries like `faiss` for improved vector search performance.
+  - **Priority Queues**: Introduce a priority queue data structure for task management.
+  - **Improved Pub/Sub**: Fan-out implementation with a more Pythonic API.
+  - **Async API**: Comprehensive async support with on-demand wrappers for all collections.
 
-Check out the [roadmap](roadmap.md) for a detailed list of upcoming features and design ideas.
+Check out the [roadmap](https://www.google.com/search?q=roadmap.md) for a detailed list of upcoming features and design ideas.
 
 ## License
 
