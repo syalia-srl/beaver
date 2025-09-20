@@ -86,47 +86,6 @@ This feature represents a significant evolution of the library while respecting 
 
 ---
 
-## Feature: Persistent Priority Queue
-
-### 1. Concept
-
-A **Persistent Priority Queue** is a new low-level data structure that stores items along with a user-defined priority. Unlike a standard list or queue (which are strictly FIFO/LIFO), this modality guarantees that the item retrieved is always the one with the **highest priority**, regardless of when it was added.
-
-This is a fundamental feature for any application that needs to manage tasks or events by importance. Its persistence ensures that if the application restarts, the exact order of all pending tasks is perfectly preserved.
-
-### 2. Use Cases
-
-This is a critical modality for building more sophisticated AI systems:
-* **AI Agent Task Management**: An agent can manage a to-do list where tasks have different urgencies. A priority queue ensures the agent always works on the most important task first (e.g., a priority 1 "respond to user" task before a priority 10 "summarize news" task).
-* **Resource Scheduling**: Efficiently manage access to a limited resource, like a GPU, by allowing high-priority inference jobs to be processed before lower-priority batch processing tasks.
-* **Event-Driven Systems**: In a system processing a stream of events, a priority queue ensures that high-priority events (like a `payment_failed` event) are handled before low-priority ones (like a `log_telemetry` event).
-
-### 3. Proposed API
-
-The API is designed to be minimal and intuitive, providing only the essential methods for a priority queue.
-
-* `queue = db.priority_queue("tasks")`: Creates or loads a persistent priority queue.
-* `queue.put(data, priority)`: Adds an item to the queue with a specific priority (a lower number means higher priority).
-* `item = queue.get()`: Atomically removes and returns the item with the highest priority. The returned item is a dataclass containing the `priority`, `timestamp`, and `data`.
-* `len(queue)`: Returns the current number of items in the queue.
-
-### 4. Implementation Design
-
-The performance of this feature is derived directly from a specialized database index.
-
-1.  **Schema**: A new table, `beaver_priority_queues`, will store the `queue_name`, a `priority` (REAL), a `timestamp` (REAL), and the `data` payload (TEXT).
-2.  **Compound Index**: A powerful compound index on `(queue_name, priority ASC, timestamp ASC)` is the key to the design. This pre-sorts the data, allowing SQLite to jump directly to the highest-priority item for a given queue in O(1) time. The timestamp is used as a tie-breaker, ensuring that items with the same priority are processed in the order they were received (FIFO).
-
-### 5. Alignment with Philosophy
-
-This feature is a perfect fit for the `beaver-db` design philosophy:
-
-* **Distinct Modality**: Its ordering is based on a user-defined priority, making it a fundamentally different and new tool compared to the existing `ListWrapper`.
-* **SQLite-Native Performance**: It leverages the native power of a compound B-Tree index in SQLite to deliver high performance without any complex application-level logic.
-* **Simple and Pythonic API**: It abstracts away the indexed database table behind a clean, simple, and explicit API that is natural for any Python developer to use.
-
----
-
 ## Feature: High-Efficiency, Fan-Out Pub/Sub
 
 ### 1. Concept

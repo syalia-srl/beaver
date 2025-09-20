@@ -1,9 +1,5 @@
 # beaver 🦫
 
-![PyPI - Downloads](https://img.shields.io/pypi/dm/beaver-db)
-![PyPI](https://img.shields.io/pypi/v/beaver-db)
-![License](https://img.shields.io/github/license/apiad/beaver)
-
 A fast, single-file, multi-modal database for Python, built with the standard `sqlite3` library.
 
 `beaver` is the **B**ackend for **E**mbedded, **A**ll-in-one **V**ector, **E**ntity, and **R**elationship storage. It's a simple, local, and embedded database designed to manage complex, modern data types without requiring a database server, built on top of SQLite.
@@ -23,6 +19,7 @@ A fast, single-file, multi-modal database for Python, built with the standard `s
   - **Synchronous Pub/Sub**: A simple, thread-safe, Redis-like publish-subscribe system for real-time messaging.
   - **Namespaced Key-Value Dictionaries**: A Pythonic, dictionary-like interface for storing any JSON-serializable object within separate namespaces with optional TTL for cache implementations.
   - **Pythonic List Management**: A fluent, Redis-like interface for managing persistent, ordered lists.
+  - **Persistent Priority Queue**: A high-performance, persistent queue that always returns the item with the highest priority, perfect for task management.
   - **Efficient Vector Storage & Search**: Store vector embeddings and perform fast approximate nearest neighbor searches using an in-memory k-d tree.
   - **Full-Text Search**: Automatically index and search through document metadata using SQLite's powerful FTS5 engine.
   - **Graph Traversal**: Create relationships between documents and traverse the graph to find neighbors or perform multi-hop walks.
@@ -75,7 +72,24 @@ db.close()
 
 Here are a few ideas to inspire your next project, showcasing how to combine Beaver's features to build powerful local applications.
 
-### 1. User Authentication and Profile Store
+### 1. AI Agent Task Management
+
+Use a **persistent priority queue** to manage tasks for an AI agent. This ensures the agent always works on the most important task first, even if the application restarts.
+
+```python
+tasks = db.queue("agent_tasks")
+
+# Tasks are added with a priority (lower is higher)
+tasks.put({"action": "summarize_news"}, priority=10)
+tasks.put({"action": "respond_to_user"}, priority=1)
+tasks.put({"action": "run_backup"}, priority=20)
+
+# The agent retrieves the highest-priority task
+next_task = tasks.get() # -> Returns the "respond_to_user" task
+print(f"Agent's next task: {next_task.data['action']}")
+```
+
+### 2. User Authentication and Profile Store
 
 Use a **namespaced dictionary** to create a simple and secure user store. The key can be the username, and the value can be a dictionary containing the hashed password and other profile information.
 
@@ -93,7 +107,7 @@ users["alice"] = {
 alice_profile = users.get("alice")
 ```
 
-### 2. Chatbot Conversation History
+### 3. Chatbot Conversation History
 
 A **persistent list** is perfect for storing the history of a conversation. Each time the user or the bot sends a message, just `push` it to the list. This maintains a chronological record of the entire dialogue.
 
@@ -108,7 +122,7 @@ for message in chat_history:
     print(f"{message['role']}: {message['content']}")
 ```
 
-### 3. Build a RAG (Retrieval-Augmented Generation) System
+### 4. Build a RAG (Retrieval-Augmented Generation) System
 
 Combine **vector search** and **full-text search** to build a powerful RAG pipeline for your local documents.
 
@@ -122,7 +136,7 @@ from beaver.collections import rerank
 best_context = rerank(vector_results, text_results, weights=[0.6, 0.4])
 ```
 
-### 4. Caching for Expensive API Calls
+### 5. Caching for Expensive API Calls
 
 Leverage a **dictionary with a TTL (Time-To-Live)** to cache the results of slow network requests. This can dramatically speed up your application and reduce your reliance on external services.
 
@@ -142,14 +156,15 @@ if response is None:
 
 For more in-depth examples, check out the scripts in the `examples/` directory:
 
-  - [`examples/kvstore.py`](https://www.google.com/search?q=examples/kvstore.py): A comprehensive demo of the namespaced dictionary feature.
-  - [`examples/list.py`](https://www.google.com/search?q=examples/list.py): Shows the full capabilities of the persistent list, including slicing and in-place updates.
-  - [`examples/vector.py`](https://www.google.com/search?q=examples/vector.py): Demonstrates how to index and search vector embeddings, including upserts.
-  - [`examples/fts.py`](https://www.google.com/search?q=examples/fts.py): A detailed look at full-text search, including targeted searches on specific metadata fields.
-  - [`examples/graph.py`](https://www.google.com/search?q=examples/graph.py): Shows how to create relationships between documents and perform multi-hop graph traversals.
-  - [`examples/pubsub.py`](https://www.google.com/search?q=examples/pubsub.py): A demonstration of the synchronous, thread-safe publish/subscribe system.
-  - [`examples/cache.py`](https://www.google.com/search?q=examples/cache.py): A practical example of using a dictionary with TTL as a cache for API calls.
-  - [`examples/rerank.py`](https://www.google.com/search?q=examples/rerank.py): Shows how to combine results from vector and text search for more refined results.
+  - [`examples/kvstore.py`](https://www.google.com/search?q=%5Bhttps://www.google.com/search%3Fq%3Dexamples/kvstore.py%5D\(https://www.google.com/search%3Fq%3Dexamples/kvstore.py\)): A comprehensive demo of the namespaced dictionary feature.
+  - [`examples/list.py`](https://www.google.com/search?q=%5Bhttps://www.google.com/search%3Fq%3Dexamples/list.py%5D\(https://www.google.com/search%3Fq%3Dexamples/list.py\)): Shows the full capabilities of the persistent list, including slicing and in-place updates.
+  - [`examples/queue.py`](https://www.google.com/search?q=%5Bhttps://www.google.com/search%3Fq%3Dexamples/queue.py%5D\(https://www.google.com/search%3Fq%3Dexamples/queue.py\)): A practical example of using the persistent priority queue for task management.
+  - [`examples/vector.py`](https://www.google.com/search?q=%5Bhttps://www.google.com/search%3Fq%3Dexamples/vector.py%5D\(https://www.google.com/search%3Fq%3Dexamples/vector.py\)): Demonstrates how to index and search vector embeddings, including upserts.
+  - [`examples/fts.py`](https://www.google.com/search?q=%5Bhttps://www.google.com/search%3Fq%3Dexamples/fts.py%5D\(https://www.google.com/search%3Fq%3Dexamples/fts.py\)): A detailed look at full-text search, including targeted searches on specific metadata fields.
+  - [`examples/graph.py`](https://www.google.com/search?q=%5Bhttps://www.google.com/search%3Fq%3Dexamples/graph.py%5D\(https://www.google.com/search%3Fq%3Dexamples/graph.py\)): Shows how to create relationships between documents and perform multi-hop graph traversals.
+  - [`examples/pubsub.py`](https://www.google.com/search?q=%5Bhttps://www.google.com/search%3Fq%3Dexamples/pubsub.py%5D\(https://www.google.com/search%3Fq%3Dexamples/pubsub.py\)): A demonstration of the synchronous, thread-safe publish/subscribe system.
+  - [`examples/cache.py`](https://www.google.com/search?q=%5Bhttps://www.google.com/search%3Fq%3Dexamples/cache.py%5D\(https://www.google.com/search%3Fq%3Dexamples/cache.py\)): A practical example of using a dictionary with TTL as a cache for API calls.
+  - [`examples/rerank.py`](https://www.google.com/search?q=%5Bhttps://www.google.com/search%3Fq%3Dexamples/rerank.py%5D\(https://www.google.com/search%3Fq%3Dexamples/rerank.py\)): Shows how to combine results from vector and text search for more refined results.
 
 ## Roadmap
 
@@ -157,7 +172,6 @@ These are some of the features and improvements planned for future releases:
 
   - **Fuzzy search**: Implement fuzzy matching capabilities for text search.
   - **Faster ANN**: Explore integrating more advanced ANN libraries like `faiss` for improved vector search performance.
-  - **Priority Queues**: Introduce a priority queue data structure for task management.
   - **Improved Pub/Sub**: Fan-out implementation with a more Pythonic API.
   - **Async API**: Comprehensive async support with on-demand wrappers for all collections.
 

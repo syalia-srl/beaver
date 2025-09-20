@@ -7,6 +7,7 @@ from .dicts import DictManager
 from .lists import ListManager
 from .channels import ChannelManager
 from .collections import CollectionManager
+from .queues import QueueManager
 
 
 class BeaverDB:
@@ -38,6 +39,27 @@ class BeaverDB:
         self._create_edges_table()
         self._create_versions_table()
         self._create_dict_table()
+        self._create_priority_queue_table()
+
+    def _create_priority_queue_table(self):
+        """Creates the priority queue table and its performance index."""
+        with self._conn:
+            self._conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS beaver_priority_queues (
+                    queue_name TEXT NOT NULL,
+                    priority REAL NOT NULL,
+                    timestamp REAL NOT NULL,
+                    data TEXT NOT NULL
+                )
+                """
+            )
+            self._conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_priority_queue_order
+                ON beaver_priority_queues (queue_name, priority ASC, timestamp ASC)
+                """
+            )
 
     def _create_dict_table(self):
         """Creates the namespaced dictionary table."""
@@ -164,8 +186,16 @@ class BeaverDB:
             raise TypeError("List name must be a non-empty string.")
         return ListManager(name, self._conn)
 
+    def queue(self, name: str) -> QueueManager:
+        """Returns a wrapper object for interacting with a persistent priority queue."""
+        if not isinstance(name, str) or not name:
+            raise TypeError("Queue name must be a non-empty string.")
+        return QueueManager(name, self._conn)
+
     def collection(self, name: str) -> CollectionManager:
         """Returns a wrapper for interacting with a document collection."""
+        if not isinstance(name, str) or not name:
+            raise TypeError("Collection name must be a non-empty string.")
         return CollectionManager(name, self._conn)
 
     def publish(self, channel_name: str, payload: Any):
