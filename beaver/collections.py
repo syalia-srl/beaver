@@ -309,7 +309,7 @@ class CollectionManager:
         self,
         query: str,
         *,
-        on: list[str] | None = None,
+        on: str | list[str] | None = None,
         top_k: int = 10,
         fuzziness: int = 0
     ) -> list[tuple[Document, float]]:
@@ -324,6 +324,9 @@ class CollectionManager:
                        If 0, performs an exact FTS search.
                        If > 0, performs a fuzzy search.
         """
+        if isinstance(on, str):
+            on = [on]
+
         if fuzziness == 0:
             return self._perform_fts_search(query, on, top_k)
         else:
