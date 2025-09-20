@@ -173,7 +173,7 @@ class BeaverDB:
             # Cleanly shut down any active polling threads before closing
             with self._channels_lock:
                 for channel in self._channels.values():
-                    channel._stop_polling()
+                    channel.close()
             self._conn.close()
 
     # --- Factory and Passthrough Methods ---

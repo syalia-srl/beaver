@@ -5,6 +5,9 @@ import time
 from queue import Empty, Queue
 from typing import Any, Iterator, Set
 
+# A special message object used to signal the listener to gracefully shut down.
+_SHUTDOWN_SENTINEL = object()
+
 
 class Subscriber:
     """
@@ -42,7 +45,12 @@ class Subscriber:
         """
         while True:
             try:
-                yield self._queue.get(timeout=timeout)
+                msg = self._queue.get(timeout=timeout)
+
+                if msg is _SHUTDOWN_SENTINEL:
+                    break
+
+                yield msg
             except Empty:
                 raise TimeoutError(f"Timeout {timeout}s expired.")
 
@@ -90,6 +98,7 @@ class ChannelManager:
             if not self._listeners:
                 self._stop_polling()
 
+
     def _start_polling(self):
         """Starts the background polling thread."""
         self._stop_event.clear()
@@ -102,6 +111,16 @@ class ChannelManager:
             self._stop_event.set()
             self._polling_thread.join()
             self._polling_thread = None
+
+    def close(self):
+        """Reliable close this channel and removes listeners."""
+        self._stop_polling()
+
+        with self._lock:
+            for listener in self._listeners:
+                listener.put(_SHUTDOWN_SENTINEL)
+
+        self._listeners.clear()
 
     def _polling_loop(self):
         """
@@ -116,6 +135,7 @@ class ChannelManager:
 
         # The poller starts listening for messages from this moment forward.
         last_seen_timestamp = time.time()
+
 
         while not self._stop_event.is_set():
             cursor = thread_conn.cursor()
@@ -140,6 +160,7 @@ class ChannelManager:
 
             # Wait for the poll interval before checking for new messages again.
             time.sleep(self._poll_interval)
+
 
         thread_conn.close()
 
