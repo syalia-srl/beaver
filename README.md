@@ -156,15 +156,15 @@ if response is None:
 
 For more in-depth examples, check out the scripts in the `examples/` directory:
 
-  - [`examples/kvstore.py`](https://www.google.com/search?q=%5Bhttps://www.google.com/search%3Fq%3Dexamples/kvstore.py%5D\(https://www.google.com/search%3Fq%3Dexamples/kvstore.py\)): A comprehensive demo of the namespaced dictionary feature.
-  - [`examples/list.py`](https://www.google.com/search?q=%5Bhttps://www.google.com/search%3Fq%3Dexamples/list.py%5D\(https://www.google.com/search%3Fq%3Dexamples/list.py\)): Shows the full capabilities of the persistent list, including slicing and in-place updates.
-  - [`examples/queue.py`](https://www.google.com/search?q=%5Bhttps://www.google.com/search%3Fq%3Dexamples/queue.py%5D\(https://www.google.com/search%3Fq%3Dexamples/queue.py\)): A practical example of using the persistent priority queue for task management.
-  - [`examples/vector.py`](https://www.google.com/search?q=%5Bhttps://www.google.com/search%3Fq%3Dexamples/vector.py%5D\(https://www.google.com/search%3Fq%3Dexamples/vector.py\)): Demonstrates how to index and search vector embeddings, including upserts.
-  - [`examples/fts.py`](https://www.google.com/search?q=%5Bhttps://www.google.com/search%3Fq%3Dexamples/fts.py%5D\(https://www.google.com/search%3Fq%3Dexamples/fts.py\)): A detailed look at full-text search, including targeted searches on specific metadata fields.
-  - [`examples/graph.py`](https://www.google.com/search?q=%5Bhttps://www.google.com/search%3Fq%3Dexamples/graph.py%5D\(https://www.google.com/search%3Fq%3Dexamples/graph.py\)): Shows how to create relationships between documents and perform multi-hop graph traversals.
-  - [`examples/pubsub.py`](https://www.google.com/search?q=%5Bhttps://www.google.com/search%3Fq%3Dexamples/pubsub.py%5D\(https://www.google.com/search%3Fq%3Dexamples/pubsub.py\)): A demonstration of the synchronous, thread-safe publish/subscribe system.
-  - [`examples/cache.py`](https://www.google.com/search?q=%5Bhttps://www.google.com/search%3Fq%3Dexamples/cache.py%5D\(https://www.google.com/search%3Fq%3Dexamples/cache.py\)): A practical example of using a dictionary with TTL as a cache for API calls.
-  - [`examples/rerank.py`](https://www.google.com/search?q=%5Bhttps://www.google.com/search%3Fq%3Dexamples/rerank.py%5D\(https://www.google.com/search%3Fq%3Dexamples/rerank.py\)): Shows how to combine results from vector and text search for more refined results.
+  - [`examples/kvstore.py`](examples/kvstore.py): A comprehensive demo of the namespaced dictionary feature.
+  - [`examples/list.py`](examples/list.py): Shows the full capabilities of the persistent list, including slicing and in-place updates.
+  - [`examples/queue.py`](examples/queue.py): A practical example of using the persistent priority queue for task management.
+  - [`examples/vector.py`](examples/vector.py): Demonstrates how to index and search vector embeddings, including upserts.
+  - [`examples/fts.py`](examples/fts.py): A detailed look at full-text search, including targeted searches on specific metadata fields.
+  - [`examples/graph.py`](examples/graph.py): Shows how to create relationships between documents and perform multi-hop graph traversals.
+  - [`examples/pubsub.py`](examples/pubsub.py): A demonstration of the synchronous, thread-safe publish/subscribe system.
+  - [`examples/cache.py`](examples/cache.py): A practical example of using a dictionary with TTL as a cache for API calls.
+  - [`examples/rerank.py`](examples/rerank.py): Shows how to combine results from vector and text search for more refined results.
 
 ## Roadmap
 
@@ -175,7 +175,7 @@ These are some of the features and improvements planned for future releases:
   - **Improved Pub/Sub**: Fan-out implementation with a more Pythonic API.
   - **Async API**: Comprehensive async support with on-demand wrappers for all collections.
 
-Check out the [roadmap](https://www.google.com/search?q=roadmap.md) for a detailed list of upcoming features and design ideas.
+Check out the [roadmap](roadmap.md) for a detailed list of upcoming features and design ideas.
 
 ## License
 
