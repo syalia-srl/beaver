@@ -98,7 +98,6 @@ class ChannelManager:
             if not self._listeners:
                 self._stop_polling()
 
-
     def _start_polling(self):
         """Starts the background polling thread."""
         self._stop_event.clear()
@@ -160,7 +159,6 @@ class ChannelManager:
 
             # Wait for the poll interval before checking for new messages again.
             time.sleep(self._poll_interval)
-
 
         thread_conn.close()
 
