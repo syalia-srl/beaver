@@ -22,8 +22,8 @@ A fast, single-file, multi-modal database for Python, built with the standard `s
   - **Pythonic List Management**: A fluent, Redis-like interface for managing persistent, ordered lists.
   - **Persistent Priority Queue**: A high-performance, persistent queue that always returns the item with the highest priority, perfect for task management.
   - **Efficient Vector Storage & Search**: Store vector embeddings and perform fast approximate nearest neighbor searches using an in-memory k-d tree.
-  - **Full-Text Search and Fuzzy**: Automatically index and search through document metadata using SQLite's powerful FTS5 engine, enhanced with optional fuzzy saerch.
-  - **Graph Traversal**: Create relationships between documents and traverse the graph to find neighbors or perform multi-hop walks.
+  - **Full-Text and Fuzzy Search**: Automatically index and search through document metadata using SQLite's powerful FTS5 engine, enhanced with optional fuzzy search for typo-tolerant matching.
+  - **Knowledge Graph**: Create relationships between documents and traverse the graph to find neighbors or perform multi-hop walks.
   - **Single-File & Portable**: All data is stored in a single SQLite file, making it incredibly easy to move, back up, or embed in your application.
 
 ## Installation
