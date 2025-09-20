@@ -36,6 +36,7 @@ class BeaverDB:
         self._create_list_table()
         self._create_collections_table()
         self._create_fts_table()
+        self._create_trigrams_table()
         self._create_edges_table()
         self._create_versions_table()
         self._create_dict_table()
@@ -137,6 +138,27 @@ class BeaverDB:
                     tokenize = 'porter'
                 )
             """
+            )
+
+    def _create_trigrams_table(self):
+        """Creates the table for the fuzzy search trigram index."""
+        with self._conn:
+            self._conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS beaver_trigrams (
+                    collection TEXT NOT NULL,
+                    item_id TEXT NOT NULL,
+                    field_path TEXT NOT NULL,
+                    trigram TEXT NOT NULL,
+                    PRIMARY KEY (collection, field_path, trigram, item_id)
+                )
+                """
+            )
+            self._conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_trigram_lookup
+                ON beaver_trigrams (collection, trigram, field_path)
+                """
             )
 
     def _create_edges_table(self):

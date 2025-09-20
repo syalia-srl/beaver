@@ -8,8 +8,9 @@ A fast, single-file, multi-modal database for Python, built with the standard `s
 
 `beaver` is built with a minimalistic philosophy for small, local use cases where a full-blown database server would be overkill.
 
-  - **Minimalistic & Zero-Dependency**: Uses only Python's standard libraries (`sqlite3`) and `numpy`/`scipy`.
-  - **Synchronous & Thread-Safe**: Designed for simplicity and safety in multi-threaded environments.
+  - **Minimalistic**: Uses only Python's standard libraries (`sqlite3`) and `numpy`/`scipy`.
+  - **Schemaless**: Flexible data storage without rigid schemas across all modalities.
+  - **Synchronous, Multi-Process, and Thread-Safe**: Designed for simplicity and safety in multi-threaded and multi-process environments.
   - **Built for Local Applications**: Perfect for local AI tools, RAG prototypes, chatbots, and desktop utilities that need persistent, structured data without network overhead.
   - **Fast by Default**: It's built on SQLite, which is famously fast and reliable for local applications. The vector search is accelerated with an in-memory k-d tree.
   - **Standard Relational Interface**: While `beaver` provides high-level features, you can always use the same SQLite file for normal relational tasks with standard SQL.
@@ -21,7 +22,7 @@ A fast, single-file, multi-modal database for Python, built with the standard `s
   - **Pythonic List Management**: A fluent, Redis-like interface for managing persistent, ordered lists.
   - **Persistent Priority Queue**: A high-performance, persistent queue that always returns the item with the highest priority, perfect for task management.
   - **Efficient Vector Storage & Search**: Store vector embeddings and perform fast approximate nearest neighbor searches using an in-memory k-d tree.
-  - **Full-Text Search**: Automatically index and search through document metadata using SQLite's powerful FTS5 engine.
+  - **Full-Text Search and Fuzzy**: Automatically index and search through document metadata using SQLite's powerful FTS5 engine, enhanced with optional fuzzy saerch.
   - **Graph Traversal**: Create relationships between documents and traverse the graph to find neighbors or perform multi-hop walks.
   - **Single-File & Portable**: All data is stored in a single SQLite file, making it incredibly easy to move, back up, or embed in your application.
 
@@ -183,14 +184,14 @@ For more in-depth examples, check out the scripts in the `examples/` directory:
   - [`examples/publisher.py`](examples/publisher.py) and [`examples/subscriber.py`](examples/subscriber.py): A pair of examples demonstrating inter-process message passing with the publish/subscribe system.
   - [`examples/cache.py`](examples/cache.py): A practical example of using a dictionary with TTL as a cache for API calls.
   - [`examples/rerank.py`](examples/rerank.py): Shows how to combine results from vector and text search for more refined results.
+  - [`examples/fuzzy.py`](examples/fuzzy.py): Demonstrates fuzzy search capabilities for text search.
 
 ## Roadmap
 
 These are some of the features and improvements planned for future releases:
 
-  - **Fuzzy search**: Implement fuzzy matching capabilities for text search.
   - **Faster ANN**: Explore integrating more advanced ANN libraries like `faiss` for improved vector search performance.
-  - **Async API**: Comprehensive async support with on-demand wrappers for all collections.
+  - **Full Async API**: Comprehensive async support with on-demand wrappers for all collections.
 
 Check out the [roadmap](roadmap.md) for a detailed list of upcoming features and design ideas.
 

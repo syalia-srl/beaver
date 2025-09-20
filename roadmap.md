@@ -2,51 +2,6 @@
 
 This document contains a curated list of clever ideas and feature designs for the future development of `beaver-db`. The goal is to track innovative modalities that align with the library's core philosophy of being a simple, powerful, local-first database for AI prototyping.
 
----
-
-## Feature: High-Performance Fuzzy Search
-
-### 1. Concept
-
-A **High-Performance Fuzzy Search** is a new query capability that allows for fast, typo-tolerant searches on document metadata. It solves the common and difficult problem of matching queries against data that may contain spelling mistakes or slight variations, which is essential for applications that handle real-world, user-generated content.
-
-This is not a vector search or a standard full-text search. It is a specialized lexical search that measures the **typographical similarity** (or "edit distance") between strings, making the application feel smarter and more forgiving.
-
-### 2. Use Cases
-
-This feature is a game-changer for AI applications that need to be robust to messy data:
-* **Entity Resolution**: An AI agent could reliably find a person or company in its knowledge base (e.g., "John Smith") even if the user's query contains a typo (e.g., "Jon Smithh").
-* **Flexible Tagging**: It allows for the retrieval of documents based on tags that are spelled slightly differently (e.g., finding `#datascience` from a `#datascince` query).
-* **Forgiving User Input**: It makes chatbots and search interfaces more robust by gracefully handling common spelling mistakes in user queries that filter document metadata.
-
-### 3. Proposed API
-
-The API will be clean and explicit, separating the one-time indexing cost from the fast search operation.
-
-* `collection.index(doc, fuzzy_fields=["name", "author.name"])`: The existing `index` method will be augmented with a `fuzzy_fields` parameter. When a document is indexed, any field listed here will have a fuzzy search index built for its content.
-* `results = collection.fuzzy(on_field="name", like="Jhn Smith", max_distance=2)`: A new, dedicated `fuzzy()` method will perform the high-speed search, returning documents where the specified field is within a given Levenshtein distance of the query string.
-
-### 4. Implementation Design: The Trigram Index
-
-To achieve high performance, this feature will be built on a **trigram index**, which transforms the fuzzy search problem into a fast, indexed lookup.
-
-1.  **Schema**: A new table, `_beaver_trigram_index`, will be created. It will store 3-character chunks (trigrams) of the text from the indexed fields, linking each trigram back to the document it came from. This table will have a standard database index for lightning-fast lookups.
-
-2.  **Indexing**: When `index()` is called with `fuzzy_fields`, the content of those fields is broken down into a set of trigrams, which are then stored in the `_beaver_trigram_index` table.
-
-3.  **Two-Stage Search**: The `fuzzy()` method will execute a fast, two-stage query:
-    * **Candidate Selection (SQL)**: First, it generates trigrams from the user's query and uses the fast trigram index to find a small set of candidate documents that share some of those trigrams.
-    * **Refinement (SQL Function)**: Second, it uses a custom Levenshtein function registered with SQLite to calculate the precise "typo distance" *only* on the small set of candidates. This entire operation happens natively within the database engine for maximum performance.
-
-### 5. Alignment with Philosophy
-
-This feature is a perfect embodiment of the `beaver-db` design principles:
-* **Minimalism**: It provides a powerful, high-concept feature with zero new dependencies, instead leveraging the native, extensible power of SQLite.
-* **Performance**: It is designed from the ground up to be fast, avoiding the performance pitfalls of naive, full-table scan implementations.
-* **Simple and Pythonic API**: It abstracts away the complexity of trigram indexing and two-stage searching behind a clean, intuitive, and explicit API.
-
----
-
 ## Feature: High-Performance, Persistent ANN Index
 
 ### 1. Concept
