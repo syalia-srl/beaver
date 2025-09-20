@@ -151,6 +151,24 @@ class CollectionManager:
                 (self._name,),
             )
 
+    def __iter__(self):
+        """Returns an iterator over all documents in the collection."""
+        cursor = self._conn.cursor()
+        cursor.execute(
+            "SELECT item_id, item_vector, metadata FROM beaver_collections WHERE collection = ?",
+            (self._name,),
+        )
+        for row in cursor:
+            embedding = (
+                np.frombuffer(row["item_vector"], dtype=np.float32).tolist()
+                if row["item_vector"]
+                else None
+            )
+            yield Document(
+                id=row["item_id"], embedding=embedding, **json.loads(row["metadata"])
+            )
+        cursor.close()
+
     def refresh(self):
         """Forces a rebuild of the in-memory ANN index from data in SQLite."""
         cursor = self._conn.cursor()
