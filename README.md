@@ -1,7 +1,3 @@
-I've updated the README to highlight the new high-efficiency, thread-safe, and process-safe pub/sub system. I've also added an example of how you can use it to build real-time, event-driven applications.
-
-Here are the changes:
-
 # beaver 🦫
 
 A fast, single-file, multi-modal database for Python, built with the standard `sqlite3` library.
