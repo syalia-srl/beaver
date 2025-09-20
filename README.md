@@ -16,7 +16,7 @@ A fast, single-file, multi-modal database for Python, built with the standard `s
 
 ## Core Features
 
-  - **High-Efficiency Pub/Sub**: A powerful, thread and process-safe publish-subscribe system for real-time messaging with a fan-out architecture.
+  - **Sync/Async High-Efficiency Pub/Sub**: A powerful, thread and process-safe publish-subscribe system for real-time messaging with a fan-out architecture. Sync by default, but with an `as_async` wrapper for async applications.
   - **Namespaced Key-Value Dictionaries**: A Pythonic, dictionary-like interface for storing any JSON-serializable object within separate namespaces with optional TTL for cache implementations.
   - **Pythonic List Management**: A fluent, Redis-like interface for managing persistent, ordered lists.
   - **Persistent Priority Queue**: A high-performance, persistent queue that always returns the item with the highest priority, perfect for task management.
@@ -179,6 +179,7 @@ For more in-depth examples, check out the scripts in the `examples/` directory:
   - [`examples/fts.py`](examples/fts.py): A detailed look at full-text search, including targeted searches on specific metadata fields.
   - [`examples/graph.py`](examples/graph.py): Shows how to create relationships between documents and perform multi-hop graph traversals.
   - [`examples/pubsub.py`](examples/pubsub.py): A demonstration of the synchronous, thread-safe publish/subscribe system in a single process.
+  - [`examples/async_pubsub.py`](examples/async_pubsub.py): A demonstration of the asynchronous wrapper for the publish/subscribe system.
   - [`examples/publisher.py`](examples/publisher.py) and [`examples/subscriber.py`](examples/subscriber.py): A pair of examples demonstrating inter-process message passing with the publish/subscribe system.
   - [`examples/cache.py`](examples/cache.py): A practical example of using a dictionary with TTL as a cache for API calls.
   - [`examples/rerank.py`](examples/rerank.py): Shows how to combine results from vector and text search for more refined results.
