@@ -86,47 +86,6 @@ This feature represents a significant evolution of the library while respecting 
 
 ---
 
-## Feature: High-Efficiency, Fan-Out Pub/Sub
-
-### 1. Concept
-
-A **High-Efficiency, Fan-Out Publish/Subscribe System** is a redesign of the existing Pub/Sub modality to eliminate polling inefficiency and provide a more intuitive, object-oriented API. The current implementation, while robust, creates a new database poller for every single subscriber. This new design centralizes the database polling into a single, dedicated thread per channel, which then "fans out" messages to any number of in-memory subscriber queues.
-
-This architecture dramatically reduces database load and improves message delivery latency for applications with multiple listeners on the same channel, making it a more scalable and production-ready feature.
-
-### 2. Use Cases
-
-This feature is critical for building more complex and performant event-driven applications:
-* **Real-time UI Updates**: In a desktop or web application, multiple components can listen for state change events (e.g., `user_updated`, `new_message`) from a single channel without overwhelming the database with redundant queries.
-* **Microservice-Style Architectures**: For local applications designed with separate components, this provides an efficient, decoupled way for different parts of the app to communicate and react to events.
-* **Logging and Monitoring**: Multiple logging or monitoring services can subscribe to a central `system_events` channel to process logs, update metrics, or trigger alerts, all with minimal impact on the core database performance.
-
-### 3. Proposed API
-
-The new API will be more object-oriented and intuitive, abstracting away the underlying polling mechanism.
-
-* `channel = db.channel("system_events")`: The user first gets a handle to a specific channel. This object will manage all subscribers for that channel.
-* `channel.publish({"event": "user_login", "user": "alice"})`: Publishing is now a method on the `Channel` object.
-* `with channel.subscribe() as subscriber:`: Subscribing creates a new, isolated listener attached to the channel.
-* `for message in subscriber.listen():`: The subscriber's `listen()` method is a blocking iterator that yields messages from a dedicated, thread-safe in-memory queue, completely avoiding direct database access from the listener itself.
-
-### 4. Implementation Design: Centralized Polling with Queues
-
-The efficiency of this feature comes from inverting the responsibility of fetching data.
-
-1.  **Singleton Channel Manager**: The `db.channel("name")` call will return a singleton `Channel` instance for that specific channel name.
-2.  **Background Polling Thread**: The first time `channel.subscribe()` is called, the `Channel` object will spawn a single background daemon thread. This thread is responsible for running the efficient database polling loop.
-3.  **Fan-Out to Queues**: When the polling thread retrieves new messages from the database, it iterates through a list of all active subscriber queues and puts the message into each one.
-4.  **Thread-Safe Subscriber Queues**: Each `subscriber` object contains its own `queue.Queue`. The `listen()` method simply blocks and waits for the central polling thread to push a new message into its specific queue. The thread is automatically cleaned up when the last subscriber is closed.
-
-### 5. Alignment with Philosophy
-
-This feature is a perfect evolution of the Pub/Sub system, enhancing it while staying true to the library's core principles:
-* **Performance**: It directly addresses a key performance bottleneck, making the feature more scalable and efficient for its intended use cases.
-* **Minimalism**: It achieves this efficiency using only Python's standard library (`threading`, `queue`) and without adding any new external dependencies.
-* **Simple and Pythonic API**: The new API is cleaner, more object-oriented, and abstracts away the complexity of thread and queue management, providing a better developer experience.
-
----
 ## Feature: Comprehensive Async API with On-Demand Wrappers
 
 ### 1. Concept

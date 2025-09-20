@@ -1,3 +1,7 @@
+I've updated the README to highlight the new high-efficiency, thread-safe, and process-safe pub/sub system. I've also added an example of how you can use it to build real-time, event-driven applications.
+
+Here are the changes:
+
 # beaver 🦫
 
 A fast, single-file, multi-modal database for Python, built with the standard `sqlite3` library.
@@ -16,7 +20,7 @@ A fast, single-file, multi-modal database for Python, built with the standard `s
 
 ## Core Features
 
-  - **Synchronous Pub/Sub**: A simple, thread-safe, Redis-like publish-subscribe system for real-time messaging.
+  - **High-Efficiency Pub/Sub**: A powerful, thread and process-safe publish-subscribe system for real-time messaging with a fan-out architecture.
   - **Namespaced Key-Value Dictionaries**: A Pythonic, dictionary-like interface for storing any JSON-serializable object within separate namespaces with optional TTL for cache implementations.
   - **Pythonic List Management**: A fluent, Redis-like interface for managing persistent, ordered lists.
   - **Persistent Priority Queue**: A high-performance, persistent queue that always returns the item with the highest priority, perfect for task management.
@@ -152,6 +156,22 @@ if response is None:
     api_cache.set("weather_new_york", response, ttl_seconds=3600)
 ```
 
+### 6. Real-time Event-Driven Systems
+
+Use the **high-efficiency pub/sub system** to build applications where different components react to events in real-time. This is perfect for decoupled systems, real-time UIs, or monitoring services.
+
+```python
+# In one process or thread (e.g., a monitoring service)
+system_events = db.channel("system_events")
+system_events.publish({"event": "user_login", "user_id": "alice"})
+
+# In another process or thread (e.g., a UI updater or logger)
+with db.channel("system_events").subscribe() as listener:
+    for message in listener.listen():
+        print(f"Event received: {message}")
+        # >> Event received: {'event': 'user_login', 'user_id': 'alice'}
+```
+
 ## More Examples
 
 For more in-depth examples, check out the scripts in the `examples/` directory:
@@ -162,7 +182,8 @@ For more in-depth examples, check out the scripts in the `examples/` directory:
   - [`examples/vector.py`](examples/vector.py): Demonstrates how to index and search vector embeddings, including upserts.
   - [`examples/fts.py`](examples/fts.py): A detailed look at full-text search, including targeted searches on specific metadata fields.
   - [`examples/graph.py`](examples/graph.py): Shows how to create relationships between documents and perform multi-hop graph traversals.
-  - [`examples/pubsub.py`](examples/pubsub.py): A demonstration of the synchronous, thread-safe publish/subscribe system.
+  - [`examples/pubsub.py`](examples/pubsub.py): A demonstration of the synchronous, thread-safe publish/subscribe system in a single process.
+  - [`examples/publisher.py`](examples/publisher.py) and [`examples/subscriber.py`](examples/subscriber.py): A pair of examples demonstrating inter-process message passing with the publish/subscribe system.
   - [`examples/cache.py`](examples/cache.py): A practical example of using a dictionary with TTL as a cache for API calls.
   - [`examples/rerank.py`](examples/rerank.py): Shows how to combine results from vector and text search for more refined results.
 
@@ -172,7 +193,6 @@ These are some of the features and improvements planned for future releases:
 
   - **Fuzzy search**: Implement fuzzy matching capabilities for text search.
   - **Faster ANN**: Explore integrating more advanced ANN libraries like `faiss` for improved vector search performance.
-  - **Improved Pub/Sub**: Fan-out implementation with a more Pythonic API.
   - **Async API**: Comprehensive async support with on-demand wrappers for all collections.
 
 Check out the [roadmap](roadmap.md) for a detailed list of upcoming features and design ideas.
