@@ -2,66 +2,83 @@ import threading
 import time
 from beaver import BeaverDB
 
+# --- 1. Listener Task ---
+# This function will be run by each listener thread.
+def listener_task(name: str, db: BeaverDB):
+    """A task that listens for messages on a channel until shutdown."""
+    print(f"[{name}] Starting and subscribing to 'system_events'.")
 
-def listener(db: BeaverDB):
-    """A sample task that listens for messages in a blocking manner."""
-    print("LISTENER: Waiting for messages on the 'system_events' channel...")
+    # Get the singleton channel instance.
+    channel = db.channel("system_events")
 
-    # The subscriber is now a blocking iterator. This loop will pause
-    # until a new message arrives.
-    for message in db.subscribe("system_events"):
-        print(f"LISTENER: Received -> {message}")
-        # Add a condition to gracefully shut down the listener thread
-        if message.get("event") == "shutdown":
-            break
+    # The 'with' statement handles registration and unregistration automatically.
+    with channel.subscribe() as listener:
+        # The .listen() method is a blocking iterator. It will yield messages
+        # until the channel is shut down, at which point it will stop.
+        for message in listener.listen():
+            print(f"[{name}] Received -> {message}")
 
-    print("LISTENER: Shutting down.")
+    print(f"[{name}] Finished and unsubscribed.")
 
 
-def publisher(db: BeaverDB):
-    """A sample task that publishes messages."""
-    print("PUBLISHER: Ready to send events.")
-    time.sleep(1)  # Give the listener a moment to start
+# --- 2. Publisher Task ---
+# This function will be run by the publisher thread.
+def publisher_task(db: BeaverDB):
+    """A task that waits a moment and then publishes several messages."""
+    print("[Publisher] Starting.")
 
-    print("PUBLISHER: Sending user login event.")
-    db.publish(
-        "system_events",
-        {"event": "user_login", "username": "alice", "status": "success"},
-    )
+    # Get the same singleton channel instance.
+    channel = db.channel("system_events")
 
-    time.sleep(2)
-
-    print("PUBLISHER: Sending system alert.")
-    db.publish(
-        "system_events",
-        {"event": "system_alert", "level": "warning", "detail": "CPU usage at 85%"},
-    )
+    # Wait a moment to ensure listeners are subscribed and ready.
     time.sleep(1)
 
-    # Send a final message to tell the listener to stop
-    print("PUBLISHER: Sending shutdown signal.")
-    db.publish("system_events", {"event": "shutdown"})
+    print("[Publisher] Publishing message 1: User Login")
+    channel.publish({"event": "user_login", "user": "alice"})
+    time.sleep(0.5)
+
+    print("[Publisher] Publishing message 2: System Alert")
+    channel.publish({"event": "alert", "level": "high"})
+
+    print("[Publisher] Finished publishing.")
 
 
+# --- 3. Main Execution Block ---
 def main():
-    """Runs the listener and publisher concurrently using threads."""
+    """Sets up and runs the concurrent publisher and listeners."""
     db = BeaverDB("demo.db")
 
-    # Create separate threads for the listener and publisher
-    listener_thread = threading.Thread(target=listener, args=(db,))
-    publisher_thread = threading.Thread(target=publisher, args=(db,))
+    # Create threads for two listeners and one publisher.
+    # The listeners will run until the db.close() call shuts them down.
+    listener_a = threading.Thread(target=listener_task, args=("Listener-A", db))
+    listener_b = threading.Thread(target=listener_task, args=("Listener-B", db))
+    publisher = threading.Thread(target=publisher_task, args=(db,))
 
-    # Start the threads
-    listener_thread.start()
-    publisher_thread.start()
+    # Start all threads.
+    listener_a.start()
+    listener_b.start()
+    publisher.start()
 
-    # Wait for both threads to complete their execution
-    listener_thread.join()
-    publisher_thread.join()
+    # Wait for the publisher to finish sending its messages.
+    publisher.join()
 
-    print("\nDemo finished.")
+    # In a real application, listeners might run for a long time.
+    # Here, we'll wait a moment to ensure messages are processed before shutdown.
+    print("\n[Main] Publisher finished. Waiting 2 seconds before shutdown...")
+    time.sleep(2)
+
+    # Gracefully close the database connection. This will signal all channel
+    # polling threads to stop, which in turn causes the listener loops to exit.
+    print("[Main] Closing database connection and shutting down listeners...")
+    db.close()
+
+    # Wait for the listener threads to complete their execution.
+    listener_a.join()
+    listener_b.join()
+
+    print("\nDemo finished successfully.")
 
 
 if __name__ == "__main__":
-    print("--- BeaverDB Synchronous Pub/Sub Demo ---")
+    print("--- BeaverDB High-Efficiency Pub/Sub Demo ---")
     main()

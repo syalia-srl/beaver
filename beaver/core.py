@@ -1,7 +1,5 @@
-import json
 import sqlite3
-import time
-from typing import Any
+import threading
 
 from .dicts import DictManager
 from .lists import ListManager
@@ -29,6 +27,8 @@ class BeaverDB:
         self._conn.execute("PRAGMA journal_mode=WAL;")
         self._conn.row_factory = sqlite3.Row
         self._create_all_tables()
+        self._channels: dict[str, ChannelManager] = {}
+        self._channels_lock = threading.Lock()
 
     def _create_all_tables(self):
         """Initializes all required tables in the database file."""
@@ -170,6 +170,10 @@ class BeaverDB:
     def close(self):
         """Closes the database connection."""
         if self._conn:
+            # Cleanly shut down any active polling threads before closing
+            with self._channels_lock:
+                for channel in self._channels.values():
+                    channel._stop_polling()
             self._conn.close()
 
     # --- Factory and Passthrough Methods ---
@@ -178,41 +182,39 @@ class BeaverDB:
         """Returns a wrapper object for interacting with a named dictionary."""
         if not isinstance(name, str) or not name:
             raise TypeError("Dictionary name must be a non-empty string.")
+
         return DictManager(name, self._conn)
 
     def list(self, name: str) -> ListManager:
         """Returns a wrapper object for interacting with a named list."""
         if not isinstance(name, str) or not name:
             raise TypeError("List name must be a non-empty string.")
+
         return ListManager(name, self._conn)
 
     def queue(self, name: str) -> QueueManager:
         """Returns a wrapper object for interacting with a persistent priority queue."""
         if not isinstance(name, str) or not name:
             raise TypeError("Queue name must be a non-empty string.")
+
         return QueueManager(name, self._conn)
 
     def collection(self, name: str) -> CollectionManager:
         """Returns a wrapper for interacting with a document collection."""
         if not isinstance(name, str) or not name:
             raise TypeError("Collection name must be a non-empty string.")
+
         return CollectionManager(name, self._conn)
 
-    def publish(self, channel_name: str, payload: Any):
-        """Publishes a JSON-serializable message to a channel. This is synchronous."""
-        if not isinstance(channel_name, str) or not channel_name:
+    def channel(self, name: str) -> ChannelManager:
+        """
+        Returns a singleton Channel instance for high-efficiency pub/sub.
+        """
+        if not isinstance(name, str) or not name:
             raise ValueError("Channel name must be a non-empty string.")
-        try:
-            json_payload = json.dumps(payload)
-        except TypeError as e:
-            raise TypeError("Message payload must be JSON-serializable.") from e
 
-        with self._conn:
-            self._conn.execute(
-                "INSERT INTO beaver_pubsub_log (timestamp, channel_name, message_payload) VALUES (?, ?, ?)",
-                (time.time(), channel_name, json_payload),
-            )
-
-    def subscribe(self, channel_name: str) -> ChannelManager:
-        """Subscribes to a channel, returning a synchronous iterator."""
-        return ChannelManager(self._conn, channel_name)
+        # Use a thread-safe lock to ensure only one Channel object is created per name.
+        with self._channels_lock:
+            if name not in self._channels:
+                self._channels[name] = ChannelManager(name, self._conn, self._db_path)
+            return self._channels[name]
