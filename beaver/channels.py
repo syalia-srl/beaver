@@ -1,12 +1,42 @@
+import asyncio
 import json
 import sqlite3
 import threading
 import time
 from queue import Empty, Queue
-from typing import Any, Iterator, Set
+from typing import Any, AsyncIterator, Iterator, Set
 
 # A special message object used to signal the listener to gracefully shut down.
 _SHUTDOWN_SENTINEL = object()
+
+
+class AsyncSubscriber:
+    """A thread-safe async message receiver for a specific channel subscription."""
+
+    def __init__(self, subscriber: "Subscriber"):
+        self._subscriber = subscriber
+
+    async def __aenter__(self) -> "AsyncSubscriber":
+        """Registers the listener's queue with the channel to start receiving messages."""
+        await asyncio.to_thread(self._subscriber.__enter__)
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Unregisters the listener's queue from the channel to stop receiving messages."""
+        await asyncio.to_thread(self._subscriber.__exit__, exc_type, exc_val, exc_tb)
+
+    async def listen(self, timeout: float | None = None) -> AsyncIterator[Any]:
+        """
+        Returns a blocking async iterator that yields messages as they arrive.
+        """
+        while True:
+            try:
+                msg = await asyncio.to_thread(self._subscriber._queue.get, timeout=timeout)
+                if msg is _SHUTDOWN_SENTINEL:
+                    break
+                yield msg
+            except Empty:
+                raise TimeoutError(f"Timeout {timeout}s expired.")
 
 
 class Subscriber:
@@ -53,6 +83,27 @@ class Subscriber:
                 yield msg
             except Empty:
                 raise TimeoutError(f"Timeout {timeout}s expired.")
+
+    def as_async(self) -> "AsyncSubscriber":
+        """Returns an async version of the subscriber."""
+        return AsyncSubscriber(self)
+
+
+class AsyncChannelManager:
+    """The central async hub for a named pub/sub channel."""
+
+    def __init__(self, channel: "ChannelManager"):
+        self._channel = channel
+
+    async def publish(self, payload: Any):
+        """
+        Publishes a JSON-serializable message to the channel asynchronously.
+        """
+        await asyncio.to_thread(self._channel.publish, payload)
+
+    def subscribe(self) -> "AsyncSubscriber":
+        """Creates a new async subscription, returning an AsyncSubscriber context manager."""
+        return self._channel.subscribe().as_async()
 
 
 class ChannelManager:
@@ -183,3 +234,7 @@ class ChannelManager:
                 "INSERT INTO beaver_pubsub_log (timestamp, channel_name, message_payload) VALUES (?, ?, ?)",
                 (time.time(), self._name, json_payload),
             )
+
+    def as_async(self) -> "AsyncChannelManager":
+        """Returns an async version of the channel manager."""
+        return AsyncChannelManager(self)
