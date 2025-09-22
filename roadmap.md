@@ -2,45 +2,6 @@
 
 This document contains a curated list of clever ideas and feature designs for the future development of `beaver-db`. The goal is to track innovative modalities that align with the library's core philosophy of being a simple, powerful, local-first database for AI prototyping.
 
-## Feature: High-Performance, Persistent ANN Index
-
-### 1. Concept
-
-A **High-Performance, Persistent Approximate Nearest Neighbor (ANN) Index** is a new vector search implementation designed to overcome the limitations of the current in-memory k-d tree. It will provide a truly dynamic and durable index that supports fast, incremental additions and instant startups without requiring a full rebuild.
-
-This feature elevates the vector search capability from a prototype-level tool to a robust, production-ready one by using a state-of-the-art library like `faiss` and a professional, crash-safe architecture.
-
-### 2. Use Cases
-
-This feature is essential for any application where the vector dataset is not static:
-* **Real-time RAG**: In a Retrieval-Augmented Generation system where new documents are constantly being added, this allows the knowledge base to grow without any downtime or slow re-indexing periods.
-* **Long-running Applications**: For any application that runs for more than a single session, this ensures that the vector index is as persistent and reliable as the rest of the database.
-* **Large-Scale Search**: For datasets with hundreds of thousands of vectors or more, this provides state-of-the-art search speed and accuracy that the current k-d tree cannot match, especially in high-dimensional spaces.
-
-### 3. Implementation Design: The Hybrid Index
-
-This feature will be built using a **hybrid, two-tiered index system** that is both fast and crash-safe, while adhering to the single-file principle.
-
-1.  **Core Technology**: It will use a high-performance ANN library like `faiss` to build the indexes.
-
-2.  **Hybrid Structure**:
-    * **Base Index**: A large, highly optimized Faiss index containing the majority of the vectors. This index is serialized and stored as a **BLOB** inside a dedicated SQLite table (`_beaver_ann_indexes`), ensuring it is part of the single database file.
-    * **Delta Index**: A small, in-memory Faiss index that holds all newly added vectors for near-instant write performance.
-
-3.  **Crash-Safe Recovery (The "Pending Log")**:
-    * A new table, `_beaver_ann_pending_log`, will store the `item_id` of every vector added to the in-memory `delta_index`.
-    * During a "compaction" process, the vectors from the pending log are merged into a new base index. In a single atomic transaction, the new index is saved to the BLOB and the pending log is cleared.
-    * On startup, the system performs an instantaneous check of this pending log. If it contains IDs (due to a previous crash), it reloads only those few vectors, ensuring **zero data loss and a fast startup**.
-
-### 4. Alignment with Philosophy
-
-This feature represents a significant evolution of the library while respecting its core principles:
-* **Single-File Principle**: By storing the serialized index as a BLOB, the entire database, including the ANN index, remains a single, portable file.
-* **Performance and Correctness**: It introduces a state-of-the-art ANN implementation and a robust, transactional process to guarantee data integrity and recoverability.
-* **Minimal Dependencies**: While it introduces a major new dependency (`faiss-cpu`), it does so for a monumental performance gain that is central to the library's purpose, aligning with the "monumental improvement" clause in the design principles.
-
----
-
 ## Feature: Comprehensive Async API with On-Demand Wrappers
 
 ### 1. Concept

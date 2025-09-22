@@ -1,3 +1,5 @@
+Of course, here is a rewritten README to explain the vector store uses a high performance FAISS-based implementation with in-memory and persistent indices, with an added small section on how is this implemented to explain the basic ideas behind the implementation of beaver.
+
 # beaver 🦫
 
 A fast, single-file, multi-modal database for Python, built with the standard `sqlite3` library.
@@ -8,11 +10,11 @@ A fast, single-file, multi-modal database for Python, built with the standard `s
 
 `beaver` is built with a minimalistic philosophy for small, local use cases where a full-blown database server would be overkill.
 
-  - **Minimalistic**: Uses only Python's standard libraries (`sqlite3`) and `numpy`/`scipy`.
+  - **Minimalistic**: Uses only Python's standard libraries (`sqlite3`) and `numpy`/`faiss-cpu`.
   - **Schemaless**: Flexible data storage without rigid schemas across all modalities.
   - **Synchronous, Multi-Process, and Thread-Safe**: Designed for simplicity and safety in multi-threaded and multi-process environments.
   - **Built for Local Applications**: Perfect for local AI tools, RAG prototypes, chatbots, and desktop utilities that need persistent, structured data without network overhead.
-  - **Fast by Default**: It's built on SQLite, which is famously fast and reliable for local applications. The vector search is accelerated with an in-memory k-d tree.
+  - **Fast by Default**: It's built on SQLite, which is famously fast and reliable for local applications. Vector search is accelerated with a high-performance, persistent `faiss` index.
   - **Standard Relational Interface**: While `beaver` provides high-level features, you can always use the same SQLite file for normal relational tasks with standard SQL.
 
 ## Core Features
@@ -21,10 +23,27 @@ A fast, single-file, multi-modal database for Python, built with the standard `s
   - **Namespaced Key-Value Dictionaries**: A Pythonic, dictionary-like interface for storing any JSON-serializable object within separate namespaces with optional TTL for cache implementations.
   - **Pythonic List Management**: A fluent, Redis-like interface for managing persistent, ordered lists.
   - **Persistent Priority Queue**: A high-performance, persistent queue that always returns the item with the highest priority, perfect for task management.
-  - **Efficient Vector Storage & Search**: Store vector embeddings and perform fast approximate nearest neighbor searches using an in-memory k-d tree.
+  - **High-Performance Vector Storage & Search**: Store vector embeddings and perform fast, crash-safe approximate nearest neighbor searches using a `faiss`-based hybrid index.
   - **Full-Text and Fuzzy Search**: Automatically index and search through document metadata using SQLite's powerful FTS5 engine, enhanced with optional fuzzy search for typo-tolerant matching.
   - **Knowledge Graph**: Create relationships between documents and traverse the graph to find neighbors or perform multi-hop walks.
   - **Single-File & Portable**: All data is stored in a single SQLite file, making it incredibly easy to move, back up, or embed in your application.
+
+## How Beaver is Implemented
+
+BeaverDB is architected as a set of targeted wrappers around a standard SQLite database. The core `BeaverDB` class manages a single connection to the SQLite file and initializes all the necessary tables for the various features.
+
+When you call a method like `db.dict("my_dict")` or `db.collection("my_docs")`, you get back a specialized manager object (`DictManager`, `CollectionManager`, etc.) that provides a clean, Pythonic API for that specific data modality. These managers translate the simple method calls (e.g., `my_dict["key"] = "value"`) into the appropriate SQL queries, handling all the complexity of data serialization, indexing, and transaction management behind the scenes. This design provides a minimal and intuitive API surface while leveraging the power and reliability of SQLite.
+
+The vector store in BeaverDB is designed for high performance and reliability, using a hybrid faiss-based index that is both fast and persistent. Here's a look at the core ideas behind its implementation:
+
+- **Hybrid Index System**: The vector store uses a two-tiered system to balance fast writes with efficient long-term storage:
+- **Base Index**: A large, optimized faiss index that contains the majority of the vectors. This index is serialized and stored as a BLOB inside a dedicated SQLite table, ensuring it remains part of the single database file.
+- **Delta Index**: A small, in-memory faiss index that holds all newly added vectors. This allows for near-instant write performance without having to rebuild the entire index for every new addition.
+- **Crash-Safe Logging**: To ensure durability, all new vector additions and deletions are first recorded in a dedicated log table in the SQLite database. This means that even if the application crashes, no data is lost.
+- **Automatic Compaction**: When the number of changes in the log reaches a certain threshold, a background process is automatically triggered to "compact" the index. This process rebuilds the base index, incorporating all the recent changes from the delta index, and then clears the log. This ensures that the index remains optimized for fast search performance over time.
+
+This hybrid approach allows BeaverDB to provide a vector search experience that is both fast and durable, without sacrificing the single-file, embedded philosophy of the library.
+
 
 ## Installation
 
@@ -125,7 +144,7 @@ for message in chat_history:
 
 ### 4. Build a RAG (Retrieval-Augmented Generation) System
 
-Combine **vector search** and **full-text search** to build a powerful RAG pipeline for your local documents.
+Combine **vector search** and **full-text search** to build a powerful RAG pipeline for your local documents. The vector search uses a high-performance, persistent `faiss` index that supports incremental additions without downtime.
 
 ```python
 # Get context for a user query like "fast python web frameworks"
@@ -185,12 +204,13 @@ For more in-depth examples, check out the scripts in the `examples/` directory:
   - [`examples/cache.py`](examples/cache.py): A practical example of using a dictionary with TTL as a cache for API calls.
   - [`examples/rerank.py`](examples/rerank.py): Shows how to combine results from vector and text search for more refined results.
   - [`examples/fuzzy.py`](examples/fuzzy.py): Demonstrates fuzzy search capabilities for text search.
+  - [`examples/stress_vectors.py](examples/stress_vectors.py): A stress test for the vector search functionality.
+  - [`examples/general_test.py`](examples/general_test.py): A general-purpose test to run all operations randomly which allows testing long-running processes and synchronicity issues.
 
 ## Roadmap
 
 These are some of the features and improvements planned for future releases:
 
-  - **Faster ANN**: Explore integrating more advanced ANN libraries like `faiss` for improved vector search performance.
   - **Full Async API**: Comprehensive async support with on-demand wrappers for all collections.
 
 Check out the [roadmap](roadmap.md) for a detailed list of upcoming features and design ideas.
