@@ -231,7 +231,7 @@ class VectorIndex:
 
         # Add the string ID to the log for other processes to sync.
         cursor.execute(
-            "INSERT INTO _beaver_ann_pending_log (collection_name, str_id) VALUES (?, ?)",
+            "INSERT OR IGNORE INTO _beaver_ann_pending_log (collection_name, str_id) VALUES (?, ?)",
             (self._collection_name, item_id),
         )
         # Create the delta index if this is the first item added.
