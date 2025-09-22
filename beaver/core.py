@@ -29,6 +29,9 @@ class BeaverDB:
         self._create_all_tables()
         self._channels: dict[str, ChannelManager] = {}
         self._channels_lock = threading.Lock()
+        # Add a cache and lock for CollectionManager singletons
+        self._collections: dict[str, CollectionManager] = {}
+        self._collections_lock = threading.Lock()
 
     def _create_all_tables(self):
         """Initializes all required tables in the database file."""
@@ -41,6 +44,64 @@ class BeaverDB:
         self._create_versions_table()
         self._create_dict_table()
         self._create_priority_queue_table()
+        # New tables for the persistent vector index
+        self._create_ann_indexes_table()
+        self._create_ann_pending_log_table()
+        self._create_ann_deletions_log_table()
+        self._create_ann_id_mapping_table()
+
+    def _create_ann_indexes_table(self):
+        """Creates the table to store the serialized base ANN index."""
+        with self._conn:
+            self._conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS _beaver_ann_indexes (
+                    collection_name TEXT PRIMARY KEY,
+                    index_data BLOB,
+                    base_index_version INTEGER NOT NULL DEFAULT 0
+                )
+                """
+            )
+
+    def _create_ann_pending_log_table(self):
+        """Creates the log for new vector additions."""
+        with self._conn:
+            self._conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS _beaver_ann_pending_log (
+                    collection_name TEXT NOT NULL,
+                    str_id TEXT NOT NULL,
+                    PRIMARY KEY (collection_name, str_id)
+                )
+                """
+            )
+
+    def _create_ann_deletions_log_table(self):
+        """Creates the log for vector deletions (tombstones)."""
+        with self._conn:
+            self._conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS _beaver_ann_deletions_log (
+                    collection_name TEXT NOT NULL,
+                    int_id INTEGER NOT NULL,
+                    PRIMARY KEY (collection_name, int_id)
+                )
+                """
+            )
+
+    def _create_ann_id_mapping_table(self):
+        """Creates the table to map string IDs to integer IDs for Faiss."""
+        with self._conn:
+            self._conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS _beaver_ann_id_mapping (
+                    collection_name TEXT NOT NULL,
+                    str_id TEXT NOT NULL,
+                    int_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    UNIQUE(collection_name, str_id)
+                )
+                """
+            )
 
     def _create_priority_queue_table(self):
         """Creates the priority queue table and its performance index."""
@@ -222,11 +283,20 @@ class BeaverDB:
         return QueueManager(name, self._conn)
 
     def collection(self, name: str) -> CollectionManager:
-        """Returns a wrapper for interacting with a document collection."""
+        """
+        Returns a singleton CollectionManager instance for interacting with a
+        document collection.
+        """
         if not isinstance(name, str) or not name:
             raise TypeError("Collection name must be a non-empty string.")
 
-        return CollectionManager(name, self._conn)
+        # Use a thread-safe lock to ensure only one CollectionManager object is
+        # created per name. This is crucial for managing the in-memory state
+        # of the vector index consistently.
+        with self._collections_lock:
+            if name not in self._collections:
+                self._collections[name] = CollectionManager(name, self._conn)
+            return self._collections[name]
 
     def channel(self, name: str) -> ChannelManager:
         """
