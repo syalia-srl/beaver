@@ -204,7 +204,7 @@ For more in-depth examples, check out the scripts in the `examples/` directory:
   - [`examples/cache.py`](examples/cache.py): A practical example of using a dictionary with TTL as a cache for API calls.
   - [`examples/rerank.py`](examples/rerank.py): Shows how to combine results from vector and text search for more refined results.
   - [`examples/fuzzy.py`](examples/fuzzy.py): Demonstrates fuzzy search capabilities for text search.
-  - [`examples/stress_vectors.py](examples/stress_vectors.py): A stress test for the vector search functionality.
+  - [`examples/stress_vectors.py`](examples/stress_vectors.py): A stress test for the vector search functionality.
   - [`examples/general_test.py`](examples/general_test.py): A general-purpose test to run all operations randomly which allows testing long-running processes and synchronicity issues.
 
 ## Roadmap
