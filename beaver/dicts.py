@@ -1,7 +1,8 @@
 import json
 import sqlite3
-import time # Add this import
+import time  # Add this import
 from typing import Any, Iterator, Tuple
+
 
 class DictManager:
     """A wrapper providing a Pythonic interface to a dictionary in the database."""
@@ -52,13 +53,27 @@ class DictManager:
 
         if expires_at is not None and time.time() > expires_at:
             # Expired: delete the key and raise KeyError
-            cursor.execute("DELETE FROM beaver_dicts WHERE dict_name = ? AND key = ?", (self._name, key))
+            cursor.execute(
+                "DELETE FROM beaver_dicts WHERE dict_name = ? AND key = ?",
+                (self._name, key),
+            )
             self._conn.commit()
             cursor.close()
-            raise KeyError(f"Key '{key}' not found in dictionary '{self._name}' (expired)")
+            raise KeyError(
+                f"Key '{key}' not found in dictionary '{self._name}' (expired)"
+            )
 
         cursor.close()
         return json.loads(value)
+
+    def pop(self, key: str, default: Any = None):
+        """Deletes an item if it exists and returns its value."""
+        try:
+            value = self[key]
+            del self[key]
+            return value
+        except KeyError:
+            return default
 
     def __delitem__(self, key: str):
         """Deletes a key-value pair (e.g., `del my_dict[key]`)."""
