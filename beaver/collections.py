@@ -560,6 +560,17 @@ class CollectionManager:
             for row in rows
         ]
 
+    def __len__(self) -> int:
+        """Returns the number of documents in the collection."""
+        cursor = self._conn.cursor()
+        cursor.execute(
+            "SELECT COUNT(*) FROM beaver_collections WHERE collection = ?",
+            (self._name,),
+        )
+        count = cursor.fetchone()[0]
+        cursor.close()
+        return count
+
 
 def rerank(
     *results: list[Document],

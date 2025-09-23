@@ -1,5 +1,3 @@
-Of course, here is a rewritten README to explain the vector store uses a high performance FAISS-based implementation with in-memory and persistent indices, with an added small section on how is this implemented to explain the basic ideas behind the implementation of beaver.
-
 # beaver 🦫
 
 A fast, single-file, multi-modal database for Python, built with the standard `sqlite3` library.
