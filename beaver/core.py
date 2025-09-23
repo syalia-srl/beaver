@@ -1,10 +1,12 @@
 import sqlite3
 import threading
 
-from .dicts import DictManager
-from .lists import ListManager
+
+from .blobs import BlobManager
 from .channels import ChannelManager
 from .collections import CollectionManager
+from .dicts import DictManager
+from .lists import ListManager
 from .queues import QueueManager
 
 
@@ -38,19 +40,34 @@ class BeaverDB:
     def _create_all_tables(self):
         """Initializes all required tables in the database file."""
         with self._conn:
-            self._create_pubsub_table()
-            self._create_list_table()
-            self._create_collections_table()
-            self._create_fts_table()
-            self._create_trigrams_table()
-            self._create_edges_table()
-            self._create_versions_table()
-            self._create_dict_table()
-            self._create_priority_queue_table()
-            self._create_ann_indexes_table()
-            self._create_ann_pending_log_table()
             self._create_ann_deletions_log_table()
             self._create_ann_id_mapping_table()
+            self._create_ann_indexes_table()
+            self._create_ann_pending_log_table()
+            self._create_blobs_table()
+            self._create_collections_table()
+            self._create_dict_table()
+            self._create_edges_table()
+            self._create_fts_table()
+            self._create_list_table()
+            self._create_priority_queue_table()
+            self._create_pubsub_table()
+            self._create_trigrams_table()
+            self._create_versions_table()
+
+    def _create_blobs_table(self):
+        """Creates the table for storing named blobs."""
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS beaver_blobs (
+                store_name TEXT NOT NULL,
+                key TEXT NOT NULL,
+                data BLOB NOT NULL,
+                metadata TEXT,
+                PRIMARY KEY (store_name, key)
+            )
+            """
+        )
 
     def _create_ann_indexes_table(self):
         """Creates the table to store the serialized base ANN index."""
@@ -299,3 +316,10 @@ class BeaverDB:
             if name not in self._channels:
                 self._channels[name] = ChannelManager(name, self._conn, self._db_path)
             return self._channels[name]
+
+    def blobs(self, name: str) -> BlobManager:
+        """Returns a wrapper object for interacting with a named blob store."""
+        if not isinstance(name, str) or not name:
+            raise TypeError("Blob store name must be a non-empty string.")
+
+        return BlobManager(name, self._conn)

@@ -23,6 +23,7 @@ A fast, single-file, multi-modal database for Python, built with the standard `s
   - **Namespaced Key-Value Dictionaries**: A Pythonic, dictionary-like interface for storing any JSON-serializable object within separate namespaces with optional TTL for cache implementations.
   - **Pythonic List Management**: A fluent, Redis-like interface for managing persistent, ordered lists.
   - **Persistent Priority Queue**: A high-performance, persistent queue that always returns the item with the highest priority, perfect for task management.
+  - **Simple Blob Storage**: A dictionary-like interface for storing medium-sized binary files (like PDFs or images) directly in the database, ensuring transactional integrity with your other data.
   - **High-Performance Vector Storage & Search**: Store vector embeddings and perform fast, crash-safe approximate nearest neighbor searches using a `faiss`-based hybrid index.
   - **Full-Text and Fuzzy Search**: Automatically index and search through document metadata using SQLite's powerful FTS5 engine, enhanced with optional fuzzy search for typo-tolerant matching.
   - **Knowledge Graph**: Create relationships between documents and traverse the graph to find neighbors or perform multi-hop walks.
@@ -188,30 +189,53 @@ with db.channel("system_events").subscribe() as listener:
         # >> Event received: {'event': 'user_login', 'user_id': 'alice'}
 ```
 
+### 7. Storing User-Uploaded Content
+
+Use the simple blob store to save files like user avatars, attachments, or generated reports directly in the database. This keeps all your data in one portable file.
+
+```python
+attachments = db.blobs("user_uploads")
+
+# Store a user's avatar
+with open("avatar.png", "rb") as f:
+    avatar_bytes = f.read()
+
+attachments.put(
+    key="user_123_avatar.png",
+    data=avatar_bytes,
+    metadata={"mimetype": "image/png"}
+)
+
+# Retrieve it later
+avatar = attachments.get("user_123_avatar.png")
+```
+
 ## More Examples
 
 For more in-depth examples, check out the scripts in the `examples/` directory:
 
+  - [`examples/async_pubsub.py`](examples/async_pubsub.py): A demonstration of the asynchronous wrapper for the publish/subscribe system.
+  - [`examples/blobs.py`](examples/blobs.py): Demonstrates how to store and retrieve binary data in the database.
+  - [`examples/cache.py`](examples/cache.py): A practical example of using a dictionary with TTL as a cache for API calls.
+  - [`examples/fts.py`](examples/fts.py): A detailed look at full-text search, including targeted searches on specific metadata fields.
+  - [`examples/fuzzy.py`](examples/fuzzy.py): Demonstrates fuzzy search capabilities for text search.
+  - [`examples/general_test.py`](examples/general_test.py): A general-purpose test to run all operations randomly which allows testing long-running processes and synchronicity issues.
+  - [`examples/graph.py`](examples/graph.py): Shows how to create relationships between documents and perform multi-hop graph traversals.
   - [`examples/kvstore.py`](examples/kvstore.py): A comprehensive demo of the namespaced dictionary feature.
   - [`examples/list.py`](examples/list.py): Shows the full capabilities of the persistent list, including slicing and in-place updates.
-  - [`examples/queue.py`](examples/queue.py): A practical example of using the persistent priority queue for task management.
-  - [`examples/vector.py`](examples/vector.py): Demonstrates how to index and search vector embeddings, including upserts.
-  - [`examples/fts.py`](examples/fts.py): A detailed look at full-text search, including targeted searches on specific metadata fields.
-  - [`examples/graph.py`](examples/graph.py): Shows how to create relationships between documents and perform multi-hop graph traversals.
-  - [`examples/pubsub.py`](examples/pubsub.py): A demonstration of the synchronous, thread-safe publish/subscribe system in a single process.
-  - [`examples/async_pubsub.py`](examples/async_pubsub.py): A demonstration of the asynchronous wrapper for the publish/subscribe system.
   - [`examples/publisher.py`](examples/publisher.py) and [`examples/subscriber.py`](examples/subscriber.py): A pair of examples demonstrating inter-process message passing with the publish/subscribe system.
-  - [`examples/cache.py`](examples/cache.py): A practical example of using a dictionary with TTL as a cache for API calls.
+  - [`examples/pubsub.py`](examples/pubsub.py): A demonstration of the synchronous, thread-safe publish/subscribe system in a single process.
+  - [`examples/queue.py`](examples/queue.py): A practical example of using the persistent priority queue for task management.
   - [`examples/rerank.py`](examples/rerank.py): Shows how to combine results from vector and text search for more refined results.
-  - [`examples/fuzzy.py`](examples/fuzzy.py): Demonstrates fuzzy search capabilities for text search.
   - [`examples/stress_vectors.py`](examples/stress_vectors.py): A stress test for the vector search functionality.
-  - [`examples/general_test.py`](examples/general_test.py): A general-purpose test to run all operations randomly which allows testing long-running processes and synchronicity issues.
+  - [`examples/vector.py`](examples/vector.py): Demonstrates how to index and search vector embeddings, including upserts.
 
 ## Roadmap
 
 These are some of the features and improvements planned for future releases:
 
   - **Full Async API**: Comprehensive async support with on-demand wrappers for all collections.
+  - **Type Hints**: Pydantic-based type hints for lists, dicts, and queues.
 
 Check out the [roadmap](roadmap.md) for a detailed list of upcoming features and design ideas.
 
