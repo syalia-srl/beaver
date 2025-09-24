@@ -211,7 +211,7 @@ avatar = attachments.get("user_123_avatar.png")
 
 ## Type-Safe Data Models
 
-For enhanced data integrity and a better developer experience, BeaverDB supports type-safe operations for dictionaries, lists, and queues. By associating a model with these data structures, you get automatic serialization and deserialization, complete with autocompletion in your editor.
+For enhanced data integrity and a better developer experience, BeaverDB supports type-safe operations for all modalities. By associating a model with these data structures, you get automatic serialization and deserialization, complete with autocompletion in your editor.
 
 This feature is designed to be flexible and works seamlessly with two kinds of models:
 
@@ -240,6 +240,10 @@ users["alice"] = User(name="Alice", email="alice@example.com")
 retrieved_user = users["alice"]
 print(f"Retrieved: {retrieved_user.name}") # Your editor will provide autocompletion here
 ```
+
+In the same way you can have typed message payloads in `db.channel`, typed metadata in `db.blobs`, and custom document types in `db.collection`, as well as custom types in lists and queues.
+
+Basically everywhere you can store or get some object in BeaverDB, you can use a typed version adding `model=MyClass` to the corresponding wrapper methond in `BeaverDB` and enjoy first-class type safety and inference.
 
 ## More Examples
 

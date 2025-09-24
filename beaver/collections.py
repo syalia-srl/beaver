@@ -3,10 +3,11 @@ import sqlite3
 import threading
 import uuid
 from enum import Enum
-from typing import Any, List, Literal, Tuple
+from typing import Any, Iterator, List, Literal, Tuple, Type, TypeVar
 
 import numpy as np
 
+from .types import Model
 from .vectors import VectorIndex
 
 
@@ -71,7 +72,7 @@ class WalkDirection(Enum):
     INCOMING = "incoming"
 
 
-class Document:
+class Document(Model):
     """A data class representing a single item in a collection."""
 
     def __init__(
@@ -88,8 +89,7 @@ class Document:
                 raise TypeError("Embedding must be a list of numbers.")
             self.embedding = np.array(embedding, dtype=np.float32)
 
-        for key, value in metadata.items():
-            setattr(self, key, value)
+        super().__init__(**metadata)
 
     def to_dict(self) -> dict[str, Any]:
         """Serializes the document's metadata to a dictionary."""
@@ -103,15 +103,16 @@ class Document:
         return f"Document(id='{self.id}', {metadata_str})"
 
 
-class CollectionManager:
+class CollectionManager[D: Document]:
     """
     A wrapper for multi-modal collection operations, including document storage,
     FTS, fuzzy search, graph traversal, and persistent vector search.
     """
 
-    def __init__(self, name: str, conn: sqlite3.Connection):
+    def __init__(self, name: str, conn: sqlite3.Connection, model: Type[D] | None = None):
         self._name = name
         self._conn = conn
+        self._model = model or Document
         # All vector-related operations are now delegated to the VectorIndex class.
         self._vector_index = VectorIndex(name, conn)
         # A lock to ensure only one compaction thread runs at a time for this collection.
@@ -184,7 +185,7 @@ class CollectionManager:
 
     def index(
         self,
-        document: Document,
+        document: D,
         *,
         fts: bool | list[str] = True,
         fuzzy: bool = False
@@ -266,7 +267,7 @@ class CollectionManager:
         if self._needs_compaction():
             self.compact()
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[D]:
         """Returns an iterator over all documents in the collection."""
         cursor = self._conn.cursor()
         cursor.execute(
@@ -279,14 +280,14 @@ class CollectionManager:
                 if row["item_vector"]
                 else None
             )
-            yield Document(
+            yield self._model(
                 id=row["item_id"], embedding=embedding, **json.loads(row["metadata"])
             )
         cursor.close()
 
     def search(
         self, vector: list[float], top_k: int = 10
-    ) -> List[Tuple[Document, float]]:
+    ) -> List[Tuple[D, float]]:
         """Performs a fast, persistent approximate nearest neighbor search."""
         if not isinstance(vector, list):
             raise TypeError("Search vector must be a list of floats.")
@@ -307,7 +308,7 @@ class CollectionManager:
         rows = cursor.execute(sql, (self._name, *result_ids)).fetchall()
 
         doc_map = {
-            row["item_id"]: Document(
+            row["item_id"]: self._model(
                 id=row["item_id"],
                 embedding=(np.frombuffer(row["item_vector"], dtype=np.float32).tolist() if row["item_vector"] else None),
                 **json.loads(row["metadata"]),
@@ -331,7 +332,7 @@ class CollectionManager:
         on: str | list[str] | None = None,
         top_k: int = 10,
         fuzziness: int = 0
-    ) -> list[tuple[Document, float]]:
+    ) -> list[tuple[D, float]]:
         """
         Performs a full-text or fuzzy search on indexed string fields.
         """
@@ -345,7 +346,7 @@ class CollectionManager:
 
     def _perform_fts_search(
         self, query: str, on: list[str] | None, top_k: int
-    ) -> list[tuple[Document, float]]:
+    ) -> list[tuple[D, float]]:
         """Performs a standard FTS search."""
         cursor = self._conn.cursor()
         sql_query = """
@@ -371,7 +372,7 @@ class CollectionManager:
                 np.frombuffer(row["item_vector"], dtype=np.float32).tolist()
                 if row["item_vector"] else None
             )
-            doc = Document(id=row["item_id"], embedding=embedding, **json.loads(row["metadata"]))
+            doc = self._model(id=row["item_id"], embedding=embedding, **json.loads(row["metadata"]))
             results.append((doc, row["rank"]))
         return results
 
@@ -410,7 +411,7 @@ class CollectionManager:
 
     def _perform_fuzzy_search(
         self, query: str, on: list[str] | None, top_k: int, fuzziness: int
-    ) -> list[tuple[Document, float]]:
+    ) -> list[tuple[D, float]]:
         """Performs a 3-stage fuzzy search: gather, score, and sort."""
         fts_results = self._perform_fts_search(query, on, top_k)
         fts_candidate_ids = {doc.id for doc, _ in fts_results}
@@ -462,7 +463,7 @@ class CollectionManager:
         id_placeholders = ",".join("?" for _ in top_ids)
         sql_docs = f"SELECT item_id, item_vector, metadata FROM beaver_collections WHERE collection = ? AND item_id IN ({id_placeholders})"
         cursor.execute(sql_docs, (self._name, *top_ids))
-        doc_map = {row["item_id"]: Document(id=row["item_id"], embedding=(np.frombuffer(row["item_vector"], dtype=np.float32).tolist() if row["item_vector"] else None), **json.loads(row["metadata"])) for row in cursor.fetchall()}
+        doc_map = {row["item_id"]: self._model(id=row["item_id"], embedding=(np.frombuffer(row["item_vector"], dtype=np.float32).tolist() if row["item_vector"] else None), **json.loads(row["metadata"])) for row in cursor.fetchall()}
 
         final_results = []
         distance_map = {c["id"]: c["distance"] for c in scored_candidates}
@@ -489,7 +490,7 @@ class CollectionManager:
                 ),
             )
 
-    def neighbors(self, doc: Document, label: str | None = None) -> list[Document]:
+    def neighbors(self, doc: D, label: str | None = None) -> list[D]:
         """Retrieves the neighboring documents connected to a given document."""
         sql = "SELECT t1.item_id, t1.item_vector, t1.metadata FROM beaver_collections AS t1 JOIN beaver_edges AS t2 ON t1.item_id = t2.target_item_id AND t1.collection = t2.collection WHERE t2.collection = ? AND t2.source_item_id = ?"
         params = [self._name, doc.id]
@@ -499,7 +500,7 @@ class CollectionManager:
 
         rows = self._conn.cursor().execute(sql, tuple(params)).fetchall()
         return [
-            Document(
+            self._model(
                 id=row["item_id"],
                 embedding=(
                     np.frombuffer(row["item_vector"], dtype=np.float32).tolist()
@@ -513,16 +514,16 @@ class CollectionManager:
 
     def walk(
         self,
-        source: Document,
+        source: D,
         labels: List[str],
         depth: int,
         *,
         direction: Literal[
             WalkDirection.OUTGOING, WalkDirection.INCOMING
         ] = WalkDirection.OUTGOING,
-    ) -> List[Document]:
+    ) -> List[D]:
         """Performs a graph traversal (BFS) from a starting document."""
-        if not isinstance(source, Document):
+        if not isinstance(source, D):
             raise TypeError("The starting point must be a Document object.")
         if depth <= 0:
             return []
@@ -548,7 +549,7 @@ class CollectionManager:
 
         rows = self._conn.cursor().execute(sql, tuple(params)).fetchall()
         return [
-            Document(
+            self._model(
                 id=row["item_id"],
                 embedding=(
                     np.frombuffer(row["item_vector"], dtype=np.float32).tolist()
@@ -572,11 +573,11 @@ class CollectionManager:
         return count
 
 
-def rerank(
-    *results: list[Document],
+def rerank[D: Document](
+    *results: list[D],
     weights: list[float] | None = None,
     k: int = 60
-) -> list[Document]:
+) -> list[D]:
     """
     Reranks documents from multiple search result lists using Reverse Rank Fusion (RRF).
     """
@@ -590,7 +591,7 @@ def rerank(
         raise ValueError("The number of result lists must match the number of weights.")
 
     rrf_scores: dict[str, float] = {}
-    doc_store: dict[str, Document] = {}
+    doc_store: dict[str, D] = {}
 
     for result_list, weight in zip(results, weights):
         for rank, doc in enumerate(result_list):
@@ -600,5 +601,5 @@ def rerank(
             score = weight * (1 / (k + rank))
             rrf_scores[doc_id] = rrf_scores.get(doc_id, 0.0) + score
 
-    sorted_doc_ids = sorted(rrf_scores.keys(), key=rrf_scores.get, reverse=True)
+    sorted_doc_ids = sorted(rrf_scores.keys(), key=lambda k: rrf_scores[k], reverse=True)
     return [doc_store[doc_id] for doc_id in sorted_doc_ids]

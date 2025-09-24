@@ -1,10 +1,11 @@
 import sqlite3
 import threading
+from typing import Type
 
 from .types import JsonSerializable
 from .blobs import BlobManager
 from .channels import ChannelManager
-from .collections import CollectionManager
+from .collections import CollectionManager, Document
 from .dicts import DictManager
 from .lists import ListManager
 from .queues import QueueManager
@@ -306,7 +307,7 @@ class BeaverDB:
 
         return QueueManager(name, self._conn, model)
 
-    def collection(self, name: str) -> CollectionManager:
+    def collection[D: Document](self, name: str, model: Type[D] | None = None) -> CollectionManager[D]:
         """
         Returns a singleton CollectionManager instance for interacting with a
         document collection.
@@ -319,10 +320,11 @@ class BeaverDB:
         # of the vector index consistently.
         with self._collections_lock:
             if name not in self._collections:
-                self._collections[name] = CollectionManager(name, self._conn)
+                self._collections[name] = CollectionManager(name, self._conn, model=model)
+
             return self._collections[name]
 
-    def channel(self, name: str) -> ChannelManager:
+    def channel[T](self, name: str, model: type[T] | None = None) -> ChannelManager[T]:
         """
         Returns a singleton Channel instance for high-efficiency pub/sub.
         """
@@ -332,12 +334,12 @@ class BeaverDB:
         # Use a thread-safe lock to ensure only one Channel object is created per name.
         with self._channels_lock:
             if name not in self._channels:
-                self._channels[name] = ChannelManager(name, self._conn, self._db_path)
+                self._channels[name] = ChannelManager(name, self._conn, self._db_path, model=model)
             return self._channels[name]
 
-    def blobs(self, name: str) -> BlobManager:
+    def blobs[M](self, name: str, model: type[M] | None = None) -> BlobManager[M]:
         """Returns a wrapper object for interacting with a named blob store."""
         if not isinstance(name, str) or not name:
             raise TypeError("Blob store name must be a non-empty string.")
 
-        return BlobManager(name, self._conn)
+        return BlobManager(name, self._conn, model)

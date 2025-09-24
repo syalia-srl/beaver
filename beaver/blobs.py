@@ -1,24 +1,43 @@
 import json
 import sqlite3
-from typing import Any, Dict, Iterator, NamedTuple, Optional
+from typing import Any, Dict, Iterator, NamedTuple, Optional, Type, TypeVar
+
+from .types import JsonSerializable
 
 
-class Blob(NamedTuple):
+class Blob[M](NamedTuple):
     """A data class representing a single blob retrieved from the store."""
 
     key: str
     data: bytes
-    metadata: Dict[str, Any]
+    metadata: M
 
 
-class BlobManager:
+class BlobManager[M]:
     """A wrapper providing a Pythonic interface to a blob store in the database."""
 
-    def __init__(self, name: str, conn: sqlite3.Connection):
+    def __init__(self, name: str, conn: sqlite3.Connection, model: Type[M] | None = None):
         self._name = name
         self._conn = conn
+        self._model = model
 
-    def put(self, key: str, data: bytes, metadata: Optional[Dict[str, Any]] = None):
+    def _serialize(self, value: M) -> str | None:
+        """Serializes the given value to a JSON string."""
+        if value is None:
+            return None
+        if isinstance(value, JsonSerializable):
+            return value.model_dump_json()
+
+        return json.dumps(value)
+
+    def _deserialize(self, value: str) -> M:
+        """Deserializes a JSON string into the specified model or a generic object."""
+        if self._model:
+            return self._model.model_validate_json(value)
+
+        return json.loads(value)
+
+    def put(self, key: str, data: bytes, metadata: Optional[M] = None):
         """
         Stores or replaces a blob in the store.
 
@@ -30,7 +49,7 @@ class BlobManager:
         if not isinstance(data, bytes):
             raise TypeError("Blob data must be of type bytes.")
 
-        metadata_json = json.dumps(metadata) if metadata else None
+        metadata_json = self._serialize(metadata) if metadata else None
 
         with self._conn:
             self._conn.execute(
@@ -38,7 +57,7 @@ class BlobManager:
                 (self._name, key, data, metadata_json),
             )
 
-    def get(self, key: str) -> Optional[Blob]:
+    def get(self, key: str) -> Optional[Blob[M]]:
         """
         Retrieves a blob from the store.
 
@@ -60,7 +79,7 @@ class BlobManager:
             return None
 
         data, metadata_json = result
-        metadata = json.loads(metadata_json) if metadata_json else {}
+        metadata = self._deserialize(metadata_json) if metadata_json else None
 
         return Blob(key=key, data=data, metadata=metadata)
 

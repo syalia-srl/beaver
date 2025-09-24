@@ -4,19 +4,21 @@ import sqlite3
 import threading
 import time
 from queue import Empty, Queue
-from typing import Any, AsyncIterator, Iterator, Set
+from typing import Any, AsyncIterator, Generic, Iterator, Set, Type, TypeVar
+
+from .types import JsonSerializable
 
 # A special message object used to signal the listener to gracefully shut down.
 _SHUTDOWN_SENTINEL = object()
 
 
-class AsyncSubscriber:
+class AsyncSubscriber[T]:
     """A thread-safe async message receiver for a specific channel subscription."""
 
-    def __init__(self, subscriber: "Subscriber"):
+    def __init__(self, subscriber: "Subscriber[T]"):
         self._subscriber = subscriber
 
-    async def __aenter__(self) -> "AsyncSubscriber":
+    async def __aenter__(self) -> "AsyncSubscriber[T]":
         """Registers the listener's queue with the channel to start receiving messages."""
         await asyncio.to_thread(self._subscriber.__enter__)
         return self
@@ -25,7 +27,7 @@ class AsyncSubscriber:
         """Unregisters the listener's queue from the channel to stop receiving messages."""
         await asyncio.to_thread(self._subscriber.__exit__, exc_type, exc_val, exc_tb)
 
-    async def listen(self, timeout: float | None = None) -> AsyncIterator[Any]:
+    async def listen(self, timeout: float | None = None) -> AsyncIterator[T]:
         """
         Returns a blocking async iterator that yields messages as they arrive.
         """
@@ -39,7 +41,7 @@ class AsyncSubscriber:
                 raise TimeoutError(f"Timeout {timeout}s expired.")
 
 
-class Subscriber:
+class Subscriber[T]:
     """
     A thread-safe message receiver for a specific channel subscription.
 
@@ -49,11 +51,11 @@ class Subscriber:
     impact others.
     """
 
-    def __init__(self, channel: "ChannelManager"):
+    def __init__(self, channel: "ChannelManager[T]"):
         self._channel = channel
         self._queue: Queue = Queue()
 
-    def __enter__(self) -> "Subscriber":
+    def __enter__(self) -> "Subscriber[T]":
         """Registers the listener's queue with the channel to start receiving messages."""
         self._channel._register(self._queue)
         return self
@@ -62,7 +64,7 @@ class Subscriber:
         """Unregisters the listener's queue from the channel to stop receiving messages."""
         self._channel._unregister(self._queue)
 
-    def listen(self, timeout: float | None = None) -> Iterator[Any]:
+    def listen(self, timeout: float | None = None) -> Iterator[T]:
         """
         Returns a blocking iterator that yields messages as they arrive.
 
@@ -84,29 +86,29 @@ class Subscriber:
             except Empty:
                 raise TimeoutError(f"Timeout {timeout}s expired.")
 
-    def as_async(self) -> "AsyncSubscriber":
+    def as_async(self) -> "AsyncSubscriber[T]":
         """Returns an async version of the subscriber."""
         return AsyncSubscriber(self)
 
 
-class AsyncChannelManager:
+class AsyncChannelManager[T]:
     """The central async hub for a named pub/sub channel."""
 
-    def __init__(self, channel: "ChannelManager"):
+    def __init__(self, channel: "ChannelManager[T]"):
         self._channel = channel
 
-    async def publish(self, payload: Any):
+    async def publish(self, payload: T):
         """
         Publishes a JSON-serializable message to the channel asynchronously.
         """
         await asyncio.to_thread(self._channel.publish, payload)
 
-    def subscribe(self) -> "AsyncSubscriber":
+    def subscribe(self) -> "AsyncSubscriber[T]":
         """Creates a new async subscription, returning an AsyncSubscriber context manager."""
         return self._channel.subscribe().as_async()
 
 
-class ChannelManager:
+class ChannelManager[T]:
     """
     The central hub for a named pub/sub channel.
 
@@ -121,15 +123,31 @@ class ChannelManager:
         conn: sqlite3.Connection,
         db_path: str,
         poll_interval: float = 0.1,
+        model: Type[T] | None = None,
     ):
         self._name = name
         self._conn = conn
         self._db_path = db_path
         self._poll_interval = poll_interval
+        self._model = model
         self._listeners: Set[Queue] = set()
         self._lock = threading.Lock()
         self._polling_thread: threading.Thread | None = None
         self._stop_event = threading.Event()
+
+    def _serialize(self, value: T) -> str:
+        """Serializes the given value to a JSON string."""
+        if isinstance(value, JsonSerializable):
+            return value.model_dump_json()
+
+        return json.dumps(value)
+
+    def _deserialize(self, value: str) -> T:
+        """Deserializes a JSON string into the specified model or a generic object."""
+        if self._model:
+            return self._model.model_validate_json(value)
+
+        return json.loads(value)
 
     def _register(self, queue: Queue):
         """Adds a listener's queue and starts the poller if it's the first one."""
@@ -186,7 +204,6 @@ class ChannelManager:
         # The poller starts listening for messages from this moment forward.
         last_seen_timestamp = time.time()
 
-
         while not self._stop_event.is_set():
             cursor = thread_conn.cursor()
             cursor.execute(
@@ -206,18 +223,18 @@ class ChannelManager:
                 with self._lock:
                     for queue in self._listeners:
                         for row in messages:
-                            queue.put(json.loads(row["message_payload"]))
+                            queue.put(self._deserialize(row["message_payload"]))
 
             # Wait for the poll interval before checking for new messages again.
             time.sleep(self._poll_interval)
 
         thread_conn.close()
 
-    def subscribe(self) -> Subscriber:
+    def subscribe(self) -> Subscriber[T]:
         """Creates a new subscription, returning a Listener context manager."""
         return Subscriber(self)
 
-    def publish(self, payload: Any):
+    def publish(self, payload: T):
         """
         Publishes a JSON-serializable message to the channel.
 
@@ -225,7 +242,7 @@ class ChannelManager:
         into the database's pub/sub log.
         """
         try:
-            json_payload = json.dumps(payload)
+            json_payload = self._serialize(payload)
         except TypeError as e:
             raise TypeError("Message payload must be JSON-serializable.") from e
 
@@ -235,6 +252,6 @@ class ChannelManager:
                 (time.time(), self._name, json_payload),
             )
 
-    def as_async(self) -> "AsyncChannelManager":
+    def as_async(self) -> "AsyncChannelManager[T]":
         """Returns an async version of the channel manager."""
         return AsyncChannelManager(self)
