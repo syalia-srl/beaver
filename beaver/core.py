@@ -8,6 +8,7 @@ from .channels import ChannelManager
 from .collections import CollectionManager, Document
 from .dicts import DictManager
 from .lists import ListManager
+from .logs import LogManager
 from .queues import QueueManager
 
 
@@ -51,10 +52,30 @@ class BeaverDB:
             self._create_edges_table()
             self._create_fts_table()
             self._create_list_table()
+            self._create_logs_table()
             self._create_priority_queue_table()
             self._create_pubsub_table()
             self._create_trigrams_table()
             self._create_versions_table()
+
+    def _create_logs_table(self):
+        """Creates the table for time-indexed logs."""
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS beaver_logs (
+                log_name TEXT NOT NULL,
+                timestamp REAL NOT NULL,
+                data TEXT NOT NULL,
+                PRIMARY KEY (log_name, timestamp)
+            )
+            """
+        )
+        self._conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_logs_timestamp
+            ON beaver_logs (log_name, timestamp)
+            """
+        )
 
     def _create_blobs_table(self):
         """Creates the table for storing named blobs."""
@@ -343,3 +364,16 @@ class BeaverDB:
             raise TypeError("Blob store name must be a non-empty string.")
 
         return BlobManager(name, self._conn, model)
+
+    def log[T](self, name: str, model: type[T] | None = None) -> LogManager[T]:
+        """
+        Returns a wrapper for interacting with a named, time-indexed log.
+        If model is defined, it should be a type used for automatic (de)serialization.
+        """
+        if not isinstance(name, str) or not name:
+            raise TypeError("Log name must be a non-empty string.")
+
+        if model and not isinstance(model, JsonSerializable):
+            raise TypeError("The model parameter must be a JsonSerializable class.")
+
+        return LogManager(name, self._conn, self._db_path, model)

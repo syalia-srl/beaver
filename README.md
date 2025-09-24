@@ -8,25 +8,26 @@ A fast, single-file, multi-modal database for Python, built with the standard `s
 
 `beaver` is built with a minimalistic philosophy for small, local use cases where a full-blown database server would be overkill.
 
-  - **Minimalistic**: Uses only Python's standard libraries (`sqlite3`) and `numpy`/`faiss-cpu`.
-  - **Schemaless**: Flexible data storage without rigid schemas across all modalities.
-  - **Synchronous, Multi-Process, and Thread-Safe**: Designed for simplicity and safety in multi-threaded and multi-process environments.
-  - **Built for Local Applications**: Perfect for local AI tools, RAG prototypes, chatbots, and desktop utilities that need persistent, structured data without network overhead.
-  - **Fast by Default**: It's built on SQLite, which is famously fast and reliable for local applications. Vector search is accelerated with a high-performance, persistent `faiss` index.
-  - **Standard Relational Interface**: While `beaver` provides high-level features, you can always use the same SQLite file for normal relational tasks with standard SQL.
+- **Minimalistic**: Uses only Python's standard libraries (`sqlite3`) and `numpy`/`faiss-cpu`.
+- **Schemaless**: Flexible data storage without rigid schemas across all modalities.
+- **Synchronous, Multi-Process, and Thread-Safe**: Designed for simplicity and safety in multi-threaded and multi-process environments.
+- **Built for Local Applications**: Perfect for local AI tools, RAG prototypes, chatbots, and desktop utilities that need persistent, structured data without network overhead.
+- **Fast by Default**: It's built on SQLite, which is famously fast and reliable for local applications. Vector search is accelerated with a high-performance, persistent `faiss` index.
+- **Standard Relational Interface**: While `beaver` provides high-level features, you can always use the same SQLite file for normal relational tasks with standard SQL.
 
 ## Core Features
 
-  - **Sync/Async High-Efficiency Pub/Sub**: A powerful, thread and process-safe publish-subscribe system for real-time messaging with a fan-out architecture. Sync by default, but with an `as_async` wrapper for async applications.
-  - **Namespaced Key-Value Dictionaries**: A Pythonic, dictionary-like interface for storing any JSON-serializable object within separate namespaces with optional TTL for cache implementations.
-  - **Pythonic List Management**: A fluent, Redis-like interface for managing persistent, ordered lists.
-  - **Persistent Priority Queue**: A high-performance, persistent priority queue perfect for task orchestration across multiple processes. Also with optional async support.
-  - **Simple Blob Storage**: A dictionary-like interface for storing medium-sized binary files (like PDFs or images) directly in the database, ensuring transactional integrity with your other data.
-  - **High-Performance Vector Storage & Search**: Store vector embeddings and perform fast, crash-safe approximate nearest neighbor searches using a `faiss`-based hybrid index.
-  - **Full-Text and Fuzzy Search**: Automatically index and search through document metadata using SQLite's powerful FTS5 engine, enhanced with optional fuzzy search for typo-tolerant matching.
-  - **Knowledge Graph**: Create relationships between documents and traverse the graph to find neighbors or perform multi-hop walks.
-  - **Single-File & Portable**: All data is stored in a single SQLite file, making it incredibly easy to move, back up, or embed in your application.
-  - **Optional Type-Safety:** Although the database is schemaless, you can use a minimalistic typing system for automatic serialization and deserialization that is Pydantic-compatible out of the box.
+- **Sync/Async High-Efficiency Pub/Sub**: A powerful, thread and process-safe publish-subscribe system for real-time messaging with a fan-out architecture. Sync by default, but with an `as_async` wrapper for async applications.
+- **Namespaced Key-Value Dictionaries**: A Pythonic, dictionary-like interface for storing any JSON-serializable object within separate namespaces with optional TTL for cache implementations.
+- **Pythonic List Management**: A fluent, Redis-like interface for managing persistent, ordered lists.
+- **Persistent Priority Queue**: A high-performance, persistent priority queue perfect for task orchestration across multiple processes. Also with optional async support.
+- **Time-Indexed Log for Monitoring**: A specialized data structure for structured, time-series logs. Query historical data by time range or create a live, aggregated view of the most recent events for real-time dashboards.
+- **Simple Blob Storage**: A dictionary-like interface for storing medium-sized binary files (like PDFs or images) directly in the database, ensuring transactional integrity with your other data.
+- **High-Performance Vector Storage & Search**: Store vector embeddings and perform fast, crash-safe approximate nearest neighbor searches using a `faiss`-based hybrid index.
+- **Full-Text and Fuzzy Search**: Automatically index and search through document metadata using SQLite's powerful FTS5 engine, enhanced with optional fuzzy search for typo-tolerant matching.
+- **Knowledge Graph**: Create relationships between documents and traverse the graph to find neighbors or perform multi-hop walks.
+- **Single-File & Portable**: All data is stored in a single SQLite file, making it incredibly easy to move, back up, or embed in your application.
+- **Optional Type-Safety:** Although the database is schemaless, you can use a minimalistic typing system for automatic serialization and deserialization that is Pydantic-compatible out of the box.
 
 ## How Beaver is Implemented
 
@@ -209,6 +210,29 @@ attachments.put(
 avatar = attachments.get("user_123_avatar.png")
 ```
 
+### 8. Real-time Application Monitoring
+
+Use the **time-indexed log** to monitor your application's health in real-time. The `live()` method provides a continuously updating, aggregated view of your log data, perfect for building simple dashboards directly in your terminal.
+
+```python
+from datetime import timedelta
+import statistics
+
+logs = db.log("system_metrics")
+
+def summarize(window):
+    values = [log.get("value", 0) for log in window]
+    return {"mean": statistics.mean(values), "count": len(values)}
+
+live_summary = logs.live(
+    window_duration=timedelta(seconds=10),
+    sampling_period=timedelta(seconds=1),
+    aggregator=summarize
+)
+
+for summary in live_summary:
+    print(f"Live Stats (10s window): Count={summary['count']}, Mean={summary['mean']:.2f}")
+```
 
 ## Type-Safe Data Models
 
