@@ -1,21 +1,38 @@
 import json
 import sqlite3
-import time  # Add this import
-from typing import Any, Iterator, Tuple
+import time
+from typing import Any, Iterator, Tuple, Type
+
+from .types import JsonSerializable
 
 
-class DictManager:
+class DictManager[T]:
     """A wrapper providing a Pythonic interface to a dictionary in the database."""
 
-    def __init__(self, name: str, conn: sqlite3.Connection):
+    def __init__(self, name: str, conn: sqlite3.Connection, model: Type[T] | None = None):
         self._name = name
         self._conn = conn
+        self._model = model
 
-    def set(self, key: str, value: Any, ttl_seconds: int | None = None):
+    def _serialize(self, value: T) -> str:
+        """Serializes the given value to a JSON string."""
+        if isinstance(value, JsonSerializable):
+            return value.model_dump_json()
+
+        return json.dumps(value)
+
+    def _deserialize(self, value: str) -> T:
+        """Deserializes a JSON string into the specified model or a generic object."""
+        if self._model:
+            return self._model.model_validate_json(value)
+
+        return json.loads(value)
+
+    def set(self, key: str, value: T, ttl_seconds: int | None = None):
         """Sets a value for a key, with an optional TTL."""
         self.__setitem__(key, value, ttl_seconds=ttl_seconds)
 
-    def __setitem__(self, key: str, value: Any, ttl_seconds: int | None = None):
+    def __setitem__(self, key: str, value: T, ttl_seconds: int | None = None):
         """Sets a value for a key (e.g., `my_dict[key] = value`)."""
         expires_at = None
         if ttl_seconds is not None:
@@ -26,17 +43,17 @@ class DictManager:
         with self._conn:
             self._conn.execute(
                 "INSERT OR REPLACE INTO beaver_dicts (dict_name, key, value, expires_at) VALUES (?, ?, ?, ?)",
-                (self._name, key, json.dumps(value), expires_at),
+                (self._name, key, self._serialize(value), expires_at),
             )
 
-    def get(self, key: str, default: Any = None) -> Any:
+    def get(self, key: str, default: Any = None) -> T | Any:
         """Gets a value for a key, with a default if it doesn't exist or is expired."""
         try:
             return self[key]
         except KeyError:
             return default
 
-    def __getitem__(self, key: str) -> Any:
+    def __getitem__(self, key: str) -> T:
         """Retrieves a value for a given key, raising KeyError if expired."""
         cursor = self._conn.cursor()
         cursor.execute(
@@ -53,20 +70,20 @@ class DictManager:
 
         if expires_at is not None and time.time() > expires_at:
             # Expired: delete the key and raise KeyError
-            cursor.execute(
-                "DELETE FROM beaver_dicts WHERE dict_name = ? AND key = ?",
-                (self._name, key),
-            )
-            self._conn.commit()
+            with self._conn:
+                cursor.execute(
+                    "DELETE FROM beaver_dicts WHERE dict_name = ? AND key = ?",
+                    (self._name, key),
+                )
             cursor.close()
             raise KeyError(
                 f"Key '{key}' not found in dictionary '{self._name}' (expired)"
             )
 
         cursor.close()
-        return json.loads(value)
+        return self._deserialize(value)
 
-    def pop(self, key: str, default: Any = None):
+    def pop(self, key: str, default: Any = None) -> T | Any:
         """Deletes an item if it exists and returns its value."""
         try:
             value = self[key]
@@ -110,25 +127,25 @@ class DictManager:
             yield row["key"]
         cursor.close()
 
-    def values(self) -> Iterator[Any]:
+    def values(self) -> Iterator[T]:
         """Returns an iterator over the dictionary's values."""
         cursor = self._conn.cursor()
         cursor.execute(
             "SELECT value FROM beaver_dicts WHERE dict_name = ?", (self._name,)
         )
         for row in cursor:
-            yield json.loads(row["value"])
+            yield self._deserialize(row["value"])
         cursor.close()
 
-    def items(self) -> Iterator[Tuple[str, Any]]:
+    def items(self) -> Iterator[Tuple[str, T]]:
         """Returns an iterator over the dictionary's items (key-value pairs)."""
         cursor = self._conn.cursor()
         cursor.execute(
             "SELECT key, value FROM beaver_dicts WHERE dict_name = ?", (self._name,)
         )
         for row in cursor:
-            yield (row["key"], json.loads(row["value"]))
+            yield (row["key"], self._deserialize(row["value"]))
         cursor.close()
 
     def __repr__(self) -> str:
-        return f"DictWrapper(name='{self._name}')"
+        return f"DictManager(name='{self._name}')"

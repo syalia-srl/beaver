@@ -208,6 +208,39 @@ attachments.put(
 avatar = attachments.get("user_123_avatar.png")
 ```
 
+
+## Type-Safe Data Models
+
+For enhanced data integrity and a better developer experience, BeaverDB supports type-safe operations for dictionaries, lists, and queues. By associating a model with these data structures, you get automatic serialization and deserialization, complete with autocompletion in your editor.
+
+This feature is designed to be flexible and works seamlessly with two kinds of models:
+
+  * **Pydantic Models**: If you're already using Pydantic, your `BaseModel` classes will work out of the box.
+  * **Lightweight `beaver.Model`**: For a zero-dependency solution, you can inherit from the built-in `beaver.Model` class, which is a standard Python class with serialization methods automatically included.
+
+Here’s a quick example of how to use it:
+
+```python
+from beaver import BeaverDB, Model
+
+# Inherit from beaver.Model for a lightweight, dependency-free model
+class User(Model):
+    name: str
+    email: str
+
+db = BeaverDB("user_data.db")
+
+# Associate the User model with a dictionary
+users = db.dict("user_profiles", model=User)
+
+# BeaverDB now handles serialization automatically
+users["alice"] = User(name="Alice", email="alice@example.com")
+
+# The retrieved object is a proper instance of the User class
+retrieved_user = users["alice"]
+print(f"Retrieved: {retrieved_user.name}") # Your editor will provide autocompletion here
+```
+
 ## More Examples
 
 For more in-depth examples, check out the scripts in the `examples/` directory:
