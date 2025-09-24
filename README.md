@@ -263,12 +263,16 @@ For more in-depth examples, check out the scripts in the `examples/` directory:
 
 ## Roadmap
 
+`beaver` is roughly feature-complete, but there are still some features and improvements planned for future releases, mostly directed to improving developer experience.
+
 These are some of the features and improvements planned for future releases:
 
-  - **Full Async API**: Comprehensive async support with on-demand wrappers for all collections.
-  - **Type Hints**: Pydantic-based type hints for lists, dicts, and queues.
+  - **Async API**: Extend the async support with on-demand wrappers for all features besides channels.
+  - **Type Hints**: Extend type hints for channels and documents.
 
 Check out the [roadmap](roadmap.md) for a detailed list of upcoming features and design ideas.
+
+If you think of something that would make `beaver` more useful for your use case, please open an issue and/or submit a pull request.
 
 ## License
 
