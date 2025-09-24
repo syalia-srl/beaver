@@ -1,25 +1,42 @@
 import json
 import sqlite3
 import time
-from typing import Any, NamedTuple
+from typing import Any, Literal, NamedTuple, Type, overload
+
+from .types import JsonSerializable
 
 
-class QueueItem(NamedTuple):
+class QueueItem[T](NamedTuple):
     """A data class representing a single item retrieved from the queue."""
 
     priority: float
     timestamp: float
-    data: Any
+    data: T
 
 
-class QueueManager:
+class QueueManager[T]:
     """A wrapper providing a Pythonic interface to a persistent priority queue."""
 
-    def __init__(self, name: str, conn: sqlite3.Connection):
+    def __init__(self, name: str, conn: sqlite3.Connection, model: Type[T] | None = None):
         self._name = name
         self._conn = conn
+        self._model = model
 
-    def put(self, data: Any, priority: float):
+    def _serialize(self, value: T) -> str:
+        """Serializes the given value to a JSON string."""
+        if isinstance(value, JsonSerializable):
+            return value.model_dump_json()
+
+        return json.dumps(value)
+
+    def _deserialize(self, value: str) -> T:
+        """Deserializes a JSON string into the specified model or a generic object."""
+        if self._model is not None:
+            return self._model.model_validate_json(value) # type: ignore
+
+        return json.loads(value)
+
+    def put(self, data: T, priority: float):
         """
         Adds an item to the queue with a specific priority.
 
@@ -30,17 +47,18 @@ class QueueManager:
         with self._conn:
             self._conn.execute(
                 "INSERT INTO beaver_priority_queues (queue_name, priority, timestamp, data) VALUES (?, ?, ?, ?)",
-                (self._name, priority, time.time(), json.dumps(data)),
+                (self._name, priority, time.time(), self._serialize(data)),
             )
 
-    def get(self) -> QueueItem:
+    @overload
+    def get(self, safe:Literal[True]) -> QueueItem[T] | None: ...
+    @overload
+    def get(self) -> QueueItem[T]: ...
+
+    def get(self, safe:bool=False) -> QueueItem[T] | None:
         """
         Atomically retrieves and removes the highest-priority item from the queue.
-
-        Returns:
-            A QueueItem containing the data and its metadata.
-
-        Raises IndexError if queue is empty.
+        If the queue is empty, returns None if safe is True, otherwise (the default) raises IndexError.
         """
         with self._conn:
             cursor = self._conn.cursor()
@@ -58,14 +76,17 @@ class QueueManager:
             result = cursor.fetchone()
 
             if result is None:
-                raise IndexError("Queue is empty")
+                if safe:
+                    return None
+                else:
+                    raise IndexError("No item available.")
 
             rowid, priority, timestamp, data = result
             # Delete the retrieved item to ensure it's processed only once.
             cursor.execute("DELETE FROM beaver_priority_queues WHERE rowid = ?", (rowid,))
 
             return QueueItem(
-                priority=priority, timestamp=timestamp, data=json.loads(data)
+                priority=priority, timestamp=timestamp, data=self._deserialize(data)
             )
 
     def __len__(self) -> int:
@@ -79,7 +100,7 @@ class QueueManager:
         cursor.close()
         return count
 
-    def __nonzero__(self) -> bool:
+    def __bool__(self) -> bool:
         """Returns True if the queue is not empty."""
         return len(self) > 0
 

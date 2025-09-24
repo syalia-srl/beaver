@@ -1,7 +1,7 @@
 import sqlite3
 import threading
 
-
+from .types import JsonSerializable
 from .blobs import BlobManager
 from .channels import ChannelManager
 from .collections import CollectionManager
@@ -274,19 +274,31 @@ class BeaverDB:
 
         return DictManager(name, self._conn)
 
-    def list(self, name: str) -> ListManager:
-        """Returns a wrapper object for interacting with a named list."""
+    def list[T](self, name: str, model: type[T] | None = None) -> ListManager[T]:
+        """
+        Returns a wrapper object for interacting with a named list.
+        If model is defined, it should be a type used for automatic (de)serialization.
+        """
         if not isinstance(name, str) or not name:
             raise TypeError("List name must be a non-empty string.")
 
+        if model and not isinstance(model, JsonSerializable):
+            raise TypeError("The model parameter must be a JsonSerializable class.")
+
         return ListManager(name, self._conn)
 
-    def queue(self, name: str) -> QueueManager:
-        """Returns a wrapper object for interacting with a persistent priority queue."""
+    def queue[T](self, name: str, model: type[T] | None = None) -> QueueManager[T]:
+        """
+        Returns a wrapper object for interacting with a persistent priority queue.
+        If model is defined, it should be a type used for automatic (de)serialization.
+        """
         if not isinstance(name, str) or not name:
             raise TypeError("Queue name must be a non-empty string.")
 
-        return QueueManager(name, self._conn)
+        if model and not isinstance(model, JsonSerializable):
+            raise TypeError("The model parameter must be a JsonSerializable class.")
+
+        return QueueManager(name, self._conn, model)
 
     def collection(self, name: str) -> CollectionManager:
         """

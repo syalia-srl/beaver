@@ -1,13 +1,29 @@
 import json
 import sqlite3
-from typing import Any, Union, Iterator
+from typing import Any, Iterator, Type, Union
 
-class ListManager:
+from .types import JsonSerializable
+
+
+class ListManager[T]:
     """A wrapper providing a Pythonic, full-featured interface to a list in the database."""
 
-    def __init__(self, name: str, conn: sqlite3.Connection):
+    def __init__(self, name: str, conn: sqlite3.Connection, model: Type[T] | None = None):
         self._name = name
         self._conn = conn
+        self._model = model
+
+    def _serialize(self, value: T) -> str:
+        """Serializes the given value to a JSON string."""
+        if isinstance(value, JsonSerializable):
+            return value.model_dump_json()
+        return json.dumps(value)
+
+    def _deserialize(self, value: str) -> T:
+        """Deserializes a JSON string into the specified model or a generic object."""
+        if self._model:
+            return self._model.model_validate_json(value)
+        return json.loads(value)
 
     def __len__(self) -> int:
         """Returns the number of items in the list (e.g., `len(my_list)`)."""
@@ -19,7 +35,7 @@ class ListManager:
         cursor.close()
         return count
 
-    def __getitem__(self, key: Union[int, slice]) -> Any:
+    def __getitem__(self, key: Union[int, slice]) -> T | list[T]:
         """
         Retrieves an item or slice from the list (e.g., `my_list[0]`, `my_list[1:3]`).
         """
@@ -37,7 +53,7 @@ class ListManager:
                 "SELECT item_value FROM beaver_lists WHERE list_name = ? ORDER BY item_order ASC LIMIT ? OFFSET ?",
                 (self._name, limit, start),
             )
-            results = [json.loads(row["item_value"]) for row in cursor.fetchall()]
+            results = [self._deserialize(row["item_value"]) for row in cursor.fetchall()]
             cursor.close()
             return results
 
@@ -55,12 +71,12 @@ class ListManager:
             )
             result = cursor.fetchone()
             cursor.close()
-            return json.loads(result["item_value"]) if result else None
+            return self._deserialize(result["item_value"])
 
         else:
             raise TypeError("List indices must be integers or slices.")
 
-    def __setitem__(self, key: int, value: Any):
+    def __setitem__(self, key: int, value: T):
         """Sets the value of an item at a specific index (e.g., `my_list[0] = 'new'`)."""
         if not isinstance(key, int):
             raise TypeError("List indices must be integers.")
@@ -86,7 +102,7 @@ class ListManager:
             # Update the value for that specific row
             cursor.execute(
                 "UPDATE beaver_lists SET item_value = ? WHERE rowid = ?",
-                (json.dumps(value), rowid_to_update)
+                (self._serialize(value), rowid_to_update)
             )
 
     def __delitem__(self, key: int):
@@ -115,7 +131,7 @@ class ListManager:
             # Delete that specific row
             cursor.execute("DELETE FROM beaver_lists WHERE rowid = ?", (rowid_to_delete,))
 
-    def __iter__(self) -> Iterator[Any]:
+    def __iter__(self) -> Iterator[T]:
         """Returns an iterator for the list."""
         cursor = self._conn.cursor()
         cursor.execute(
@@ -123,15 +139,15 @@ class ListManager:
             (self._name,)
         )
         for row in cursor:
-            yield json.loads(row['item_value'])
+            yield self._deserialize(row['item_value'])
         cursor.close()
 
-    def __contains__(self, value: Any) -> bool:
+    def __contains__(self, value: T) -> bool:
         """Checks for the existence of an item in the list (e.g., `'item' in my_list`)."""
         cursor = self._conn.cursor()
         cursor.execute(
             "SELECT 1 FROM beaver_lists WHERE list_name = ? AND item_value = ? LIMIT 1",
-            (self._name, json.dumps(value))
+            (self._name, self._serialize(value))
         )
         result = cursor.fetchone()
         cursor.close()
@@ -139,7 +155,7 @@ class ListManager:
 
     def __repr__(self) -> str:
         """Returns a developer-friendly representation of the object."""
-        return f"ListWrapper(name='{self._name}')"
+        return f"ListManager(name='{self._name}')"
 
     def _get_order_at_index(self, index: int) -> float:
         """Helper to get the float `item_order` at a specific index."""
@@ -156,7 +172,7 @@ class ListManager:
 
         raise IndexError(f"{index} out of range.")
 
-    def push(self, value: Any):
+    def push(self, value: T):
         """Pushes an item to the end of the list."""
         with self._conn:
             cursor = self._conn.cursor()
@@ -169,10 +185,10 @@ class ListManager:
 
             cursor.execute(
                 "INSERT INTO beaver_lists (list_name, item_order, item_value) VALUES (?, ?, ?)",
-                (self._name, new_order, json.dumps(value)),
+                (self._name, new_order, self._serialize(value)),
             )
 
-    def prepend(self, value: Any):
+    def prepend(self, value: T):
         """Prepends an item to the beginning of the list."""
         with self._conn:
             cursor = self._conn.cursor()
@@ -185,10 +201,10 @@ class ListManager:
 
             cursor.execute(
                 "INSERT INTO beaver_lists (list_name, item_order, item_value) VALUES (?, ?, ?)",
-                (self._name, new_order, json.dumps(value)),
+                (self._name, new_order, self._serialize(value)),
             )
 
-    def insert(self, index: int, value: Any):
+    def insert(self, index: int, value: T):
         """Inserts an item at a specific index."""
         list_len = len(self)
         if index <= 0:
@@ -206,10 +222,10 @@ class ListManager:
         with self._conn:
             self._conn.execute(
                 "INSERT INTO beaver_lists (list_name, item_order, item_value) VALUES (?, ?, ?)",
-                (self._name, new_order, json.dumps(value)),
+                (self._name, new_order, self._serialize(value)),
             )
 
-    def pop(self) -> Any:
+    def pop(self) -> T | None:
         """Removes and returns the last item from the list."""
         with self._conn:
             cursor = self._conn.cursor()
@@ -225,9 +241,9 @@ class ListManager:
             cursor.execute(
                 "DELETE FROM beaver_lists WHERE rowid = ?", (rowid_to_delete,)
             )
-            return json.loads(value_to_return)
+            return self._deserialize(value_to_return)
 
-    def deque(self) -> Any:
+    def deque(self) -> T | None:
         """Removes and returns the first item from the list."""
         with self._conn:
             cursor = self._conn.cursor()
@@ -243,4 +259,4 @@ class ListManager:
             cursor.execute(
                 "DELETE FROM beaver_lists WHERE rowid = ?", (rowid_to_delete,)
             )
-            return json.loads(value_to_return)
+            return self._deserialize(value_to_return)
