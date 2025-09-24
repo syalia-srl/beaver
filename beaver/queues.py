@@ -1,3 +1,4 @@
+import asyncio
 import json
 import sqlite3
 import time
@@ -14,8 +15,34 @@ class QueueItem[T](NamedTuple):
     data: T
 
 
+class AsyncQueueManager[T]:
+    """An async wrapper for the producer-consumer priority queue."""
+
+    def __init__(self, queue: "QueueManager[T]"):
+        self._queue = queue
+
+    async def put(self, data: T, priority: float):
+        """Asynchronously adds an item to the queue with a specific priority."""
+        await asyncio.to_thread(self._queue.put, data, priority)
+
+    @overload
+    async def get(self, block: Literal[True] = True, timeout: float | None = None) -> QueueItem[T]: ...
+    @overload
+    async def get(self, block: Literal[False]) -> QueueItem[T]: ...
+
+    async def get(self, block: bool = True, timeout: float | None = None) -> QueueItem[T]:
+        """
+        Asynchronously and atomically retrieves the highest-priority item.
+        This method will run the synchronous blocking logic in a separate thread.
+        """
+        return await asyncio.to_thread(self._queue.get, block=block, timeout=timeout)
+
+
 class QueueManager[T]:
-    """A wrapper providing a Pythonic interface to a persistent priority queue."""
+    """
+    A wrapper providing a Pythonic interface to a persistent, multi-process
+    producer-consumer priority queue.
+    """
 
     def __init__(self, name: str, conn: sqlite3.Connection, model: Type[T] | None = None):
         self._name = name
@@ -50,19 +77,13 @@ class QueueManager[T]:
                 (self._name, priority, time.time(), self._serialize(data)),
             )
 
-    @overload
-    def get(self, safe:Literal[True]) -> QueueItem[T] | None: ...
-    @overload
-    def get(self) -> QueueItem[T]: ...
-
-    def get(self, safe:bool=False) -> QueueItem[T] | None:
+    def _get_item_atomically(self) -> QueueItem[T] | None:
         """
-        Atomically retrieves and removes the highest-priority item from the queue.
-        If the queue is empty, returns None if safe is True, otherwise (the default) raises IndexError.
+        Performs a single, atomic attempt to retrieve and remove the
+        highest-priority item from the queue. Returns None if the queue is empty.
         """
         with self._conn:
             cursor = self._conn.cursor()
-            # The compound index on (queue_name, priority, timestamp) makes this query efficient.
             cursor.execute(
                 """
                 SELECT rowid, priority, timestamp, data
@@ -76,18 +97,60 @@ class QueueManager[T]:
             result = cursor.fetchone()
 
             if result is None:
-                if safe:
-                    return None
-                else:
-                    raise IndexError("No item available.")
+                return None
 
             rowid, priority, timestamp, data = result
-            # Delete the retrieved item to ensure it's processed only once.
             cursor.execute("DELETE FROM beaver_priority_queues WHERE rowid = ?", (rowid,))
 
             return QueueItem(
                 priority=priority, timestamp=timestamp, data=self._deserialize(data)
             )
+
+    @overload
+    def get(self, block: Literal[True] = True, timeout: float | None = None) -> QueueItem[T]: ...
+    @overload
+    def get(self, block: Literal[False]) -> QueueItem[T]: ...
+
+    def get(self, block: bool = True, timeout: float | None = None) -> QueueItem[T]:
+        """
+        Atomically retrieves and removes the highest-priority item from the queue.
+
+        This method is designed for producer-consumer patterns and can block
+        until an item becomes available.
+
+        Args:
+            block: If True (default), the method will wait until an item is available.
+            timeout: If `block` is True, this specifies the maximum number of seconds
+                     to wait. If the timeout is reached, `TimeoutError` is raised.
+
+        Returns:
+            A `QueueItem` containing the retrieved data.
+
+        Raises:
+            IndexError: If `block` is False and the queue is empty.
+            TimeoutError: If `block` is True and the timeout expires.
+        """
+        if not block:
+            item = self._get_item_atomically()
+            if item is None:
+                raise IndexError("get from an empty queue.")
+            return item
+
+        start_time = time.time()
+        while True:
+            item = self._get_item_atomically()
+            if item is not None:
+                return item
+
+            if timeout is not None and (time.time() - start_time) > timeout:
+                raise TimeoutError("Timeout expired while waiting for an item.")
+
+            # Sleep for a short interval to avoid busy-waiting and consuming CPU.
+            time.sleep(0.1)
+
+    def as_async(self) -> "AsyncQueueManager[T]":
+        """Returns an async version of the queue manager."""
+        return AsyncQueueManager(self)
 
     def __len__(self) -> int:
         """Returns the current number of items in the queue."""
