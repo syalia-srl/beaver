@@ -267,12 +267,18 @@ class BeaverDB:
 
     # --- Factory and Passthrough Methods ---
 
-    def dict(self, name: str) -> DictManager:
-        """Returns a wrapper object for interacting with a named dictionary."""
+    def dict[T](self, name: str, model: type[T] | None = None) -> DictManager[T]:
+        """
+        Returns a wrapper object for interacting with a named dictionary.
+        If model is defined, it should be a type used for automatic (de)serialization.
+        """
         if not isinstance(name, str) or not name:
             raise TypeError("Dictionary name must be a non-empty string.")
 
-        return DictManager(name, self._conn)
+        if model and not isinstance(model, JsonSerializable):
+            raise TypeError("The model parameter must be a JsonSerializable class.")
+
+        return DictManager(name, self._conn, model)
 
     def list[T](self, name: str, model: type[T] | None = None) -> ListManager[T]:
         """
@@ -285,7 +291,7 @@ class BeaverDB:
         if model and not isinstance(model, JsonSerializable):
             raise TypeError("The model parameter must be a JsonSerializable class.")
 
-        return ListManager(name, self._conn)
+        return ListManager(name, self._conn, model)
 
     def queue[T](self, name: str, model: type[T] | None = None) -> QueueManager[T]:
         """
