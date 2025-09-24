@@ -283,6 +283,7 @@ For more in-depth examples, check out the scripts in the `examples/` directory:
   - [`graph.py`](examples/graph.py): Shows how to create relationships between documents and perform multi-hop graph traversals.
   - [`kvstore.py`](examples/kvstore.py): A comprehensive demo of the namespaced dictionary feature.
   - [`list.py`](examples/list.py): Shows the full capabilities of the persistent list, including slicing and in-place updates.
+  - [`logs.py`](examples/logs.py): A short example showing how to build a realtime dashboard with the logging feature.
   - [`pqueue.py`](examples/pqueue.py): A practical example of using the persistent priority queue for task management.
   - [`producer_consumer.py`](examples/producer_consumer.py): A demonstration of the distributed task queue system in a multi-process environment.
   - [`publisher.py`](examples/publisher.py) and [`subscriber.py`](examples/subscriber.py): A pair of examples demonstrating inter-process message passing with the publish/subscribe system.
