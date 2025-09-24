@@ -40,38 +40,40 @@ class ListManager[T]:
         Retrieves an item or slice from the list (e.g., `my_list[0]`, `my_list[1:3]`).
         """
         if isinstance(key, slice):
-            start, stop, step = key.indices(len(self))
-            if step != 1:
-                raise ValueError("Slicing with a step is not supported.")
+            with self._conn:
+                start, stop, step = key.indices(len(self))
+                if step != 1:
+                    raise ValueError("Slicing with a step is not supported.")
 
-            limit = stop - start
-            if limit <= 0:
-                return []
+                limit = stop - start
+                if limit <= 0:
+                    return []
 
-            cursor = self._conn.cursor()
-            cursor.execute(
-                "SELECT item_value FROM beaver_lists WHERE list_name = ? ORDER BY item_order ASC LIMIT ? OFFSET ?",
-                (self._name, limit, start),
-            )
-            results = [self._deserialize(row["item_value"]) for row in cursor.fetchall()]
-            cursor.close()
-            return results
+                cursor = self._conn.cursor()
+                cursor.execute(
+                    "SELECT item_value FROM beaver_lists WHERE list_name = ? ORDER BY item_order ASC LIMIT ? OFFSET ?",
+                    (self._name, limit, start),
+                )
+                results = [self._deserialize(row["item_value"]) for row in cursor.fetchall()]
+                cursor.close()
+                return results
 
         elif isinstance(key, int):
-            list_len = len(self)
-            if key < -list_len or key >= list_len:
-                raise IndexError("List index out of range.")
+            with self._conn:
+                list_len = len(self)
+                if key < -list_len or key >= list_len:
+                    raise IndexError("List index out of range.")
 
-            offset = key if key >= 0 else list_len + key
+                offset = key if key >= 0 else list_len + key
 
-            cursor = self._conn.cursor()
-            cursor.execute(
-                "SELECT item_value FROM beaver_lists WHERE list_name = ? ORDER BY item_order ASC LIMIT 1 OFFSET ?",
-                (self._name, offset),
-            )
-            result = cursor.fetchone()
-            cursor.close()
-            return self._deserialize(result["item_value"])
+                cursor = self._conn.cursor()
+                cursor.execute(
+                    "SELECT item_value FROM beaver_lists WHERE list_name = ? ORDER BY item_order ASC LIMIT 1 OFFSET ?",
+                    (self._name, offset),
+                )
+                result = cursor.fetchone()
+                cursor.close()
+                return self._deserialize(result["item_value"])
 
         else:
             raise TypeError("List indices must be integers or slices.")
@@ -81,13 +83,13 @@ class ListManager[T]:
         if not isinstance(key, int):
             raise TypeError("List indices must be integers.")
 
-        list_len = len(self)
-        if key < -list_len or key >= list_len:
-            raise IndexError("List index out of range.")
-
-        offset = key if key >= 0 else list_len + key
-
         with self._conn:
+            list_len = len(self)
+            if key < -list_len or key >= list_len:
+                raise IndexError("List index out of range.")
+
+            offset = key if key >= 0 else list_len + key
+
             cursor = self._conn.cursor()
             # Find the rowid of the item to update
             cursor.execute(
@@ -110,13 +112,13 @@ class ListManager[T]:
         if not isinstance(key, int):
             raise TypeError("List indices must be integers.")
 
-        list_len = len(self)
-        if key < -list_len or key >= list_len:
-            raise IndexError("List index out of range.")
-
-        offset = key if key >= 0 else list_len + key
-
         with self._conn:
+            list_len = len(self)
+            if key < -list_len or key >= list_len:
+                raise IndexError("List index out of range.")
+
+            offset = key if key >= 0 else list_len + key
+
             cursor = self._conn.cursor()
             # Find the rowid of the item to delete
             cursor.execute(
@@ -206,20 +208,20 @@ class ListManager[T]:
 
     def insert(self, index: int, value: T):
         """Inserts an item at a specific index."""
-        list_len = len(self)
-        if index <= 0:
-            self.prepend(value)
-            return
-        if index >= list_len:
-            self.push(value)
-            return
-
-        # Midpoint insertion for O(1) inserts
-        order_before = self._get_order_at_index(index - 1)
-        order_after = self._get_order_at_index(index)
-        new_order = order_before + (order_after - order_before) / 2.0
-
         with self._conn:
+            list_len = len(self)
+            if index <= 0:
+                self.prepend(value)
+                return
+            if index >= list_len:
+                self.push(value)
+                return
+
+            # Midpoint insertion for O(1) inserts
+            order_before = self._get_order_at_index(index - 1)
+            order_after = self._get_order_at_index(index)
+            new_order = order_before + (order_after - order_before) / 2.0
+
             self._conn.execute(
                 "INSERT INTO beaver_lists (list_name, item_order, item_value) VALUES (?, ?, ?)",
                 (self._name, new_order, self._serialize(value)),
