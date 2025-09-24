@@ -11,3 +11,8 @@ dependencies = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["beaver"]
+
+[dependency-groups]
+dev = [
+    "textual>=6.1.0",
+]
