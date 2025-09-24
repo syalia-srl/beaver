@@ -26,6 +26,7 @@ A fast, single-file, multi-modal database for Python, built with the standard `s
   - **Full-Text and Fuzzy Search**: Automatically index and search through document metadata using SQLite's powerful FTS5 engine, enhanced with optional fuzzy search for typo-tolerant matching.
   - **Knowledge Graph**: Create relationships between documents and traverse the graph to find neighbors or perform multi-hop walks.
   - **Single-File & Portable**: All data is stored in a single SQLite file, making it incredibly easy to move, back up, or embed in your application.
+  - **Optional Type-Safety:** Although the database is schemaless, you can use a minimalistic typing system for automatic serialization and deserialization that is Pydantic-compatible out of the box.
 
 ## How Beaver is Implemented
 
@@ -272,7 +273,6 @@ For more in-depth examples, check out the scripts in the `examples/` directory:
 These are some of the features and improvements planned for future releases:
 
   - **Async API**: Extend the async support with on-demand wrappers for all features besides channels.
-  - **Type Hints**: Extend type hints for channels and documents.
 
 Check out the [roadmap](roadmap.md) for a detailed list of upcoming features and design ideas.
 
