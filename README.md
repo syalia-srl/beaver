@@ -20,7 +20,7 @@ A fast, single-file, multi-modal database for Python, built with the standard `s
   - **Sync/Async High-Efficiency Pub/Sub**: A powerful, thread and process-safe publish-subscribe system for real-time messaging with a fan-out architecture. Sync by default, but with an `as_async` wrapper for async applications.
   - **Namespaced Key-Value Dictionaries**: A Pythonic, dictionary-like interface for storing any JSON-serializable object within separate namespaces with optional TTL for cache implementations.
   - **Pythonic List Management**: A fluent, Redis-like interface for managing persistent, ordered lists.
-  - **Persistent Priority Queue**: A high-performance, persistent queue that always returns the item with the highest priority, perfect for task management.
+  - **Persistent Priority Queue**: A high-performance, persistent priority queue perfect for task orchestration across multiple processes. Also with optional async support.
   - **Simple Blob Storage**: A dictionary-like interface for storing medium-sized binary files (like PDFs or images) directly in the database, ensuring transactional integrity with your other data.
   - **High-Performance Vector Storage & Search**: Store vector embeddings and perform fast, crash-safe approximate nearest neighbor searches using a `faiss`-based hybrid index.
   - **Full-Text and Fuzzy Search**: Automatically index and search through document metadata using SQLite's powerful FTS5 engine, enhanced with optional fuzzy search for typo-tolerant matching.
@@ -250,21 +250,24 @@ Basically everywhere you can store or get some object in BeaverDB, you can use a
 
 For more in-depth examples, check out the scripts in the `examples/` directory:
 
-  - [`examples/async_pubsub.py`](examples/async_pubsub.py): A demonstration of the asynchronous wrapper for the publish/subscribe system.
-  - [`examples/blobs.py`](examples/blobs.py): Demonstrates how to store and retrieve binary data in the database.
-  - [`examples/cache.py`](examples/cache.py): A practical example of using a dictionary with TTL as a cache for API calls.
-  - [`examples/fts.py`](examples/fts.py): A detailed look at full-text search, including targeted searches on specific metadata fields.
-  - [`examples/fuzzy.py`](examples/fuzzy.py): Demonstrates fuzzy search capabilities for text search.
-  - [`examples/general_test.py`](examples/general_test.py): A general-purpose test to run all operations randomly which allows testing long-running processes and synchronicity issues.
-  - [`examples/graph.py`](examples/graph.py): Shows how to create relationships between documents and perform multi-hop graph traversals.
-  - [`examples/kvstore.py`](examples/kvstore.py): A comprehensive demo of the namespaced dictionary feature.
-  - [`examples/list.py`](examples/list.py): Shows the full capabilities of the persistent list, including slicing and in-place updates.
-  - [`examples/publisher.py`](examples/publisher.py) and [`examples/subscriber.py`](examples/subscriber.py): A pair of examples demonstrating inter-process message passing with the publish/subscribe system.
-  - [`examples/pubsub.py`](examples/pubsub.py): A demonstration of the synchronous, thread-safe publish/subscribe system in a single process.
-  - [`examples/queue.py`](examples/queue.py): A practical example of using the persistent priority queue for task management.
-  - [`examples/rerank.py`](examples/rerank.py): Shows how to combine results from vector and text search for more refined results.
-  - [`examples/stress_vectors.py`](examples/stress_vectors.py): A stress test for the vector search functionality.
-  - [`examples/vector.py`](examples/vector.py): Demonstrates how to index and search vector embeddings, including upserts.
+  - [`async_pubsub.py`](examples/async_pubsub.py): A demonstration of the asynchronous wrapper for the publish/subscribe system.
+  - [`blobs.py`](examples/blobs.py): Demonstrates how to store and retrieve binary data in the database.
+  - [`cache.py`](examples/cache.py): A practical example of using a dictionary with TTL as a cache for API calls.
+  - [`fts.py`](examples/fts.py): A detailed look at full-text search, including targeted searches on specific metadata fields.
+  - [`fuzzy.py`](examples/fuzzy.py): Demonstrates fuzzy search capabilities for text search.
+  - [`general_test.py`](examples/general_test.py): A general-purpose test to run all operations randomly which allows testing long-running processes and synchronicity issues.
+  - [`graph.py`](examples/graph.py): Shows how to create relationships between documents and perform multi-hop graph traversals.
+  - [`kvstore.py`](examples/kvstore.py): A comprehensive demo of the namespaced dictionary feature.
+  - [`list.py`](examples/list.py): Shows the full capabilities of the persistent list, including slicing and in-place updates.
+  - [`pqueue.py`](examples/pqueue.py): A practical example of using the persistent priority queue for task management.
+  - [`producer_consumer.py`](examples/producer_consumer.py): A demonstration of the distributed task queue system in a multi-process environment.
+  - [`publisher.py`](examples/publisher.py) and [`subscriber.py`](examples/subscriber.py): A pair of examples demonstrating inter-process message passing with the publish/subscribe system.
+  - [`pubsub.py`](examples/pubsub.py): A demonstration of the synchronous, thread-safe publish/subscribe system in a single process.
+  - [`rerank.py`](examples/rerank.py): Shows how to combine results from vector and text search for more refined results.
+  - [`stress_vectors.py`](examples/stress_vectors.py): A stress test for the vector search functionality.
+  - [`textual_chat.py`](examples/textual_chat.py): A chat application built with `textual` and `beaver` to illustrate the use of several primitives (lists, dicts, and channels) at the same time.
+  - [`type_hints.py](examples/type_hints.py): Shows how to use type hints with `beaver` to get better IDE support and type safety.
+  - [`vector.py`](examples/vector.py): Demonstrates how to index and search vector embeddings, including upserts.
 
 ## Roadmap
 
