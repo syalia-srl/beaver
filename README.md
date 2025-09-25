@@ -11,6 +11,8 @@ A fast, single-file, multi-modal database for Python, built with the standard `s
 
 `beaver` is the **B**ackend for **E**mbedded, **A**ll-in-one **V**ector, **E**ntity, and **R**elationship storage. It's a simple, local, and embedded database designed to manage complex, modern data types without requiring a database server, built on top of SQLite.
 
+> If you like beaver's minimalist, no-bullshit philosophy, check out [castor](https://github.com/apiad/castor) for an similarly minimalistic approach to background task orchestration.
+
 ## Design Philosophy
 
 `beaver` is built with a minimalistic philosophy for small, local use cases where a full-blown database server would be overkill.
