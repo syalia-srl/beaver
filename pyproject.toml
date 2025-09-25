@@ -1,6 +1,6 @@
 [project]
 name = "beaver-db"
-version = "0.16.2"
+version = "0.16.3"
 description = "Fast, embedded, and multi-modal DB based on SQLite for AI-powered applications."
 readme = "README.md"
 requires-python = ">=3.13"
@@ -9,14 +9,11 @@ dependencies = [
     "numpy>=2.3.3",
 ]
 classifiers = [
-    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Topic :: Database",
-    "Topic :: Database :: Database Engines",
-    "Topic :: Database :: Database Engines :: SQLite",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
-    "Topic :: Communications :: Pub/Sub",
 ]
 
 [tool.hatch.build.targets.wheel]
