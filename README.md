@@ -225,8 +225,8 @@ def summarize(window):
     return {"mean": statistics.mean(values), "count": len(values)}
 
 live_summary = logs.live(
-    window_duration=timedelta(seconds=10),
-    sampling_period=timedelta(seconds=1),
+    window=timedelta(seconds=10),
+    period=timedelta(seconds=1),
     aggregator=summarize
 )
 
