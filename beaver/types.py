@@ -37,3 +37,15 @@ class Model:
     def __repr__(self) -> str:
         attrs = ", ".join(f"{k}={repr(v)}" for k,v in self.__dict__.items())
         return f"{self.__class__.__name__}({attrs})"
+
+
+
+def stub(msg: str):
+    class Stub:
+        def __getattribute__(self, name: str):
+            raise TypeError(msg)
+
+        def __call__(self, *args, **kwds):
+            raise TypeError(msg)
+
+    return Stub()

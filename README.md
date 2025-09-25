@@ -15,11 +15,11 @@ A fast, single-file, multi-modal database for Python, built with the standard `s
 
 `beaver` is built with a minimalistic philosophy for small, local use cases where a full-blown database server would be overkill.
 
-- **Minimalistic**: Uses only Python's standard libraries (`sqlite3`) and `numpy`/`faiss-cpu`.
+- **Minimalistic**: The core library has zero external dependencies. Vector search capabilities, which require `numpy` and `faiss-cpu`, are available as an optional feature.
 - **Schemaless**: Flexible data storage without rigid schemas across all modalities.
 - **Synchronous, Multi-Process, and Thread-Safe**: Designed for simplicity and safety in multi-threaded and multi-process environments.
 - **Built for Local Applications**: Perfect for local AI tools, RAG prototypes, chatbots, and desktop utilities that need persistent, structured data without network overhead.
-- **Fast by Default**: It's built on SQLite, which is famously fast and reliable for local applications. Vector search is accelerated with a high-performance, persistent `faiss` index.
+- **Fast by Default**: It's built on SQLite, which is famously fast and reliable for local applications. Vector search is an optional feature accelerated with a high-performance, persistent `faiss` index.
 - **Standard Relational Interface**: While `beaver` provides high-level features, you can always use the same SQLite file for normal relational tasks with standard SQL.
 
 ## Core Features
@@ -30,7 +30,7 @@ A fast, single-file, multi-modal database for Python, built with the standard `s
 - **Persistent Priority Queue**: A high-performance, persistent priority queue perfect for task orchestration across multiple processes. Also with optional async support.
 - **Time-Indexed Log for Monitoring**: A specialized data structure for structured, time-series logs. Query historical data by time range or create a live, aggregated view of the most recent events for real-time dashboards.
 - **Simple Blob Storage**: A dictionary-like interface for storing medium-sized binary files (like PDFs or images) directly in the database, ensuring transactional integrity with your other data.
-- **High-Performance Vector Storage & Search**: Store vector embeddings and perform fast, crash-safe approximate nearest neighbor searches using a `faiss`-based hybrid index.
+- **High-Performance Vector Storage & Search (Optional)**: Store vector embeddings and perform fast approximate nearest neighbor searches using a `faiss`-based hybrid index.
 - **Full-Text and Fuzzy Search**: Automatically index and search through document metadata using SQLite's powerful FTS5 engine, enhanced with optional fuzzy search for typo-tolerant matching.
 - **Knowledge Graph**: Create relationships between documents and traverse the graph to find neighbors or perform multi-hop walks.
 - **Single-File & Portable**: All data is stored in a single SQLite file, making it incredibly easy to move, back up, or embed in your application.
@@ -55,8 +55,16 @@ This hybrid approach allows BeaverDB to provide a vector search experience that 
 
 ## Installation
 
+Install the core, dependency-free library:
+
 ```bash
 pip install beaver-db
+```
+
+If you want vector search capabilities, install the `faiss` extra:
+
+```bash
+pip install "beaver-db[faiss]"
 ```
 
 ## Quickstart

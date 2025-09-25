@@ -4,12 +4,14 @@ import threading
 import uuid
 from enum import Enum
 from typing import Any, Iterator, List, Literal, Tuple, Type, TypeVar
+from .types import Model, stub
 
-import numpy as np
-
-from .types import Model
-from .vectors import VectorIndex
-
+try:
+    import numpy as np
+    from .vectors import VectorIndex
+except ImportError:
+    np = stub("This feature requires to install beaver-db[faiss]")
+    VectorIndex = stub("This feature requires to install beaver-db[faiss]")
 
 # --- Fuzzy Search Helper Functions ---
 

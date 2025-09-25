@@ -3,8 +3,14 @@ import sqlite3
 import threading
 from typing import Dict, List, Set, Tuple
 
-import faiss
-import numpy as np
+try:
+    import faiss
+    import numpy as np
+
+    HAVE_FAISS = True
+except ImportError:
+    raise TypeError("This feature requires to install beaver-db[faiss]")
+
 
 class VectorIndex:
     """
@@ -86,7 +92,7 @@ class VectorIndex:
         )
         result = cursor.fetchone()
         if not result:
-             # This case should be virtually impossible given the logic above.
+            # This case should be virtually impossible given the logic above.
             raise RuntimeError(f"Failed to create or retrieve int_id for {str_id}")
 
         int_id = result["int_id"]
