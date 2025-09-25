@@ -190,6 +190,16 @@ class ChannelManager[T]:
 
         self._listeners.clear()
 
+    def prune(self):
+        """
+        Cleans the log history for the channel effectively
+        deleting all previous logs.
+
+        Useful for reducing the database once logs are not needed.
+        """
+        with self._conn:
+            self._conn.execute("DELETE FROM beaver_pubsub_log WHERE channel_name = ?", (self._name,))
+
     def _polling_loop(self):
         """
         The main loop for the background thread.
