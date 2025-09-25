@@ -291,7 +291,7 @@ For more in-depth examples, check out the scripts in the `examples/` directory:
   - [`rerank.py`](examples/rerank.py): Shows how to combine results from vector and text search for more refined results.
   - [`stress_vectors.py`](examples/stress_vectors.py): A stress test for the vector search functionality.
   - [`textual_chat.py`](examples/textual_chat.py): A chat application built with `textual` and `beaver` to illustrate the use of several primitives (lists, dicts, and channels) at the same time.
-  - [`type_hints.py](examples/type_hints.py): Shows how to use type hints with `beaver` to get better IDE support and type safety.
+  - [`type_hints.py`](examples/type_hints.py): Shows how to use type hints with `beaver` to get better IDE support and type safety.
   - [`vector.py`](examples/vector.py): Demonstrates how to index and search vector embeddings, including upserts.
 
 ## Roadmap
