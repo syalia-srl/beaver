@@ -25,6 +25,12 @@ class AsyncQueueManager[T]:
         """Asynchronously adds an item to the queue with a specific priority."""
         await asyncio.to_thread(self._queue.put, data, priority)
 
+    async def peek(self) -> QueueItem[T] | None:
+        """
+        Asynchronously returns the first item without removing it, if any, otherwise returns None.
+        """
+        return await asyncio.to_thread(self._queue.peek)
+
     @overload
     async def get(self, block: Literal[True] = True, timeout: float | None = None) -> QueueItem[T]: ...
     @overload
@@ -77,7 +83,7 @@ class QueueManager[T]:
                 (self._name, priority, time.time(), self._serialize(data)),
             )
 
-    def _get_item_atomically(self) -> QueueItem[T] | None:
+    def _get_item_atomically(self, pop:bool=True) -> QueueItem[T] | None:
         """
         Performs a single, atomic attempt to retrieve and remove the
         highest-priority item from the queue. Returns None if the queue is empty.
@@ -100,11 +106,20 @@ class QueueManager[T]:
                 return None
 
             rowid, priority, timestamp, data = result
-            cursor.execute("DELETE FROM beaver_priority_queues WHERE rowid = ?", (rowid,))
+
+            if pop:
+                cursor.execute("DELETE FROM beaver_priority_queues WHERE rowid = ?", (rowid,))
 
             return QueueItem(
                 priority=priority, timestamp=timestamp, data=self._deserialize(data)
             )
+
+    def peek(self) -> QueueItem[T] | None:
+        """
+        Retrieves the first item of the queue.
+        If the queue is empy, returns None.
+        """
+        return self._get_item_atomically(pop=False)
 
     @overload
     def get(self, block: Literal[True] = True, timeout: float | None = None) -> QueueItem[T]: ...
