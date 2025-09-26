@@ -4,7 +4,7 @@ import sqlite3
 import time
 from typing import Any, Literal, NamedTuple, Type, overload
 
-from .types import JsonSerializable
+from .types import JsonSerializable, IDatabase
 
 
 class QueueItem[T](NamedTuple):
@@ -50,9 +50,9 @@ class QueueManager[T]:
     producer-consumer priority queue.
     """
 
-    def __init__(self, name: str, conn: sqlite3.Connection, model: Type[T] | None = None):
+    def __init__(self, name: str, db: IDatabase, model: Type[T] | None = None):
         self._name = name
-        self._conn = conn
+        self._db = db
         self._model = model
 
     def _serialize(self, value: T) -> str:
@@ -77,8 +77,8 @@ class QueueManager[T]:
             data: The JSON-serializable data to store.
             priority: The priority of the item (lower numbers are higher priority).
         """
-        with self._conn:
-            self._conn.execute(
+        with self._db.connection:
+            self._db.connection.execute(
                 "INSERT INTO beaver_priority_queues (queue_name, priority, timestamp, data) VALUES (?, ?, ?, ?)",
                 (self._name, priority, time.time(), self._serialize(data)),
             )
@@ -88,8 +88,8 @@ class QueueManager[T]:
         Performs a single, atomic attempt to retrieve and remove the
         highest-priority item from the queue. Returns None if the queue is empty.
         """
-        with self._conn:
-            cursor = self._conn.cursor()
+        with self._db.connection:
+            cursor = self._db.connection.cursor()
             cursor.execute(
                 """
                 SELECT rowid, priority, timestamp, data
@@ -108,11 +108,11 @@ class QueueManager[T]:
             rowid, priority, timestamp, data = result
 
             if pop:
-                cursor.execute("DELETE FROM beaver_priority_queues WHERE rowid = ?", (rowid,))
+                self._db.connection.execute("DELETE FROM beaver_priority_queues WHERE rowid = ?", (rowid,))
 
-            return QueueItem(
-                priority=priority, timestamp=timestamp, data=self._deserialize(data)
-            )
+        return QueueItem(
+            priority=priority, timestamp=timestamp, data=self._deserialize(data)
+        )
 
     def peek(self) -> QueueItem[T] | None:
         """
@@ -169,7 +169,7 @@ class QueueManager[T]:
 
     def __len__(self) -> int:
         """Returns the current number of items in the queue."""
-        cursor = self._conn.cursor()
+        cursor = self._db.connection.cursor()
         cursor.execute(
             "SELECT COUNT(*) FROM beaver_priority_queues WHERE queue_name = ?",
             (self._name,),

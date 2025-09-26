@@ -3,6 +3,8 @@ import sqlite3
 import threading
 from typing import Dict, List, Set, Tuple
 
+from .types import IDatabase
+
 try:
     import faiss
     import numpy as np
@@ -23,12 +25,12 @@ class VectorIndex:
     user-provided string IDs to the internal integer IDs required by Faiss.
     """
 
-    def __init__(self, collection_name: str, conn: sqlite3.Connection):
+    def __init__(self, collection_name: str, db: IDatabase):
         """
         Initializes the VectorIndex for a specific collection.
         """
-        self._collection_name = collection_name
-        self._conn = conn
+        self._collection = collection_name
+        self._db = db
         # A lock to ensure thread safety for in-memory operations and synchronization checks.
         self._lock = threading.Lock()
         # Tracks the overall version of the collection this instance is aware of.
@@ -66,7 +68,7 @@ class VectorIndex:
             elif self._dimension != dim:
                 # If a dimension is already set, all subsequent vectors must match.
                 raise ValueError(
-                    f"Vector dimension mismatch for collection '{self._collection_name}'. "
+                    f"Vector dimension mismatch for collection '{self._collection}'. "
                     f"Expected {self._dimension}, but got {dim}."
                 )
 
@@ -83,12 +85,12 @@ class VectorIndex:
         # INSERT OR IGNORE is an atomic and safe way to create a new mapping only if it's missing.
         cursor.execute(
             "INSERT OR IGNORE INTO _beaver_ann_id_mapping (collection_name, str_id) VALUES (?, ?)",
-            (self._collection_name, str_id)
+            (self._collection, str_id)
         )
         # Retrieve the now-guaranteed-to-exist integer ID.
         cursor.execute(
             "SELECT int_id FROM _beaver_ann_id_mapping WHERE collection_name = ? AND str_id = ?",
-            (self._collection_name, str_id)
+            (self._collection, str_id)
         )
         result = cursor.fetchone()
         if not result:
@@ -103,20 +105,20 @@ class VectorIndex:
 
     def _get_db_version(self) -> int:
         """Gets the current overall version of the collection from the database."""
-        cursor = self._conn.cursor()
+        cursor = self._db.connection.cursor()
         cursor.execute(
             "SELECT version FROM beaver_collection_versions WHERE collection_name = ?",
-            (self._collection_name,),
+            (self._collection,),
         )
         result = cursor.fetchone()
         return result[0] if result else 0
 
     def _get_db_base_index_version(self) -> int:
         """Gets the version of the persistent on-disk base index from the database."""
-        cursor = self._conn.cursor()
+        cursor = self._db.connection.cursor()
         cursor.execute(
             "SELECT base_index_version FROM _beaver_ann_indexes WHERE collection_name = ?",
-            (self._collection_name,),
+            (self._collection,),
         )
         result = cursor.fetchone()
         return result[0] if result else 0
@@ -146,10 +148,10 @@ class VectorIndex:
 
     def _load_id_mappings(self):
         """Loads the complete str <-> int ID mapping from the DB into in-memory caches."""
-        cursor = self._conn.cursor()
+        cursor = self._db.connection.cursor()
         cursor.execute(
             "SELECT str_id, int_id FROM _beaver_ann_id_mapping WHERE collection_name = ?",
-            (self._collection_name,)
+            (self._collection,)
         )
         # Fetch all mappings at once for efficiency.
         all_mappings = cursor.fetchall()
@@ -158,10 +160,10 @@ class VectorIndex:
 
     def _load_base_index(self):
         """Loads and deserializes the persistent base index from the database BLOB."""
-        cursor = self._conn.cursor()
+        cursor = self._db.connection.cursor()
         cursor.execute(
             "SELECT index_data, base_index_version FROM _beaver_ann_indexes WHERE collection_name = ?",
-            (self._collection_name,),
+            (self._collection,),
         )
         result = cursor.fetchone()
         if result and result["index_data"]:
@@ -184,11 +186,11 @@ class VectorIndex:
         "Catches up" to changes by rebuilding the in-memory delta index and
         deletion set from the database logs.
         """
-        cursor = self._conn.cursor()
+        cursor = self._db.connection.cursor()
         # Sync the set of deleted integer IDs.
         cursor.execute(
             "SELECT int_id FROM _beaver_ann_deletions_log WHERE collection_name = ?",
-            (self._collection_name,)
+            (self._collection,)
         )
         self._deleted_int_ids = {row["int_id"] for row in cursor.fetchall()}
 
@@ -200,7 +202,7 @@ class VectorIndex:
             JOIN beaver_collections c ON p.str_id = c.item_id AND p.collection_name = c.collection
             WHERE p.collection_name = ?
             """,
-            (self._collection_name,)
+            (self._collection,)
         )
         pending_items = cursor.fetchall()
 
@@ -216,7 +218,7 @@ class VectorIndex:
             if vectors.ndim == 1:
                 vectors = vectors.reshape(-1, self._dimension)
             if vectors.shape[1] != self._dimension:
-                raise ValueError(f"Inconsistent vector dimensions in pending log for '{self._collection_name}'.")
+                raise ValueError(f"Inconsistent vector dimensions in pending log for '{self._collection}'.")
 
             # Rebuild the delta index from scratch with all current pending items.
             self._delta_index = faiss.IndexIDMap(faiss.IndexFlatL2(self._dimension))
@@ -238,7 +240,7 @@ class VectorIndex:
         # Add the string ID to the log for other processes to sync.
         cursor.execute(
             "INSERT OR IGNORE INTO _beaver_ann_pending_log (collection_name, str_id) VALUES (?, ?)",
-            (self._collection_name, item_id),
+            (self._collection, item_id),
         )
         # Create the delta index if this is the first item added.
         if self._delta_index is None:
@@ -260,7 +262,7 @@ class VectorIndex:
             # Add the integer ID to the deletion log.
             cursor.execute(
                 "INSERT INTO _beaver_ann_deletions_log (collection_name, int_id) VALUES (?, ?)",
-                (self._collection_name, int_id),
+                (self._collection, int_id),
             )
             # Also add to the live in-memory deletion set.
             self._deleted_int_ids.add(int_id)
@@ -323,10 +325,10 @@ class VectorIndex:
             if self._dimension is None: return # Nothing to compact.
 
         # Step 1: Take a snapshot of the logs. This defines the scope of this compaction run.
-        cursor = self._conn.cursor()
-        cursor.execute("SELECT str_id FROM _beaver_ann_pending_log WHERE collection_name = ?", (self._collection_name,))
+        cursor = self._db.connection.cursor()
+        cursor.execute("SELECT str_id FROM _beaver_ann_pending_log WHERE collection_name = ?", (self._collection,))
         pending_str_ids = {row["str_id"] for row in cursor.fetchall()}
-        cursor.execute("SELECT int_id FROM _beaver_ann_deletions_log WHERE collection_name = ?", (self._collection_name,))
+        cursor.execute("SELECT int_id FROM _beaver_ann_deletions_log WHERE collection_name = ?", (self._collection,))
         deleted_int_ids_snapshot = {row["int_id"] for row in cursor.fetchall()}
 
         deleted_str_ids_snapshot = {self._int_to_str_id[int_id] for int_id in deleted_int_ids_snapshot if int_id in self._int_to_str_id}
@@ -334,11 +336,11 @@ class VectorIndex:
         # Step 2: Fetch all vectors from the main table that haven't been marked for deletion.
         # This is the long-running part that happens "offline" in a background thread.
         if not deleted_str_ids_snapshot:
-            cursor.execute("SELECT item_id, item_vector FROM beaver_collections WHERE collection = ?", (self._collection_name,))
+            cursor.execute("SELECT item_id, item_vector FROM beaver_collections WHERE collection = ?", (self._collection,))
         else:
             cursor.execute(
                 f"SELECT item_id, item_vector FROM beaver_collections WHERE collection = ? AND item_id NOT IN ({','.join('?' for _ in deleted_str_ids_snapshot)})",
-                (self._collection_name, *deleted_str_ids_snapshot)
+                (self._collection, *deleted_str_ids_snapshot)
             )
 
         all_valid_vectors = cursor.fetchall()
@@ -361,16 +363,16 @@ class VectorIndex:
             index_data = buffer.getvalue()
 
         # Step 5: Perform the atomic swap in the database. This is a fast, transactional write.
-        with self._conn:
+        with self._db.connection:
             # Increment the overall collection version to signal a change.
-            self._conn.execute("INSERT INTO beaver_collection_versions (collection_name, version) VALUES (?, 1) ON CONFLICT(collection_name) DO UPDATE SET version = version + 1", (self._collection_name,))
+            self._db.connection.execute("INSERT INTO beaver_collection_versions (collection_name, version) VALUES (?, 1) ON CONFLICT(collection_name) DO UPDATE SET version = version + 1", (self._collection,))
             new_version = self._get_db_version()
 
             # Update the on-disk base index and its version number.
-            self._conn.execute("INSERT INTO _beaver_ann_indexes (collection_name, index_data, base_index_version) VALUES (?, ?, ?) ON CONFLICT(collection_name) DO UPDATE SET index_data = excluded.index_data, base_index_version = excluded.base_index_version", (self._collection_name, index_data, new_version))
+            self._db.connection.execute("INSERT INTO _beaver_ann_indexes (collection_name, index_data, base_index_version) VALUES (?, ?, ?) ON CONFLICT(collection_name) DO UPDATE SET index_data = excluded.index_data, base_index_version = excluded.base_index_version", (self._collection, index_data, new_version))
 
             # Atomically clear the log entries that were included in this compaction run.
             if pending_str_ids:
-                self._conn.execute(f"DELETE FROM _beaver_ann_pending_log WHERE collection_name = ? AND str_id IN ({','.join('?' for _ in pending_str_ids)})", (self._collection_name, *pending_str_ids))
+                self._db.connection.execute(f"DELETE FROM _beaver_ann_pending_log WHERE collection_name = ? AND str_id IN ({','.join('?' for _ in pending_str_ids)})", (self._collection, *pending_str_ids))
             if deleted_int_ids_snapshot:
-                self._conn.execute(f"DELETE FROM _beaver_ann_deletions_log WHERE collection_name = ? AND int_id IN ({','.join('?' for _ in deleted_int_ids_snapshot)})", (self._collection_name, *deleted_int_ids_snapshot))
+                self._db.connection.execute(f"DELETE FROM _beaver_ann_deletions_log WHERE collection_name = ? AND int_id IN ({','.join('?' for _ in deleted_int_ids_snapshot)})", (self._collection, *deleted_int_ids_snapshot))

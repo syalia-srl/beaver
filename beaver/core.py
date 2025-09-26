@@ -15,7 +15,7 @@ from .queues import QueueManager
 class BeaverDB:
     """
     An embedded, multi-modal database in a single SQLite file.
-    This class manages the database connection and table schemas.
+    This class manages thread-safe database connections and table schemas.
     """
 
     def __init__(self, db_path: str, timeout:float=30.0):
@@ -26,22 +26,44 @@ class BeaverDB:
             db_path: The path to the SQLite database file.
         """
         self._db_path = db_path
-        # Enable WAL mode for better concurrency between readers and writers
-        self._conn = sqlite3.connect(self._db_path, check_same_thread=False, timeout=timeout)
-        self._conn.execute("PRAGMA journal_mode=WAL;")
-        self._conn.row_factory = sqlite3.Row
+        self._timeout = timeout
+        # This object will store a different connection for each thread.
+        self._thread_local = threading.local()
+
         self._channels: dict[str, ChannelManager] = {}
         self._channels_lock = threading.Lock()
-        # Add a cache and lock for CollectionManager singletons
         self._collections: dict[str, CollectionManager] = {}
         self._collections_lock = threading.Lock()
 
-        # Initialize the schemas
+        # Initialize the schemas. This will implicitly create the first
+        # connection for the main thread via the `connection` property.
         self._create_all_tables()
+
+    @property
+    def connection(self) -> sqlite3.Connection:
+        """
+        Provides a thread-safe SQLite connection.
+
+        Each thread will receive its own dedicated connection object.
+        The connection is created on the first access and then reused for
+        all subsequent calls within the same thread.
+        """
+        # Check if a connection is already stored for this thread
+        conn = getattr(self._thread_local, 'conn', None)
+
+        if conn is None:
+            # No connection for this thread yet, so create one.
+            # We no longer need check_same_thread=False, restoring thread safety.
+            conn = sqlite3.connect(self._db_path, timeout=self._timeout)
+            conn.execute("PRAGMA journal_mode=WAL;")
+            conn.row_factory = sqlite3.Row
+            self._thread_local.conn = conn
+
+        return conn
 
     def _create_all_tables(self):
         """Initializes all required tables in the database file."""
-        with self._conn:
+        with self.connection:
             self._create_ann_deletions_log_table()
             self._create_ann_id_mapping_table()
             self._create_ann_indexes_table()
@@ -60,7 +82,7 @@ class BeaverDB:
 
     def _create_logs_table(self):
         """Creates the table for time-indexed logs."""
-        self._conn.execute(
+        self.connection.execute(
             """
             CREATE TABLE IF NOT EXISTS beaver_logs (
                 log_name TEXT NOT NULL,
@@ -70,7 +92,7 @@ class BeaverDB:
             )
             """
         )
-        self._conn.execute(
+        self.connection.execute(
             """
             CREATE INDEX IF NOT EXISTS idx_logs_timestamp
             ON beaver_logs (log_name, timestamp)
@@ -79,7 +101,7 @@ class BeaverDB:
 
     def _create_blobs_table(self):
         """Creates the table for storing named blobs."""
-        self._conn.execute(
+        self.connection.execute(
             """
             CREATE TABLE IF NOT EXISTS beaver_blobs (
                 store_name TEXT NOT NULL,
@@ -93,7 +115,7 @@ class BeaverDB:
 
     def _create_ann_indexes_table(self):
         """Creates the table to store the serialized base ANN index."""
-        self._conn.execute(
+        self.connection.execute(
             """
             CREATE TABLE IF NOT EXISTS _beaver_ann_indexes (
                 collection_name TEXT PRIMARY KEY,
@@ -105,7 +127,7 @@ class BeaverDB:
 
     def _create_ann_pending_log_table(self):
         """Creates the log for new vector additions."""
-        self._conn.execute(
+        self.connection.execute(
             """
             CREATE TABLE IF NOT EXISTS _beaver_ann_pending_log (
                 collection_name TEXT NOT NULL,
@@ -117,7 +139,7 @@ class BeaverDB:
 
     def _create_ann_deletions_log_table(self):
         """Creates the log for vector deletions (tombstones)."""
-        self._conn.execute(
+        self.connection.execute(
             """
             CREATE TABLE IF NOT EXISTS _beaver_ann_deletions_log (
                 collection_name TEXT NOT NULL,
@@ -129,7 +151,7 @@ class BeaverDB:
 
     def _create_ann_id_mapping_table(self):
         """Creates the table to map string IDs to integer IDs for Faiss."""
-        self._conn.execute(
+        self.connection.execute(
             """
             CREATE TABLE IF NOT EXISTS _beaver_ann_id_mapping (
                 collection_name TEXT NOT NULL,
@@ -142,7 +164,7 @@ class BeaverDB:
 
     def _create_priority_queue_table(self):
         """Creates the priority queue table and its performance index."""
-        self._conn.execute(
+        self.connection.execute(
             """
             CREATE TABLE IF NOT EXISTS beaver_priority_queues (
                 queue_name TEXT NOT NULL,
@@ -152,7 +174,7 @@ class BeaverDB:
             )
             """
         )
-        self._conn.execute(
+        self.connection.execute(
             """
             CREATE INDEX IF NOT EXISTS idx_priority_queue_order
             ON beaver_priority_queues (queue_name, priority ASC, timestamp ASC)
@@ -161,7 +183,7 @@ class BeaverDB:
 
     def _create_dict_table(self):
         """Creates the namespaced dictionary table."""
-        self._conn.execute(
+        self.connection.execute(
             """
             CREATE TABLE IF NOT EXISTS beaver_dicts (
                 dict_name TEXT NOT NULL,
@@ -175,7 +197,7 @@ class BeaverDB:
 
     def _create_pubsub_table(self):
         """Creates the pub/sub log table."""
-        self._conn.execute(
+        self.connection.execute(
             """
             CREATE TABLE IF NOT EXISTS beaver_pubsub_log (
                 timestamp REAL PRIMARY KEY,
@@ -184,7 +206,7 @@ class BeaverDB:
             )
         """
         )
-        self._conn.execute(
+        self.connection.execute(
             """
             CREATE INDEX IF NOT EXISTS idx_pubsub_channel_timestamp
             ON beaver_pubsub_log (channel_name, timestamp)
@@ -193,7 +215,7 @@ class BeaverDB:
 
     def _create_list_table(self):
         """Creates the lists table."""
-        self._conn.execute(
+        self.connection.execute(
             """
             CREATE TABLE IF NOT EXISTS beaver_lists (
                 list_name TEXT NOT NULL,
@@ -206,7 +228,7 @@ class BeaverDB:
 
     def _create_collections_table(self):
         """Creates the main table for storing documents and vectors."""
-        self._conn.execute(
+        self.connection.execute(
             """
             CREATE TABLE IF NOT EXISTS beaver_collections (
                 collection TEXT NOT NULL,
@@ -220,7 +242,7 @@ class BeaverDB:
 
     def _create_fts_table(self):
         """Creates the virtual FTS table for full-text search."""
-        self._conn.execute(
+        self.connection.execute(
             """
             CREATE VIRTUAL TABLE IF NOT EXISTS beaver_fts_index USING fts5(
                 collection,
@@ -234,7 +256,7 @@ class BeaverDB:
 
     def _create_trigrams_table(self):
         """Creates the table for the fuzzy search trigram index."""
-        self._conn.execute(
+        self.connection.execute(
             """
             CREATE TABLE IF NOT EXISTS beaver_trigrams (
                 collection TEXT NOT NULL,
@@ -245,7 +267,7 @@ class BeaverDB:
             )
             """
         )
-        self._conn.execute(
+        self.connection.execute(
             """
             CREATE INDEX IF NOT EXISTS idx_trigram_lookup
             ON beaver_trigrams (collection, trigram, field_path)
@@ -254,7 +276,7 @@ class BeaverDB:
 
     def _create_edges_table(self):
         """Creates the table for storing relationships between documents."""
-        self._conn.execute(
+        self.connection.execute(
             """
             CREATE TABLE IF NOT EXISTS beaver_edges (
                 collection TEXT NOT NULL,
@@ -269,7 +291,7 @@ class BeaverDB:
 
     def _create_versions_table(self):
         """Creates a table to track the version of each collection for caching."""
-        self._conn.execute(
+        self.connection.execute(
             """
             CREATE TABLE IF NOT EXISTS beaver_collection_versions (
                 collection_name TEXT PRIMARY KEY,
@@ -280,12 +302,12 @@ class BeaverDB:
 
     def close(self):
         """Closes the database connection."""
-        if self._conn:
+        if self.connection:
             # Cleanly shut down any active polling threads before closing
             with self._channels_lock:
                 for channel in self._channels.values():
                     channel.close()
-            self._conn.close()
+            self.connection.close()
 
     # --- Factory and Passthrough Methods ---
 
@@ -300,7 +322,7 @@ class BeaverDB:
         if model and not isinstance(model, JsonSerializable):
             raise TypeError("The model parameter must be a JsonSerializable class.")
 
-        return DictManager(name, self._conn, model)
+        return DictManager(name, self, model)
 
     def list[T](self, name: str, model: type[T] | None = None) -> ListManager[T]:
         """
@@ -313,7 +335,7 @@ class BeaverDB:
         if model and not isinstance(model, JsonSerializable):
             raise TypeError("The model parameter must be a JsonSerializable class.")
 
-        return ListManager(name, self._conn, model)
+        return ListManager(name, self, model)
 
     def queue[T](self, name: str, model: type[T] | None = None) -> QueueManager[T]:
         """
@@ -326,7 +348,7 @@ class BeaverDB:
         if model and not isinstance(model, JsonSerializable):
             raise TypeError("The model parameter must be a JsonSerializable class.")
 
-        return QueueManager(name, self._conn, model)
+        return QueueManager(name, self, model)
 
     def collection[D: Document](self, name: str, model: Type[D] | None = None) -> CollectionManager[D]:
         """
@@ -341,7 +363,7 @@ class BeaverDB:
         # of the vector index consistently.
         with self._collections_lock:
             if name not in self._collections:
-                self._collections[name] = CollectionManager(name, self._conn, model=model)
+                self._collections[name] = CollectionManager(name, self, model=model)
 
             return self._collections[name]
 
@@ -355,7 +377,7 @@ class BeaverDB:
         # Use a thread-safe lock to ensure only one Channel object is created per name.
         with self._channels_lock:
             if name not in self._channels:
-                self._channels[name] = ChannelManager(name, self._conn, self._db_path, model=model)
+                self._channels[name] = ChannelManager(name, self, model=model)
             return self._channels[name]
 
     def blobs[M](self, name: str, model: type[M] | None = None) -> BlobManager[M]:
@@ -363,7 +385,7 @@ class BeaverDB:
         if not isinstance(name, str) or not name:
             raise TypeError("Blob store name must be a non-empty string.")
 
-        return BlobManager(name, self._conn, model)
+        return BlobManager(name, self, model)
 
     def log[T](self, name: str, model: type[T] | None = None) -> LogManager[T]:
         """
@@ -376,4 +398,4 @@ class BeaverDB:
         if model and not isinstance(model, JsonSerializable):
             raise TypeError("The model parameter must be a JsonSerializable class.")
 
-        return LogManager(name, self._conn, self._db_path, model)
+        return LogManager(name, self, self._db_path, model)

@@ -1,4 +1,5 @@
 import json
+import sqlite3
 from typing import Protocol, Type, runtime_checkable, Self
 
 
@@ -49,3 +50,9 @@ def stub(msg: str):
             raise TypeError(msg)
 
     return Stub()
+
+
+class IDatabase(Protocol):
+    @property
+    def connection(self) -> sqlite3.Connection:
+        ...

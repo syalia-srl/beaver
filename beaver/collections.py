@@ -4,7 +4,7 @@ import threading
 import uuid
 from enum import Enum
 from typing import Any, Iterator, List, Literal, Tuple, Type, TypeVar
-from .types import Model, stub
+from .types import Model, stub, IDatabase
 
 try:
     import numpy as np
@@ -111,12 +111,12 @@ class CollectionManager[D: Document]:
     FTS, fuzzy search, graph traversal, and persistent vector search.
     """
 
-    def __init__(self, name: str, conn: sqlite3.Connection, model: Type[D] | None = None):
+    def __init__(self, name: str, db: IDatabase, model: Type[D] | None = None):
         self._name = name
-        self._conn = conn
+        self._db = db
         self._model = model or Document
         # All vector-related operations are now delegated to the VectorIndex class.
-        self._vector_index = VectorIndex(name, conn)
+        self._vector_index = VectorIndex(name, db)
         # A lock to ensure only one compaction thread runs at a time for this collection.
         self._compaction_lock = threading.Lock()
         self._compaction_thread: threading.Thread | None = None
@@ -134,7 +134,7 @@ class CollectionManager[D: Document]:
 
     def _needs_compaction(self, threshold: int = 1000) -> bool:
         """Checks if the total number of pending vector operations exceeds the threshold."""
-        cursor = self._conn.cursor()
+        cursor = self._db.connection.cursor()
         cursor.execute(
             "SELECT COUNT(*) FROM _beaver_ann_pending_log WHERE collection_name = ?",
             (self._name,)
@@ -199,8 +199,8 @@ class CollectionManager[D: Document]:
         if not isinstance(document, Document):
             raise TypeError("Item to index must be a Document object.")
 
-        with self._conn:
-            cursor = self._conn.cursor()
+        with self._db.connection:
+            cursor = self._db.connection.cursor()
 
             # Step 1: Core Document and Vector Storage
             cursor.execute(
@@ -253,8 +253,8 @@ class CollectionManager[D: Document]:
         """Removes a document and all its associated data from the collection."""
         if not isinstance(document, Document):
             raise TypeError("Item to drop must be a Document object.")
-        with self._conn:
-            cursor = self._conn.cursor()
+        with self._db.connection:
+            cursor = self._db.connection.cursor()
             cursor.execute("DELETE FROM beaver_collections WHERE collection = ? AND item_id = ?", (self._name, document.id))
             cursor.execute("DELETE FROM beaver_fts_index WHERE collection = ? AND item_id = ?", (self._name, document.id))
             cursor.execute("DELETE FROM beaver_trigrams WHERE collection = ? AND item_id = ?", (self._name, document.id))
@@ -271,7 +271,7 @@ class CollectionManager[D: Document]:
 
     def __iter__(self) -> Iterator[D]:
         """Returns an iterator over all documents in the collection."""
-        cursor = self._conn.cursor()
+        cursor = self._db.connection.cursor()
         cursor.execute(
             "SELECT item_id, item_vector, metadata FROM beaver_collections WHERE collection = ?",
             (self._name,),
@@ -306,7 +306,7 @@ class CollectionManager[D: Document]:
         placeholders = ",".join("?" for _ in result_ids)
         sql = f"SELECT item_id, item_vector, metadata FROM beaver_collections WHERE collection = ? AND item_id IN ({placeholders})"
 
-        cursor = self._conn.cursor()
+        cursor = self._db.connection.cursor()
         rows = cursor.execute(sql, (self._name, *result_ids)).fetchall()
 
         doc_map = {
@@ -350,7 +350,7 @@ class CollectionManager[D: Document]:
         self, query: str, on: list[str] | None, top_k: int
     ) -> list[tuple[D, float]]:
         """Performs a standard FTS search."""
-        cursor = self._conn.cursor()
+        cursor = self._db.connection.cursor()
         sql_query = """
             SELECT t1.item_id, t1.item_vector, t1.metadata, fts.rank
             FROM beaver_collections AS t1 JOIN (
@@ -390,7 +390,7 @@ class CollectionManager[D: Document]:
         if similarity_threshold == 0:
             return set()
 
-        cursor = self._conn.cursor()
+        cursor = self._db.connection.cursor()
         sql = """
             SELECT item_id FROM beaver_trigrams
             WHERE collection = ? AND trigram IN ({}) {}
@@ -422,7 +422,7 @@ class CollectionManager[D: Document]:
         if not candidate_ids:
             return []
 
-        cursor = self._conn.cursor()
+        cursor = self._db.connection.cursor()
         id_placeholders = ",".join("?" for _ in candidate_ids)
         sql_text = f"SELECT item_id, field_path, field_content FROM beaver_fts_index WHERE collection = ? AND item_id IN ({id_placeholders})"
         params_text: list[Any] = [self._name]
@@ -480,8 +480,8 @@ class CollectionManager[D: Document]:
         """Creates a directed edge between two documents."""
         if not isinstance(source, Document) or not isinstance(target, Document):
             raise TypeError("Source and target must be Document objects.")
-        with self._conn:
-            self._conn.execute(
+        with self._db.connection:
+            self._db.connection.execute(
                 "INSERT OR REPLACE INTO beaver_edges (collection, source_item_id, target_item_id, label, metadata) VALUES (?, ?, ?, ?, ?)",
                 (
                     self._name,
@@ -500,7 +500,7 @@ class CollectionManager[D: Document]:
             sql += " AND t2.label = ?"
             params.append(label)
 
-        rows = self._conn.cursor().execute(sql, tuple(params)).fetchall()
+        rows = self._db.connection.cursor().execute(sql, tuple(params)).fetchall()
         return [
             self._model(
                 id=row["item_id"],
@@ -549,7 +549,7 @@ class CollectionManager[D: Document]:
         """
         params = [source.id, self._name, depth] + labels + [self._name]
 
-        rows = self._conn.cursor().execute(sql, tuple(params)).fetchall()
+        rows = self._db.connection.cursor().execute(sql, tuple(params)).fetchall()
         return [
             self._model(
                 id=row["item_id"],
@@ -565,7 +565,7 @@ class CollectionManager[D: Document]:
 
     def __len__(self) -> int:
         """Returns the number of documents in the collection."""
-        cursor = self._conn.cursor()
+        cursor = self._db.connection.cursor()
         cursor.execute(
             "SELECT COUNT(*) FROM beaver_collections WHERE collection = ?",
             (self._name,),

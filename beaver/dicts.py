@@ -3,15 +3,14 @@ import sqlite3
 import time
 from typing import Any, Iterator, Tuple, Type
 
-from .types import JsonSerializable
-
+from .types import JsonSerializable, IDatabase
 
 class DictManager[T]:
     """A wrapper providing a Pythonic interface to a dictionary in the database."""
 
-    def __init__(self, name: str, conn: sqlite3.Connection, model: Type[T] | None = None):
+    def __init__(self, name: str, db: IDatabase, model: Type[T] | None = None):
         self._name = name
-        self._conn = conn
+        self._db = db
         self._model = model
 
     def _serialize(self, value: T) -> str:
@@ -40,8 +39,8 @@ class DictManager[T]:
                 raise ValueError("ttl_seconds must be a positive integer.")
             expires_at = time.time() + ttl_seconds
 
-        with self._conn:
-            self._conn.execute(
+        with self._db.connection:
+            self._db.connection.execute(
                 "INSERT OR REPLACE INTO beaver_dicts (dict_name, key, value, expires_at) VALUES (?, ?, ?, ?)",
                 (self._name, key, self._serialize(value), expires_at),
             )
@@ -55,7 +54,7 @@ class DictManager[T]:
 
     def __getitem__(self, key: str) -> T:
         """Retrieves a value for a given key, raising KeyError if expired."""
-        cursor = self._conn.cursor()
+        cursor = self._db.connection.cursor()
         cursor.execute(
             "SELECT value, expires_at FROM beaver_dicts WHERE dict_name = ? AND key = ?",
             (self._name, key),
@@ -70,7 +69,7 @@ class DictManager[T]:
 
         if expires_at is not None and time.time() > expires_at:
             # Expired: delete the key and raise KeyError
-            with self._conn:
+            with self._db.connection:
                 cursor.execute(
                     "DELETE FROM beaver_dicts WHERE dict_name = ? AND key = ?",
                     (self._name, key),
@@ -94,8 +93,8 @@ class DictManager[T]:
 
     def __delitem__(self, key: str):
         """Deletes a key-value pair (e.g., `del my_dict[key]`)."""
-        with self._conn:
-            cursor = self._conn.cursor()
+        with self._db.connection:
+            cursor = self._db.connection.cursor()
             cursor.execute(
                 "DELETE FROM beaver_dicts WHERE dict_name = ? AND key = ?",
                 (self._name, key),
@@ -105,7 +104,7 @@ class DictManager[T]:
 
     def __len__(self) -> int:
         """Returns the number of items in the dictionary."""
-        cursor = self._conn.cursor()
+        cursor = self._db.connection.cursor()
         cursor.execute(
             "SELECT COUNT(*) FROM beaver_dicts WHERE dict_name = ?", (self._name,)
         )
@@ -119,7 +118,7 @@ class DictManager[T]:
 
     def keys(self) -> Iterator[str]:
         """Returns an iterator over the dictionary's keys."""
-        cursor = self._conn.cursor()
+        cursor = self._db.connection.cursor()
         cursor.execute(
             "SELECT key FROM beaver_dicts WHERE dict_name = ?", (self._name,)
         )
@@ -129,7 +128,7 @@ class DictManager[T]:
 
     def values(self) -> Iterator[T]:
         """Returns an iterator over the dictionary's values."""
-        cursor = self._conn.cursor()
+        cursor = self._db.connection.cursor()
         cursor.execute(
             "SELECT value FROM beaver_dicts WHERE dict_name = ?", (self._name,)
         )
@@ -139,7 +138,7 @@ class DictManager[T]:
 
     def items(self) -> Iterator[Tuple[str, T]]:
         """Returns an iterator over the dictionary's items (key-value pairs)."""
-        cursor = self._conn.cursor()
+        cursor = self._db.connection.cursor()
         cursor.execute(
             "SELECT key, value FROM beaver_dicts WHERE dict_name = ?", (self._name,)
         )

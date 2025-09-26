@@ -2,7 +2,7 @@ import json
 import sqlite3
 from typing import Any, Dict, Iterator, NamedTuple, Optional, Type, TypeVar
 
-from .types import JsonSerializable
+from .types import JsonSerializable, IDatabase
 
 
 class Blob[M](NamedTuple):
@@ -16,9 +16,9 @@ class Blob[M](NamedTuple):
 class BlobManager[M]:
     """A wrapper providing a Pythonic interface to a blob store in the database."""
 
-    def __init__(self, name: str, conn: sqlite3.Connection, model: Type[M] | None = None):
+    def __init__(self, name: str, db: IDatabase, model: Type[M] | None = None):
         self._name = name
-        self._conn = conn
+        self._db = db
         self._model = model
 
     def _serialize(self, value: M) -> str | None:
@@ -51,8 +51,8 @@ class BlobManager[M]:
 
         metadata_json = self._serialize(metadata) if metadata else None
 
-        with self._conn:
-            self._conn.execute(
+        with self._db.connection:
+            self._db.connection.execute(
                 "INSERT OR REPLACE INTO beaver_blobs (store_name, key, data, metadata) VALUES (?, ?, ?, ?)",
                 (self._name, key, data, metadata_json),
             )
@@ -67,7 +67,7 @@ class BlobManager[M]:
         Returns:
             A Blob object containing the data and metadata, or None if the key is not found.
         """
-        cursor = self._conn.cursor()
+        cursor = self._db.connection.cursor()
         cursor.execute(
             "SELECT data, metadata FROM beaver_blobs WHERE store_name = ? AND key = ?",
             (self._name, key),
@@ -90,8 +90,8 @@ class BlobManager[M]:
         Raises:
             KeyError: If the key does not exist in the store.
         """
-        with self._conn:
-            cursor = self._conn.cursor()
+        with self._db.connection:
+            cursor = self._db.connection.cursor()
             cursor.execute(
                 "DELETE FROM beaver_blobs WHERE store_name = ? AND key = ?",
                 (self._name, key),
@@ -103,7 +103,7 @@ class BlobManager[M]:
         """
         Checks if a key exists in the blob store (e.g., `key in blobs`).
         """
-        cursor = self._conn.cursor()
+        cursor = self._db.connection.cursor()
         cursor.execute(
             "SELECT 1 FROM beaver_blobs WHERE store_name = ? AND key = ? LIMIT 1",
             (self._name, key),
@@ -114,7 +114,7 @@ class BlobManager[M]:
 
     def __iter__(self) -> Iterator[str]:
         """Returns an iterator over the keys in the blob store."""
-        cursor = self._conn.cursor()
+        cursor = self._db.connection.cursor()
         cursor.execute(
             "SELECT key FROM beaver_blobs WHERE store_name = ?", (self._name,)
         )

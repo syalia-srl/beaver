@@ -2,15 +2,15 @@ import json
 import sqlite3
 from typing import Any, Iterator, Type, Union
 
-from .types import JsonSerializable
+from .types import JsonSerializable, IDatabase
 
 
 class ListManager[T]:
     """A wrapper providing a Pythonic, full-featured interface to a list in the database."""
 
-    def __init__(self, name: str, conn: sqlite3.Connection, model: Type[T] | None = None):
+    def __init__(self, name: str, db: IDatabase, model: Type[T] | None = None):
         self._name = name
-        self._conn = conn
+        self._db = db
         self._model = model
 
     def _serialize(self, value: T) -> str:
@@ -27,7 +27,7 @@ class ListManager[T]:
 
     def __len__(self) -> int:
         """Returns the number of items in the list (e.g., `len(my_list)`)."""
-        cursor = self._conn.cursor()
+        cursor = self._db.connection.cursor()
         cursor.execute(
             "SELECT COUNT(*) FROM beaver_lists WHERE list_name = ?", (self._name,)
         )
@@ -40,7 +40,7 @@ class ListManager[T]:
         Retrieves an item or slice from the list (e.g., `my_list[0]`, `my_list[1:3]`).
         """
         if isinstance(key, slice):
-            with self._conn:
+            with self._db.connection:
                 start, stop, step = key.indices(len(self))
                 if step != 1:
                     raise ValueError("Slicing with a step is not supported.")
@@ -49,7 +49,7 @@ class ListManager[T]:
                 if limit <= 0:
                     return []
 
-                cursor = self._conn.cursor()
+                cursor = self._db.connection.cursor()
                 cursor.execute(
                     "SELECT item_value FROM beaver_lists WHERE list_name = ? ORDER BY item_order ASC LIMIT ? OFFSET ?",
                     (self._name, limit, start),
@@ -59,14 +59,14 @@ class ListManager[T]:
                 return results
 
         elif isinstance(key, int):
-            with self._conn:
+            with self._db.connection:
                 list_len = len(self)
                 if key < -list_len or key >= list_len:
                     raise IndexError("List index out of range.")
 
                 offset = key if key >= 0 else list_len + key
 
-                cursor = self._conn.cursor()
+                cursor = self._db.connection.cursor()
                 cursor.execute(
                     "SELECT item_value FROM beaver_lists WHERE list_name = ? ORDER BY item_order ASC LIMIT 1 OFFSET ?",
                     (self._name, offset),
@@ -83,14 +83,14 @@ class ListManager[T]:
         if not isinstance(key, int):
             raise TypeError("List indices must be integers.")
 
-        with self._conn:
+        with self._db.connection:
             list_len = len(self)
             if key < -list_len or key >= list_len:
                 raise IndexError("List index out of range.")
 
             offset = key if key >= 0 else list_len + key
 
-            cursor = self._conn.cursor()
+            cursor = self._db.connection.cursor()
             # Find the rowid of the item to update
             cursor.execute(
                 "SELECT rowid FROM beaver_lists WHERE list_name = ? ORDER BY item_order ASC LIMIT 1 OFFSET ?",
@@ -112,14 +112,14 @@ class ListManager[T]:
         if not isinstance(key, int):
             raise TypeError("List indices must be integers.")
 
-        with self._conn:
+        with self._db.connection:
             list_len = len(self)
             if key < -list_len or key >= list_len:
                 raise IndexError("List index out of range.")
 
             offset = key if key >= 0 else list_len + key
 
-            cursor = self._conn.cursor()
+            cursor = self._db.connection.cursor()
             # Find the rowid of the item to delete
             cursor.execute(
                 "SELECT rowid FROM beaver_lists WHERE list_name = ? ORDER BY item_order ASC LIMIT 1 OFFSET ?",
@@ -135,7 +135,7 @@ class ListManager[T]:
 
     def __iter__(self) -> Iterator[T]:
         """Returns an iterator for the list."""
-        cursor = self._conn.cursor()
+        cursor = self._db.connection.cursor()
         cursor.execute(
             "SELECT item_value FROM beaver_lists WHERE list_name = ? ORDER BY item_order ASC",
             (self._name,)
@@ -146,7 +146,7 @@ class ListManager[T]:
 
     def __contains__(self, value: T) -> bool:
         """Checks for the existence of an item in the list (e.g., `'item' in my_list`)."""
-        cursor = self._conn.cursor()
+        cursor = self._db.connection.cursor()
         cursor.execute(
             "SELECT 1 FROM beaver_lists WHERE list_name = ? AND item_value = ? LIMIT 1",
             (self._name, self._serialize(value))
@@ -161,7 +161,7 @@ class ListManager[T]:
 
     def _get_order_at_index(self, index: int) -> float:
         """Helper to get the float `item_order` at a specific index."""
-        cursor = self._conn.cursor()
+        cursor = self._db.connection.cursor()
         cursor.execute(
             "SELECT item_order FROM beaver_lists WHERE list_name = ? ORDER BY item_order ASC LIMIT 1 OFFSET ?",
             (self._name, index),
@@ -176,8 +176,8 @@ class ListManager[T]:
 
     def push(self, value: T):
         """Pushes an item to the end of the list."""
-        with self._conn:
-            cursor = self._conn.cursor()
+        with self._db.connection:
+            cursor = self._db.connection.cursor()
             cursor.execute(
                 "SELECT MAX(item_order) FROM beaver_lists WHERE list_name = ?",
                 (self._name,),
@@ -192,8 +192,8 @@ class ListManager[T]:
 
     def prepend(self, value: T):
         """Prepends an item to the beginning of the list."""
-        with self._conn:
-            cursor = self._conn.cursor()
+        with self._db.connection:
+            cursor = self._db.connection.cursor()
             cursor.execute(
                 "SELECT MIN(item_order) FROM beaver_lists WHERE list_name = ?",
                 (self._name,),
@@ -208,7 +208,7 @@ class ListManager[T]:
 
     def insert(self, index: int, value: T):
         """Inserts an item at a specific index."""
-        with self._conn:
+        with self._db.connection:
             list_len = len(self)
             if index <= 0:
                 self.prepend(value)
@@ -222,15 +222,15 @@ class ListManager[T]:
             order_after = self._get_order_at_index(index)
             new_order = order_before + (order_after - order_before) / 2.0
 
-            self._conn.execute(
+            self._db.connection.execute(
                 "INSERT INTO beaver_lists (list_name, item_order, item_value) VALUES (?, ?, ?)",
                 (self._name, new_order, self._serialize(value)),
             )
 
     def pop(self) -> T | None:
         """Removes and returns the last item from the list."""
-        with self._conn:
-            cursor = self._conn.cursor()
+        with self._db.connection:
+            cursor = self._db.connection.cursor()
             cursor.execute(
                 "SELECT rowid, item_value FROM beaver_lists WHERE list_name = ? ORDER BY item_order DESC LIMIT 1",
                 (self._name,),
@@ -247,8 +247,8 @@ class ListManager[T]:
 
     def deque(self) -> T | None:
         """Removes and returns the first item from the list."""
-        with self._conn:
-            cursor = self._conn.cursor()
+        with self._db.connection:
+            cursor = self._db.connection.cursor()
             cursor.execute(
                 "SELECT rowid, item_value FROM beaver_lists WHERE list_name = ? ORDER BY item_order ASC LIMIT 1",
                 (self._name,),

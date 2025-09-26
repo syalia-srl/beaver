@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from queue import Empty, Queue
 from typing import Any, AsyncIterator, Callable, Iterator, Type, TypeVar
 
-from .types import JsonSerializable
+from .types import JsonSerializable, IDatabase
 
 
 # A special message object used to signal the iterator to gracefully shut down.
@@ -23,14 +23,14 @@ class LiveIterator[T,R]:
 
     def __init__(
         self,
-        db_path: str,
+        db: IDatabase,
         log_name: str,
         window: timedelta,
         period: timedelta,
         aggregator: Callable[[list[T]], R],
         deserializer: Callable[[str], T],
     ):
-        self._db_path = db_path
+        self._db = db
         self._log_name = log_name
         self._window_duration_seconds = window.total_seconds()
         self._sampling_period_seconds = period.total_seconds()
@@ -43,9 +43,7 @@ class LiveIterator[T,R]:
     def _polling_loop(self):
         """The main loop for the background thread that queries and aggregates data."""
         # Each thread needs its own database connection.
-        thread_conn = sqlite3.connect(self._db_path, check_same_thread=False)
-        thread_conn.row_factory = sqlite3.Row
-
+        thread_conn = self._db.connection
         window_deque: collections.deque[tuple[float, T]] = collections.deque()
         last_seen_timestamp = 0.0
 
@@ -179,13 +177,11 @@ class LogManager[T]:
     def __init__(
         self,
         name: str,
-        conn: sqlite3.Connection,
-        db_path: str,
+        db,
         model: Type[T] | None = None,
     ):
         self._name = name
-        self._conn = conn
-        self._db_path = db_path
+        self._db = db
         self._model = model
 
     def _serialize(self, value: T) -> str:
@@ -215,8 +211,8 @@ class LogManager[T]:
         ts = timestamp or datetime.now(timezone.utc)
         ts_float = ts.timestamp()
 
-        with self._conn:
-            self._conn.execute(
+        with self._db.connection:
+            self._db.connection.execute(
                 "INSERT INTO beaver_logs (log_name, timestamp, data) VALUES (?, ?, ?)",
                 (self._name, ts_float, self._serialize(data)),
             )
@@ -235,7 +231,7 @@ class LogManager[T]:
         start_ts = start.timestamp()
         end_ts = end.timestamp()
 
-        cursor = self._conn.cursor()
+        cursor = self._db.connection.cursor()
         cursor.execute(
             "SELECT data FROM beaver_logs WHERE log_name = ? AND timestamp BETWEEN ? AND ? ORDER BY timestamp ASC",
             (self._name, start_ts, end_ts),
@@ -265,7 +261,7 @@ class LogManager[T]:
             An iterator that yields the results of the aggregator.
         """
         return LiveIterator(
-            db_path=self._db_path,
+            db=self._db,
             log_name=self._name,
             window=window,
             period=period,

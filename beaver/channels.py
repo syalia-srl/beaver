@@ -6,7 +6,7 @@ import time
 from queue import Empty, Queue
 from typing import Any, AsyncIterator, Generic, Iterator, Set, Type, TypeVar
 
-from .types import JsonSerializable
+from .types import JsonSerializable, IDatabase
 
 # A special message object used to signal the listener to gracefully shut down.
 _SHUTDOWN_SENTINEL = object()
@@ -120,14 +120,12 @@ class ChannelManager[T]:
     def __init__(
         self,
         name: str,
-        conn: sqlite3.Connection,
-        db_path: str,
+        db: IDatabase,
         poll_interval: float = 0.1,
         model: Type[T] | None = None,
     ):
         self._name = name
-        self._conn = conn
-        self._db_path = db_path
+        self._db = db
         self._poll_interval = poll_interval
         self._model = model
         self._listeners: Set[Queue] = set()
@@ -197,8 +195,8 @@ class ChannelManager[T]:
 
         Useful for reducing the database once logs are not needed.
         """
-        with self._conn:
-            self._conn.execute("DELETE FROM beaver_pubsub_log WHERE channel_name = ?", (self._name,))
+        with self._db.connection:
+            self._db.connection.execute("DELETE FROM beaver_pubsub_log WHERE channel_name = ?", (self._name,))
 
     def _polling_loop(self):
         """
@@ -208,8 +206,7 @@ class ChannelManager[T]:
         to all registered listener queues.
         """
         # A separate SQLite connection is required for each thread.
-        thread_conn = sqlite3.connect(self._db_path, check_same_thread=False)
-        thread_conn.row_factory = sqlite3.Row
+        thread_conn = self._db.connection
 
         # The poller starts listening for messages from this moment forward.
         last_seen_timestamp = time.time()
@@ -256,8 +253,8 @@ class ChannelManager[T]:
         except TypeError as e:
             raise TypeError("Message payload must be JSON-serializable.") from e
 
-        with self._conn:
-            self._conn.execute(
+        with self._db.connection:
+            self._db.connection.execute(
                 "INSERT INTO beaver_pubsub_log (timestamp, channel_name, message_payload) VALUES (?, ?, ?)",
                 (time.time(), self._name, json_payload),
             )
