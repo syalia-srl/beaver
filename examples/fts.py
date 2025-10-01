@@ -64,9 +64,9 @@ def full_text_search_demo():
 
     # --- 3. Perform a Targeted Full-Text Search on a Specific Field ---
 
-    # Now, we search for "Jane" but ONLY in the flattened 'author__name' field.
+    # Now, we search for "Jane" but ONLY in the flattened 'author.name' field.
     # This should return only the documents by Jane Doe (doc1 and doc3).
-    print("\n--- Specific Search for 'Jane' in the 'author__name' field ---")
+    print("\n--- Specific Search for 'Jane' in the 'author.name' field ---")
     specific_results = articles.match("Jane", on="author.name", top_k=5)
 
     for doc, rank in specific_results:
