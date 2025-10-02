@@ -5,7 +5,7 @@ publish: clean build
 .PHONY: build
 build:
 	uv build
-	uv pip install -e .[faiss]
+	uv pip install -e .[full]
 
 .PHONY: clean
 clean:
