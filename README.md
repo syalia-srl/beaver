@@ -17,7 +17,7 @@ A fast, single-file, multi-modal database for Python, built with the standard `s
 
 `beaver` is built with a minimalistic philosophy for small, local use cases where a full-blown database server would be overkill.
 
-- **Minimalistic**: The core library has zero external dependencies. Vector search capabilities, which require `numpy` and `faiss-cpu`, are available as an optional feature.
+- **Minimalistic**: The core library has zero external dependencies. Vector search, the REST server, and the CLI, which require external libraries, are available as optional features.
 - **Schemaless**: Flexible data storage without rigid schemas across all modalities.
 - **Synchronous, Multi-Process, and Thread-Safe**: Designed for simplicity and safety in multi-threaded and multi-process environments.
 - **Built for Local Applications**: Perfect for local AI tools, RAG prototypes, chatbots, and desktop utilities that need persistent, structured data without network overhead.
@@ -36,6 +36,8 @@ A fast, single-file, multi-modal database for Python, built with the standard `s
 - **Full-Text and Fuzzy Search**: Automatically index and search through document metadata using SQLite's powerful FTS5 engine, enhanced with optional fuzzy search for typo-tolerant matching.
 - **Knowledge Graph**: Create relationships between documents and traverse the graph to find neighbors or perform multi-hop walks.
 - **Single-File & Portable**: All data is stored in a single SQLite file, making it incredibly easy to move, back up, or embed in your application.
+- **Built-in REST API Server (Optional)**: Instantly serve your database over a RESTful API with automatic OpenAPI documentation using FastAPI.
+- **Full-Featured CLI Client (Optional)**: Interact with your database directly from the command line for administrative tasks and data exploration.
 - **Optional Type-Safety:** Although the database is schemaless, you can use a minimalistic typing system for automatic serialization and deserialization that is Pydantic-compatible out of the box.
 
 ## How Beaver is Implemented
@@ -54,7 +56,6 @@ The vector store in BeaverDB is designed for high performance and reliability, u
 
 This hybrid approach allows BeaverDB to provide a vector search experience that is both fast and durable, without sacrificing the single-file, embedded philosophy of the library.
 
-
 ## Installation
 
 Install the core, dependency-free library:
@@ -63,10 +64,17 @@ Install the core, dependency-free library:
 pip install beaver-db
 ```
 
-If you want vector search capabilities, install the `faiss` extra:
+To include optional features, you can install them as extras:
 
 ```bash
+# For vector search capabilities
 pip install "beaver-db[faiss]"
+
+# For the REST API server and CLI
+pip install "beaver-db[server,cli]"
+
+# To install all optional features at once
+pip install "beaver-db[full]"
 ```
 
 ## Quickstart
@@ -104,6 +112,53 @@ top_doc, rank = results[0]
 print(f"FTS Result: '{top_doc.content}'")
 
 db.close()
+```
+
+## Built-in Server and CLI
+
+Beaver comes with a built-in REST API server and a full-featured command-line client, allowing you to interact with your database without writing any code.
+
+### REST API Server
+
+You can instantly expose all of your database's functionality over a RESTful API. This is perfect for building quick prototypes, microservices, or for interacting with your data from other languages.
+
+**1. Start the server**
+
+```bash
+# Start the server for your database file
+beaver serve --database data.db --port 8000
+```
+
+This starts a `FastAPI` server. You can now access the interactive API documentation at `http://127.0.0.1:8000/docs`.
+
+**2. Interact with the API**
+
+Here are a couple of examples using `curl`:
+
+```bash
+# Set a value in the 'app_config' dictionary
+curl -X PUT http://127.0.0.1:8000/dicts/app_config/api_key
+     -H "Content-Type: application/json"
+     -d '"your-secret-api-key"'
+
+# Get the value back
+curl http://127.0.0.1:8000/dicts/app_config/api_key
+# Output: "your-secret-api-key"
+```
+
+### Command-Line Client
+
+The CLI client allows you to call any BeaverDB method directly from your terminal.
+
+```bash
+# Set a value in a dictionary
+beaver client --database data.db dict app_config set theme light
+
+# Get the value back
+beaver client --database data.db dict app_config get theme
+
+# Push an item to a list
+beaver client --database data.db list daily_tasks push "Review PRs"
 ```
 
 ## Things You Can Build with Beaver
@@ -257,8 +312,10 @@ For enhanced data integrity and a better developer experience, BeaverDB supports
 
 This feature is designed to be flexible and works seamlessly with two kinds of models:
 
-  * **Pydantic Models**: If you're already using Pydantic, your `BaseModel` classes will work out of the box.
-  * **Lightweight `beaver.Model`**: For a zero-dependency solution, you can inherit from the built-in `beaver.Model` class, which is a standard Python class with serialization methods automatically included.
+- **Pydantic Models**: If you're already using Pydantic, your `BaseModel` classes will work out of the box.
+
+- **Lightweight `beaver.Model`**: For a zero-dependency solution, you can inherit from the built-in `beaver.Model` class, which is a standard Python class with serialization methods automatically included.
+
 
 Here’s a quick example of how to use it:
 
@@ -280,7 +337,8 @@ users["alice"] = User(name="Alice", email="alice@example.com")
 
 # The retrieved object is a proper instance of the User class
 retrieved_user = users["alice"]
-print(f"Retrieved: {retrieved_user.name}") # Your editor will provide autocompletion here
+# Your editor will provide autocompletion here
+print(f"Retrieved: {retrieved_user.name}")
 ```
 
 In the same way you can have typed message payloads in `db.channel`, typed metadata in `db.blobs`, and custom document types in `db.collection`, as well as custom types in lists and queues.
@@ -291,25 +349,25 @@ Basically everywhere you can store or get some object in BeaverDB, you can use a
 
 For more in-depth examples, check out the scripts in the `examples/` directory:
 
-  - [`async_pubsub.py`](examples/async_pubsub.py): A demonstration of the asynchronous wrapper for the publish/subscribe system.
-  - [`blobs.py`](examples/blobs.py): Demonstrates how to store and retrieve binary data in the database.
-  - [`cache.py`](examples/cache.py): A practical example of using a dictionary with TTL as a cache for API calls.
-  - [`fts.py`](examples/fts.py): A detailed look at full-text search, including targeted searches on specific metadata fields.
-  - [`fuzzy.py`](examples/fuzzy.py): Demonstrates fuzzy search capabilities for text search.
-  - [`general_test.py`](examples/general_test.py): A general-purpose test to run all operations randomly which allows testing long-running processes and synchronicity issues.
-  - [`graph.py`](examples/graph.py): Shows how to create relationships between documents and perform multi-hop graph traversals.
-  - [`kvstore.py`](examples/kvstore.py): A comprehensive demo of the namespaced dictionary feature.
-  - [`list.py`](examples/list.py): Shows the full capabilities of the persistent list, including slicing and in-place updates.
-  - [`logs.py`](examples/logs.py): A short example showing how to build a realtime dashboard with the logging feature.
-  - [`pqueue.py`](examples/pqueue.py): A practical example of using the persistent priority queue for task management.
-  - [`producer_consumer.py`](examples/producer_consumer.py): A demonstration of the distributed task queue system in a multi-process environment.
-  - [`publisher.py`](examples/publisher.py) and [`subscriber.py`](examples/subscriber.py): A pair of examples demonstrating inter-process message passing with the publish/subscribe system.
-  - [`pubsub.py`](examples/pubsub.py): A demonstration of the synchronous, thread-safe publish/subscribe system in a single process.
-  - [`rerank.py`](examples/rerank.py): Shows how to combine results from vector and text search for more refined results.
-  - [`stress_vectors.py`](examples/stress_vectors.py): A stress test for the vector search functionality.
-  - [`textual_chat.py`](examples/textual_chat.py): A chat application built with `textual` and `beaver` to illustrate the use of several primitives (lists, dicts, and channels) at the same time.
-  - [`type_hints.py`](examples/type_hints.py): Shows how to use type hints with `beaver` to get better IDE support and type safety.
-  - [`vector.py`](examples/vector.py): Demonstrates how to index and search vector embeddings, including upserts.
+- [`async_pubsub.py`](examples/async_pubsub.py): A demonstration of the asynchronous wrapper for the publish/subscribe system.
+- [`blobs.py`](examples/blobs.py): Demonstrates how to store and retrieve binary data in the database.
+- [`cache.py`](examples/cache.py): A practical example of using a dictionary with TTL as a cache for API calls.
+- [`fts.py`](examples/fts.py): A detailed look at full-text search, including targeted searches on specific metadata fields.
+- [`fuzzy.py`](examples/fuzzy.py): Demonstrates fuzzy search capabilities for text search.
+- [`general_test.py`](examples/general_test.py): A general-purpose test to run all operations randomly which allows testing long-running processes and synchronicity issues.
+- [`graph.py`](examples/graph.py): Shows how to create relationships between documents and perform multi-hop graph traversals.
+- [`kvstore.py`](examples/kvstore.py): A comprehensive demo of the namespaced dictionary feature.
+- [`list.py`](examples/list.py): Shows the full capabilities of the persistent list, including slicing and in-place updates.
+- [`logs.py`](examples/logs.py): A short example showing how to build a realtime dashboard with the logging feature.
+- [`pqueue.py`](examples/pqueue.py): A practical example of using the persistent priority queue for task management.
+- [`producer_consumer.py`](examples/producer_consumer.py): A demonstration of the distributed task queue system in a multi-process environment.
+- [`publisher.py`](examples/publisher.p) and [`subscriber.py`](examples/subscriber.py): A pair of examples demonstrating inter-process message passing with the publish/subscribe system.
+- [`pubsub.py`](examples/pubsub.py): A demonstration of the synchronous, thread-safe publish/subscribe system in a single process.
+- [`rerank.py`](examples/rerank.py): Shows how to combine results from vector and text search for more refined results.
+- [`stress_vectors.py`](examples/stress_vectors.py): A stress test for the vector search functionality.
+- [`textual_chat.py`](examples/textual_chat.py): A chat application built with `textual` and `beaver` to illustrate the use of several primitives (lists, dicts, and channels) at the same time.
+- [`type_hints.py`](examples/type_hints.py): Shows how to use type hints with `beaver` to get better IDE support and type safety.
+- [`vector.py`](examples/vector.py): Demonstrates how to index and search vector embeddings, including upserts.
 
 ## Roadmap
 
@@ -317,7 +375,7 @@ For more in-depth examples, check out the scripts in the `examples/` directory:
 
 These are some of the features and improvements planned for future releases:
 
-  - **Async API**: Extend the async support with on-demand wrappers for all features besides channels.
+- **Async API**: Extend the async support with on-demand wrappers for all features besides channels.
 
 Check out the [roadmap](roadmap.md) for a detailed list of upcoming features and design ideas.
 
