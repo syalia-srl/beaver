@@ -1,8 +1,8 @@
 # BeaverDB Design Document
 
-Version: 1.2
-Status: Active
-Last Updated: October 4, 2025
+- **Version**: 1.2
+- **Status**: Active
+- **Last Updated**: October 4, 2025
 
 ## 1. Introduction & Vision
 
