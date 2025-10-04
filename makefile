@@ -13,3 +13,11 @@ clean:
 	rm -rf beaver_db.egg-info
 	find . -name '*.pyc' -exec rm -f {} +
 	find . -name '__pycache__' -exec rm -rf {} +
+
+.PHONY: push-docker
+push-docker:
+	$(eval VERSION := $(shell beaver --version))
+	docker build --build-arg VERSION=$(VERSION) -t apiad/beaverdb:$(VERSION) .
+	docker tag apiad/beaverdb:$(VERSION) apiad/beaverdb:latest
+	docker push apiad/beaverdb:$(VERSION)
+	docker push apiad/beaverdb:latest

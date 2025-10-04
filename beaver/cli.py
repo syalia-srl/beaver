@@ -1,8 +1,33 @@
 import typer
 import rich
 from typing_extensions import Annotated
+import beaver
 
 app = typer.Typer()
+
+
+def version_callback(value: bool):
+    if value:
+        print(beaver.__version__)
+        raise typer.Exit()
+
+
+@app.callback()
+def main(
+    version: Annotated[
+        bool,
+        typer.Option(
+            "--version",
+            callback=version_callback,
+            is_eager=True,
+            help="Show the version and exit.",
+        ),
+    ] = False,
+):
+    """
+    BeaverDB command-line interface.
+    """
+    pass
 
 
 @app.command()

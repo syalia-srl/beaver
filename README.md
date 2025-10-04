@@ -77,6 +77,16 @@ pip install "beaver-db[server,cli]"
 pip install "beaver-db[full]"
 ```
 
+### Running with Docker
+For a fully embedded and lightweight solution, you can run the BeaverDB REST API server using Docker. This is the easiest way to get a self-hosted instance up and running.
+
+```bash
+docker run -p 8000:8000 -v $(pwd)/data:/app apiad/beaverdb
+```
+
+This command will start the BeaverDB server, and your database file will be stored in the data directory on your host machine. You can access the API at <http://localhost:8000>.
+
+
 ## Quickstart
 
 Get up and running in 30 seconds. This example showcases a dictionary, a list, and full-text search in a single script.
@@ -376,6 +386,8 @@ For more in-depth examples, check out the scripts in the `examples/` directory:
 These are some of the features and improvements planned for future releases:
 
 - **Async API**: Extend the async support with on-demand wrappers for all features besides channels.
+- **Type-Safe Models**: Enhance built-in `Model` to handle recursive and embedded types.
+- **Drop-in REST Client**: Implement a `BeaverClient` class that acts as a drop-in replacement for `BeaverDB` but instead of a local database file, it works against a REST API server.
 
 Check out the [roadmap](roadmap.md) for a detailed list of upcoming features and design ideas.
 
