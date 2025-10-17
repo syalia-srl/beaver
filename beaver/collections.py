@@ -330,7 +330,7 @@ class CollectionManager[D: Document]:
             if doc_id in doc_map:
                 doc = doc_map[doc_id]
                 distance = distance_map[doc_id]
-                final_results.append((doc, distance))
+                final_results.append((doc, float(distance)))
 
         return final_results
 

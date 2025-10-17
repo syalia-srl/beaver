@@ -281,8 +281,8 @@ def build(db: BeaverDB) -> FastAPI:
             collection.index(doc, fts=req.fts, fuzzy=req.fuzzy)
             return {"status": "ok", "id": doc.id}
         except TypeError as e:
-            if "faiss" in str(e):
-                raise HTTPException(status_code=501, detail="Vector indexing requires the '[faiss]' extra. Install with: pip install \"beaver-db[faiss]\"")
+            if "vector" in str(e):
+                raise HTTPException(status_code=501, detail="Vector indexing requires the '[vector]' extra. Install with: pip install \"beaver-db[vector]\"")
             raise e
 
     @app.post("/collections/{name}/search", tags=["Collections"])
@@ -293,8 +293,8 @@ def build(db: BeaverDB) -> FastAPI:
             results = collection.search(vector=req.vector, top_k=req.top_k)
             return [{"document": doc.to_dict(), "distance": dist} for doc, dist in results]
         except TypeError as e:
-            if "faiss" in str(e):
-                raise HTTPException(status_code=501, detail="Vector search requires the '[faiss]' extra. Install with: pip install \"beaver-db[faiss]\"")
+            if "vector" in str(e):
+                raise HTTPException(status_code=501, detail="Vector search requires the '[vector]' extra. Install with: pip install \"beaver-db[vector]\"")
             raise e
 
     @app.post("/collections/{name}/match", tags=["Collections"])
