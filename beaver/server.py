@@ -270,7 +270,7 @@ def build(db: BeaverDB) -> FastAPI:
     def get_all_documents(name: str) -> List[dict]:
         """Retrieves all documents in the collection."""
         collection = db.collection(name)
-        return [doc.model_dump() for doc in collection]
+        return [doc.to_dict() for doc in collection]
 
     @app.post("/collections/{name}/index", tags=["Collections"])
     def index_document(name: str, req: IndexRequest):
@@ -291,7 +291,7 @@ def build(db: BeaverDB) -> FastAPI:
         collection = db.collection(name)
         try:
             results = collection.search(vector=req.vector, top_k=req.top_k)
-            return [{"document": doc.model_dump(), "distance": dist} for doc, dist in results]
+            return [{"document": doc.to_dict(), "distance": dist} for doc, dist in results]
         except TypeError as e:
             if "faiss" in str(e):
                 raise HTTPException(status_code=501, detail="Vector search requires the '[faiss]' extra. Install with: pip install \"beaver-db[faiss]\"")
@@ -302,7 +302,7 @@ def build(db: BeaverDB) -> FastAPI:
         """Performs a full-text or fuzzy search on the collection."""
         collection = db.collection(name)
         results = collection.match(query=req.query, on=req.on, top_k=req.top_k, fuzziness=req.fuzziness)
-        return [{"document": doc.model_dump(), "score": score} for doc, score in results]
+        return [{"document": doc.to_dict(), "score": score} for doc, score in results]
 
     @app.post("/collections/{name}/connect", tags=["Collections"])
     def connect_documents(name: str, req: ConnectRequest):
@@ -319,7 +319,7 @@ def build(db: BeaverDB) -> FastAPI:
         collection = db.collection(name)
         doc = Document(id=doc_id)
         neighbors = collection.neighbors(doc, label=label)
-        return [n.model_dump() for n in neighbors]
+        return [n.to_dict() for n in neighbors]
 
     @app.post("/collections/{name}/{doc_id}/walk", tags=["Collections"])
     def walk_graph(name: str, doc_id: str, req: WalkRequest) -> List[dict]:
@@ -327,7 +327,7 @@ def build(db: BeaverDB) -> FastAPI:
         collection = db.collection(name)
         source_doc = Document(id=doc_id)
         results = collection.walk(source=source_doc, labels=req.labels, depth=req.depth, direction=req.direction)
-        return [doc.model_dump() for doc in results]
+        return [doc.to_dict() for doc in results]
 
     return app
 

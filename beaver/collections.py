@@ -96,13 +96,20 @@ class Document(Model):
     def to_dict(self) -> dict[str, Any]:
         """Serializes the document's metadata to a dictionary."""
         metadata = self.__dict__.copy()
-        metadata.pop("embedding", None)
-        metadata.pop("id", None)
+        metadata["embedding"] = self.embedding.tolist() if self.embedding is not None else None
         return metadata
 
     def __repr__(self):
+        d = self.to_dict()
+        d.pop("embedding")
         metadata_str = ", ".join(f"{k}={v!r}" for k, v in self.to_dict().items())
-        return f"Document(id='{self.id}', {metadata_str})"
+        return f"Document({metadata_str})"
+
+    def model_dump_json(self) -> str:
+        d = self.to_dict()
+        d.pop("embedding")
+        d.pop("id")
+        return json.dumps(d)
 
 
 class CollectionManager[D: Document]:

@@ -68,7 +68,7 @@ To include optional features, you can install them as extras:
 
 ```bash
 # For vector search capabilities
-pip install "beaver-db[faiss]"
+pip install "beaver-db[vector]"
 
 # For the REST API server and CLI
 pip install "beaver-db[server,cli]"
