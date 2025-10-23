@@ -15,6 +15,7 @@ except ImportError:
 
 # --- Fuzzy Search Helper Functions ---
 
+
 def _levenshtein_distance(s1: str, s2: str) -> int:
     """Calculates the Levenshtein distance between two strings."""
     if len(s1) < len(s2):
@@ -38,7 +39,7 @@ def _get_trigrams(text: str) -> set[str]:
     """Generates a set of 3-character trigrams from a string."""
     if not text or len(text) < 3:
         return set()
-    return {text[i:i+3] for i in range(len(text) - 2)}
+    return {text[i : i + 3] for i in range(len(text) - 2)}
 
 
 def _sliding_window_levenshtein(query: str, content: str, fuzziness: int) -> int:
@@ -52,7 +53,7 @@ def _sliding_window_levenshtein(query: str, content: str, fuzziness: int) -> int
     if query_len == 0:
         return 0
 
-    min_dist = float('inf')
+    min_dist = float("inf")
     query_norm = " ".join(query_tokens)
 
     # The window size can be slightly smaller or larger than the query length
@@ -61,7 +62,7 @@ def _sliding_window_levenshtein(query: str, content: str, fuzziness: int) -> int
         if window_size > len(content_tokens):
             continue
         for i in range(len(content_tokens) - window_size + 1):
-            window_text = " ".join(content_tokens[i:i+window_size])
+            window_text = " ".join(content_tokens[i : i + window_size])
             dist = _levenshtein_distance(query_norm, window_text)
             if dist < min_dist:
                 min_dist = dist
@@ -93,10 +94,18 @@ class Document(Model):
 
         super().__init__(**metadata)
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self, *, metadata_only: bool = True) -> dict[str, Any]:
         """Serializes the document's metadata to a dictionary."""
         metadata = self.__dict__.copy()
-        metadata["embedding"] = self.embedding.tolist() if self.embedding is not None else None
+
+        if metadata_only:
+            metadata.pop("embedding")
+            metadata.pop("id")
+        else:
+            metadata["embedding"] = (
+                self.embedding.tolist() if self.embedding is not None else None
+            )
+
         return metadata
 
     def __repr__(self):
@@ -105,11 +114,9 @@ class Document(Model):
         metadata_str = ", ".join(f"{k}={v!r}" for k, v in self.to_dict().items())
         return f"Document({metadata_str})"
 
-    def model_dump_json(self) -> str:
-        d = self.to_dict()
-        d.pop("embedding")
-        d.pop("id")
-        return json.dumps(d)
+    def model_dump_json(self, metadata_only=False) -> str:
+        metadata = self.to_dict(m)
+        return json.dumps(metadata)
 
 
 class CollectionManager[D: Document]:
@@ -144,12 +151,12 @@ class CollectionManager[D: Document]:
         cursor = self._db.connection.cursor()
         cursor.execute(
             "SELECT COUNT(*) FROM _beaver_ann_pending_log WHERE collection_name = ?",
-            (self._name,)
+            (self._name,),
         )
         pending_count = cursor.fetchone()[0]
         cursor.execute(
             "SELECT COUNT(*) FROM _beaver_ann_deletions_log WHERE collection_name = ?",
-            (self._name,)
+            (self._name,),
         )
         deletion_count = cursor.fetchone()[0]
         return (pending_count + deletion_count) >= threshold
@@ -181,7 +188,7 @@ class CollectionManager[D: Document]:
                 # If we get the lock, start a new background thread.
                 self._compaction_thread = threading.Thread(
                     target=self._run_compaction_and_release_lock,
-                    daemon=True  # Daemon threads don't block program exit.
+                    daemon=True,  # Daemon threads don't block program exit.
                 )
                 self._compaction_thread.start()
                 if block:
@@ -192,13 +199,7 @@ class CollectionManager[D: Document]:
                 raise
         # If acquire fails, it means another thread holds the lock, so we do nothing.
 
-    def index(
-        self,
-        document: D,
-        *,
-        fts: bool | list[str] = True,
-        fuzzy: bool = False
-    ):
+    def index(self, document: D, *, fts: bool | list[str] = True, fuzzy: bool = False):
         """
         Indexes a Document, including vector, FTS, and fuzzy search data.
         The entire operation is performed in a single atomic transaction.
@@ -215,7 +216,11 @@ class CollectionManager[D: Document]:
                 (
                     self._name,
                     document.id,
-                    document.embedding.tobytes() if document.embedding is not None else None,
+                    (
+                        document.embedding.tobytes()
+                        if document.embedding is not None
+                        else None
+                    ),
                     json.dumps(document.to_dict()),
                 ),
             )
@@ -225,26 +230,49 @@ class CollectionManager[D: Document]:
                 self._vector_index.index(document.id, document.embedding, cursor)
 
             # Step 3: FTS and Fuzzy Indexing
-            cursor.execute("DELETE FROM beaver_fts_index WHERE collection = ? AND item_id = ?", (self._name, document.id))
-            cursor.execute("DELETE FROM beaver_trigrams WHERE collection = ? AND item_id = ?", (self._name, document.id))
+            cursor.execute(
+                "DELETE FROM beaver_fts_index WHERE collection = ? AND item_id = ?",
+                (self._name, document.id),
+            )
+            cursor.execute(
+                "DELETE FROM beaver_trigrams WHERE collection = ? AND item_id = ?",
+                (self._name, document.id),
+            )
 
             flat_metadata = self._flatten_metadata(document.to_dict())
             fields_to_index: dict[str, str] = {}
             if isinstance(fts, list):
-                fields_to_index = {k: v for k, v in flat_metadata.items() if k in fts and isinstance(v, str)}
+                fields_to_index = {
+                    k: v
+                    for k, v in flat_metadata.items()
+                    if k in fts and isinstance(v, str)
+                }
             elif fts:
-                fields_to_index = {k: v for k, v in flat_metadata.items() if isinstance(v, str)}
+                fields_to_index = {
+                    k: v for k, v in flat_metadata.items() if isinstance(v, str)
+                }
 
             if fields_to_index:
-                fts_data = [(self._name, document.id, path, content) for path, content in fields_to_index.items()]
-                cursor.executemany("INSERT INTO beaver_fts_index (collection, item_id, field_path, field_content) VALUES (?, ?, ?, ?)", fts_data)
+                fts_data = [
+                    (self._name, document.id, path, content)
+                    for path, content in fields_to_index.items()
+                ]
+                cursor.executemany(
+                    "INSERT INTO beaver_fts_index (collection, item_id, field_path, field_content) VALUES (?, ?, ?, ?)",
+                    fts_data,
+                )
                 if fuzzy:
                     trigram_data = []
                     for path, content in fields_to_index.items():
                         for trigram in _get_trigrams(content.lower()):
-                            trigram_data.append((self._name, document.id, path, trigram))
+                            trigram_data.append(
+                                (self._name, document.id, path, trigram)
+                            )
                     if trigram_data:
-                        cursor.executemany("INSERT INTO beaver_trigrams (collection, item_id, field_path, trigram) VALUES (?, ?, ?, ?)", trigram_data)
+                        cursor.executemany(
+                            "INSERT INTO beaver_trigrams (collection, item_id, field_path, trigram) VALUES (?, ?, ?, ?)",
+                            trigram_data,
+                        )
 
             # Step 4: Update Collection Version to signal a change.
             cursor.execute(
@@ -262,10 +290,22 @@ class CollectionManager[D: Document]:
             raise TypeError("Item to drop must be a Document object.")
         with self._db.connection:
             cursor = self._db.connection.cursor()
-            cursor.execute("DELETE FROM beaver_collections WHERE collection = ? AND item_id = ?", (self._name, document.id))
-            cursor.execute("DELETE FROM beaver_fts_index WHERE collection = ? AND item_id = ?", (self._name, document.id))
-            cursor.execute("DELETE FROM beaver_trigrams WHERE collection = ? AND item_id = ?", (self._name, document.id))
-            cursor.execute("DELETE FROM beaver_edges WHERE collection = ? AND (source_item_id = ? OR target_item_id = ?)", (self._name, document.id, document.id))
+            cursor.execute(
+                "DELETE FROM beaver_collections WHERE collection = ? AND item_id = ?",
+                (self._name, document.id),
+            )
+            cursor.execute(
+                "DELETE FROM beaver_fts_index WHERE collection = ? AND item_id = ?",
+                (self._name, document.id),
+            )
+            cursor.execute(
+                "DELETE FROM beaver_trigrams WHERE collection = ? AND item_id = ?",
+                (self._name, document.id),
+            )
+            cursor.execute(
+                "DELETE FROM beaver_edges WHERE collection = ? AND (source_item_id = ? OR target_item_id = ?)",
+                (self._name, document.id, document.id),
+            )
             self._vector_index.drop(document.id, cursor)
             cursor.execute(
                 "INSERT INTO beaver_collection_versions (collection_name, version) VALUES (?, 1) ON CONFLICT(collection_name) DO UPDATE SET version = version + 1",
@@ -294,9 +334,7 @@ class CollectionManager[D: Document]:
             )
         cursor.close()
 
-    def search(
-        self, vector: list[float], top_k: int = 10
-    ) -> List[Tuple[D, float]]:
+    def search(self, vector: list[float], top_k: int = 10) -> List[Tuple[D, float]]:
         """Performs a fast, persistent approximate nearest neighbor search."""
         if not isinstance(vector, list):
             raise TypeError("Search vector must be a list of floats.")
@@ -319,7 +357,11 @@ class CollectionManager[D: Document]:
         doc_map = {
             row["item_id"]: self._model(
                 id=row["item_id"],
-                embedding=(np.frombuffer(row["item_vector"], dtype=np.float32).tolist() if row["item_vector"] else None),
+                embedding=(
+                    np.frombuffer(row["item_vector"], dtype=np.float32).tolist()
+                    if row["item_vector"]
+                    else None
+                ),
                 **json.loads(row["metadata"]),
             )
             for row in rows
@@ -340,7 +382,7 @@ class CollectionManager[D: Document]:
         *,
         on: str | list[str] | None = None,
         top_k: int = 10,
-        fuzziness: int = 0
+        fuzziness: int = 0,
     ) -> list[tuple[D, float]]:
         """
         Performs a full-text or fuzzy search on indexed string fields.
@@ -374,14 +416,19 @@ class CollectionManager[D: Document]:
             params.extend(on)
 
         params.extend([top_k, self._name])
-        rows = cursor.execute(sql_query.format(field_filter_sql), tuple(params)).fetchall()
+        rows = cursor.execute(
+            sql_query.format(field_filter_sql), tuple(params)
+        ).fetchall()
         results = []
         for row in rows:
             embedding = (
                 np.frombuffer(row["item_vector"], dtype=np.float32).tolist()
-                if row["item_vector"] else None
+                if row["item_vector"]
+                else None
             )
-            doc = self._model(id=row["item_id"], embedding=embedding, **json.loads(row["metadata"]))
+            doc = self._model(
+                id=row["item_id"], embedding=embedding, **json.loads(row["metadata"])
+            )
             results.append((doc, row["rank"]))
         return results
 
@@ -415,8 +462,10 @@ class CollectionManager[D: Document]:
             params.extend(on)
 
         params.append(similarity_threshold)
-        cursor.execute(sql.format(trigram_placeholders, field_filter_sql), tuple(params))
-        return {row['item_id'] for row in cursor.fetchall()}
+        cursor.execute(
+            sql.format(trigram_placeholders, field_filter_sql), tuple(params)
+        )
+        return {row["item_id"] for row in cursor.fetchall()}
 
     def _perform_fuzzy_search(
         self, query: str, on: list[str] | None, top_k: int, fuzziness: int
@@ -441,10 +490,10 @@ class CollectionManager[D: Document]:
         cursor.execute(sql_text, tuple(params_text))
         candidate_texts: dict[str, dict[str, str]] = {}
         for row in cursor.fetchall():
-            item_id = row['item_id']
+            item_id = row["item_id"]
             if item_id not in candidate_texts:
                 candidate_texts[item_id] = {}
-            candidate_texts[item_id][row['field_path']] = row['field_content']
+            candidate_texts[item_id][row["field_path"]] = row["field_content"]
 
         scored_candidates = []
         fts_rank_map = {doc.id: rank for doc, rank in fts_results}
@@ -452,17 +501,19 @@ class CollectionManager[D: Document]:
         for item_id in candidate_ids:
             if item_id not in candidate_texts:
                 continue
-            min_dist = float('inf')
+            min_dist = float("inf")
             for content in candidate_texts[item_id].values():
                 dist = _sliding_window_levenshtein(query, content, fuzziness)
                 if dist < min_dist:
                     min_dist = dist
             if min_dist <= fuzziness:
-                scored_candidates.append({
-                    "id": item_id,
-                    "distance": min_dist,
-                    "fts_rank": fts_rank_map.get(item_id, 0)
-                })
+                scored_candidates.append(
+                    {
+                        "id": item_id,
+                        "distance": min_dist,
+                        "fts_rank": fts_rank_map.get(item_id, 0),
+                    }
+                )
 
         scored_candidates.sort(key=lambda x: (x["distance"], x["fts_rank"]))
         top_ids = [c["id"] for c in scored_candidates[:top_k]]
@@ -472,7 +523,18 @@ class CollectionManager[D: Document]:
         id_placeholders = ",".join("?" for _ in top_ids)
         sql_docs = f"SELECT item_id, item_vector, metadata FROM beaver_collections WHERE collection = ? AND item_id IN ({id_placeholders})"
         cursor.execute(sql_docs, (self._name, *top_ids))
-        doc_map = {row["item_id"]: self._model(id=row["item_id"], embedding=(np.frombuffer(row["item_vector"], dtype=np.float32).tolist() if row["item_vector"] else None), **json.loads(row["metadata"])) for row in cursor.fetchall()}
+        doc_map = {
+            row["item_id"]: self._model(
+                id=row["item_id"],
+                embedding=(
+                    np.frombuffer(row["item_vector"], dtype=np.float32).tolist()
+                    if row["item_vector"]
+                    else None
+                ),
+                **json.loads(row["metadata"]),
+            )
+            for row in cursor.fetchall()
+        }
 
         final_results = []
         distance_map = {c["id"]: c["distance"] for c in scored_candidates}
@@ -583,9 +645,7 @@ class CollectionManager[D: Document]:
 
 
 def rerank[D: Document](
-    *results: list[D],
-    weights: list[float] | None = None,
-    k: int = 60
+    *results: list[D], weights: list[float] | None = None, k: int = 60
 ) -> list[D]:
     """
     Reranks documents from multiple search result lists using Reverse Rank Fusion (RRF).
@@ -610,5 +670,7 @@ def rerank[D: Document](
             score = weight * (1 / (k + rank))
             rrf_scores[doc_id] = rrf_scores.get(doc_id, 0.0) + score
 
-    sorted_doc_ids = sorted(rrf_scores.keys(), key=lambda k: rrf_scores[k], reverse=True)
+    sorted_doc_ids = sorted(
+        rrf_scores.keys(), key=lambda k: rrf_scores[k], reverse=True
+    )
     return [doc_store[doc_id] for doc_id in sorted_doc_ids]
