@@ -1,5 +1,6 @@
 import sqlite3
 import threading
+import warnings
 from typing import Type
 
 from .types import JsonSerializable
@@ -18,7 +19,7 @@ class BeaverDB:
     This class manages thread-safe database connections and table schemas.
     """
 
-    def __init__(self, db_path: str, timeout:float=30.0):
+    def __init__(self, db_path: str, timeout: float = 30.0):
         """
         Initializes the database connection and creates all necessary tables.
 
@@ -39,6 +40,25 @@ class BeaverDB:
         # connection for the main thread via the `connection` property.
         self._create_all_tables()
 
+        # check current version against the version stored
+        self._check_version()
+
+    def _check_version(self):
+        from beaver import __version__
+
+        db_version = self.dict("__metadata__").get("version", __version__)
+        self.dict("__metadata__")["version"] = db_version
+
+        if db_version != __version__:
+            warnings.warn(
+                f"Version mismatch. DB was created with version {db_version}, but the library version is {__version__}.",
+                stacklevel=3,
+            )
+
+    @property
+    def version(self):
+        return self.dict("__metadata__")["version"]
+
     @property
     def connection(self) -> sqlite3.Connection:
         """
@@ -49,7 +69,7 @@ class BeaverDB:
         all subsequent calls within the same thread.
         """
         # Check if a connection is already stored for this thread
-        conn = getattr(self._thread_local, 'conn', None)
+        conn = getattr(self._thread_local, "conn", None)
 
         if conn is None:
             # No connection for this thread yet, so create one.
@@ -350,7 +370,9 @@ class BeaverDB:
 
         return QueueManager(name, self, model)
 
-    def collection[D: Document](self, name: str, model: Type[D] | None = None) -> CollectionManager[D]:
+    def collection[D: Document](
+        self, name: str, model: Type[D] | None = None
+    ) -> CollectionManager[D]:
         """
         Returns a singleton CollectionManager instance for interacting with a
         document collection.
