@@ -11,7 +11,7 @@ try:
 
     HAVE_FAISS = True
 except ImportError:
-    raise TypeError("This feature requires to install beaver-db[faiss]")
+    raise ImportError("This feature requires to install beaver-db[vector]")
 
 
 class VectorIndex:
