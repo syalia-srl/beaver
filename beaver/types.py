@@ -43,13 +43,16 @@ class Model:
 
 def stub(msg: str):
     class Stub:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
         def __getattribute__(self, name: str):
             raise TypeError(msg)
 
         def __call__(self, *args, **kwds):
             raise TypeError(msg)
 
-    return Stub()
+    return Stub
 
 
 class IDatabase(Protocol):

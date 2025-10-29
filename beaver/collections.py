@@ -10,7 +10,7 @@ try:
     import numpy as np
     from .vectors import VectorIndex
 except ImportError:
-    np = stub("This feature requires to install beaver-db[faiss]")
+    np = stub("This feature requires to install beaver-db[faiss]")()
     VectorIndex = stub("This feature requires to install beaver-db[faiss]")
 
 # --- Fuzzy Search Helper Functions ---
