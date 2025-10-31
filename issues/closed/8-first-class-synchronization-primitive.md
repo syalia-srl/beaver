@@ -1,7 +1,7 @@
 ---
 number: 8
 title: "First-class synchronization primitive"
-state: open
+state: closed
 labels:
 ---
 

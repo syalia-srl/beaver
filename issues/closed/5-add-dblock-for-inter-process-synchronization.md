@@ -1,7 +1,7 @@
 ---
 number: 5
 title: "Add db.lock() for Inter-Process Synchronization"
-state: open
+state: closed
 labels:
 ---
 

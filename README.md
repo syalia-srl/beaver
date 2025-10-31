@@ -11,7 +11,7 @@ A fast, single-file, multi-modal database for Python, built with the standard `s
 
 `beaver` is the **B**ackend for **E**mbedded, **A**ll-in-one **V**ector, **E**ntity, and **R**elationship storage. It's a simple, local, and embedded database designed to manage complex, modern data types without requiring a database server, built on top of SQLite.
 
-> If you like beaver's minimalist, no-bullshit philosophy, check out [castor](https://github.com/apiad/castor) for an equally minimalistic approach to task orchestration.
+> If you like beaver's minimalist, no-bullshit philosophy, check out [castor](https://github.com/apiad/castor "null") for an equally minimalistic approach to task orchestration.
 
 ## Design Philosophy
 
@@ -30,6 +30,7 @@ A fast, single-file, multi-modal database for Python, built with the standard `s
 - **Namespaced Key-Value Dictionaries**: A Pythonic, dictionary-like interface for storing any JSON-serializable object within separate namespaces with optional TTL for cache implementations.
 - **Pythonic List Management**: A fluent, Redis-like interface for managing persistent, ordered lists.
 - **Persistent Priority Queue**: A high-performance, persistent priority queue perfect for task orchestration across multiple processes. Also with optional async support.
+- **Inter-Process Locking**: A robust, deadlock-proof, and fair (FIFO) distributed lock (`db.lock()`) to coordinate multiple processes and prevent race conditions.
 - **Time-Indexed Log for Monitoring**: A specialized data structure for structured, time-series logs. Query historical data by time range or create a live, aggregated view of the most recent events for real-time dashboards.
 - **Simple Blob Storage**: A dictionary-like interface for storing medium-sized binary files (like PDFs or images) directly in the database, ensuring transactional integrity with your other data.
 - **High-Performance Vector Storage & Search (Optional)**: Store vector embeddings and perform fast approximate nearest neighbor searches using a `faiss`-based hybrid index.
@@ -78,14 +79,14 @@ pip install "beaver-db[full]"
 ```
 
 ### Running with Docker
+
 For a fully embedded and lightweight solution, you can run the BeaverDB REST API server using Docker. This is the easiest way to get a self-hosted instance up and running.
 
 ```bash
 docker run -p 8000:8000 -v $(pwd)/data:/app apiad/beaverdb
 ```
 
-This command will start the BeaverDB server, and your database file will be stored in the data directory on your host machine. You can access the API at <http://localhost:8000>.
-
+This command will start the BeaverDB server, and your database file will be stored in the data directory on your host machine. You can access the API at [http://localhost:8000](http://localhost:8000").
 
 ## Quickstart
 
@@ -147,12 +148,12 @@ Here are a couple of examples using `curl`:
 
 ```bash
 # Set a value in the 'app_config' dictionary
-curl -X PUT http://127.0.0.1:8000/dicts/app_config/api_key
+curl -X PUT [http://127.0.0.1:8000/dicts/app_config/api_key](http://127.0.0.1:8000/dicts/app_config/api_key)
      -H "Content-Type: application/json"
      -d '"your-secret-api-key"'
 
 # Get the value back
-curl http://127.0.0.1:8000/dicts/app_config/api_key
+curl [http://127.0.0.1:8000/dicts/app_config/api_key](http://127.0.0.1:8000/dicts/app_config/api_key)
 # Output: "your-secret-api-key"
 ```
 
@@ -316,6 +317,34 @@ for summary in live_summary:
     print(f"Live Stats (10s window): Count={summary['count']}, Mean={summary['mean']:.2f}")
 ```
 
+### 9. Coordinate Distributed Web Scrapers
+
+Run multiple scraper processes in parallel and use `db.lock()` to coordinate them. You can ensure only one process refreshes a shared API token or sitemap, preventing race conditions and rate-limiting.
+
+```python
+import time
+
+scrapers_state = db.dict("scraper_state")
+
+last_refresh = scrapers_state.get("last_sitemap_refresh", 0)
+if time.time() - last_refresh > 3600: # Only refresh once per hour
+    try:
+        # Try to get a lock to refresh the shared sitemap, but don't wait long
+        with db.lock("refresh_sitemap", timeout=1):
+            # We got the lock. Check if it's time to refresh.
+            print(f"PID {os.getpid()} is refreshing the sitemap...")
+            scrapers_state["sitemap"] = ["/page1", "/page2"] # Your fetch_sitemap()
+            scrapers_state["last_sitemap_refresh"] = time.time()
+
+    except TimeoutError:
+        # Another process is already refreshing, so we can skip
+        print(f"PID {os.getpid()} letting other process handle refresh.")
+
+# All processes can now safely use the shared sitemap
+sitemap = scrapers_state.get("sitemap")
+# ... proceed with scraping ...
+```
+
 ## Type-Safe Data Models
 
 For enhanced data integrity and a better developer experience, BeaverDB supports type-safe operations for all modalities. By associating a model with these data structures, you get automatic serialization and deserialization, complete with autocompletion in your editor.
@@ -323,7 +352,6 @@ For enhanced data integrity and a better developer experience, BeaverDB supports
 This feature is designed to be flexible and works seamlessly with two kinds of models:
 
 - **Pydantic Models**: If you're already using Pydantic, your `BaseModel` classes will work out of the box.
-
 - **Lightweight `beaver.Model`**: For a zero-dependency solution, you can inherit from the built-in `beaver.Model` class, which is a standard Python class with serialization methods automatically included.
 
 
@@ -368,10 +396,11 @@ For more in-depth examples, check out the scripts in the `examples/` directory:
 - [`graph.py`](examples/graph.py): Shows how to create relationships between documents and perform multi-hop graph traversals.
 - [`kvstore.py`](examples/kvstore.py): A comprehensive demo of the namespaced dictionary feature.
 - [`list.py`](examples/list.py): Shows the full capabilities of the persistent list, including slicing and in-place updates.
+- [`locks.py`](examples/lock_test.py): Demonstrates how to use the inter-process lock to create critical sections.
 - [`logs.py`](examples/logs.py): A short example showing how to build a realtime dashboard with the logging feature.
 - [`pqueue.py`](examples/pqueue.py): A practical example of using the persistent priority queue for task management.
 - [`producer_consumer.py`](examples/producer_consumer.py): A demonstration of the distributed task queue system in a multi-process environment.
-- [`publisher.py`](examples/publisher.p) and [`subscriber.py`](examples/subscriber.py): A pair of examples demonstrating inter-process message passing with the publish/subscribe system.
+- [`publisher.py`](examples/publisher.py) and [`subscriber.py`](examples/subscriber.py): A pair of examples demonstrating inter-process message passing with the publish/subscribe system.
 - [`pubsub.py`](examples/pubsub.py): A demonstration of the synchronous, thread-safe publish/subscribe system in a single process.
 - [`rerank.py`](examples/rerank.py): Shows how to combine results from vector and text search for more refined results.
 - [`stress_vectors.py`](examples/stress_vectors.py): A stress test for the vector search functionality.
@@ -385,14 +414,13 @@ For more in-depth examples, check out the scripts in the `examples/` directory:
 
 These are some of the features and improvements planned for future releases:
 
-- **Async API**: Extend the async support with on-demand wrappers for all features besides channels.
-- **Type-Safe Models**: Enhance built-in `Model` to handle recursive and embedded types.
-- **Drop-in REST Client**: Implement a `BeaverClient` class that acts as a drop-in replacement for `BeaverDB` but instead of a local database file, it works against a REST API server.
+- **[Issue #2](https://github.com/syalia-srl/beaver/issues/2) Comprehensive async wrappers**: Extend the async support with on-demand wrappers for all data structures, not just channels.
+- **[Issue #9](https://github.com/syalia-srl/beaver/issues/2) Type-safe wrappers based on Pydantic-compatible models**: Enhance the built-in `Model` to handle recursive and embedded types and provide Pydantic compatibility.
+- **[Issue #6](https://github.com/syalia-srl/beaver/issues/2) Drop-in replacement for Beaver REST server client**: Implement a `BeaverClient` class that acts as a drop-in replacement for `BeaverDB` but works against the REST API server.
+- **[Issue #7](https://github.com/syalia-srl/beaver/issues/2) Replace `faiss` with simpler, linear `numpy` vectorial search**: Investigate removing the heavy `faiss` dependency in favor of a pure `numpy` implementation to improve installation simplicity, accepting a trade-off in search performance for O(1) installation.
 
-Check out the [roadmap](roadmap.md) for a detailed list of upcoming features and design ideas.
 
 If you think of something that would make `beaver` more useful for your use case, please open an issue and/or submit a pull request.
-
 ## License
 
 This project is licensed under the MIT License.
