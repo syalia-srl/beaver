@@ -1,0 +1,33 @@
+name: Issue to Markdown Sync
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    # This job will NOT run if the actor is the
+    # 'github-actions[bot]', which is what other workflows run as.
+    if: github.actor != 'github-actions[bot]'
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Issue to Markdown
+        # This action creates a file (e.g., issues/123.md)
+        # and populates it with frontmatter (like number: 123)
+        uses: eunjae-lee/issue-to-markdown@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: "issues" # The folder to store the markdown files
+
+      - name: Auto-commit changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          # The [skip ci] in the commit message
+          # prevents this push from triggering Workflow 2.
+          commit_message: "Sync issue #${{ github.event.issue.number }} to file [skip ci]"
+          file_pattern: "issues/*.md"
