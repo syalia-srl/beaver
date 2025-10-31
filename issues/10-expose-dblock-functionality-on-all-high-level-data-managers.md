@@ -54,20 +54,20 @@ except TimeoutError:
 
 ### 4. Implementation Design (High-Level)
 
-1.  **Manager `__init__` Modification:**
+**Manager `__init__` Modification:**
 
 * The `__init__` method for all targeted managers (`DictManager`, `ListManager`, `CollectionManager`, **`QueueManager`**, and `BlobManager`) will be updated.
 * Each manager will initialize and store an internal `LockManager` instance, which is provided by `db.lock()`.
 * The lock name will use a standardized internal format based on the manager type and the manager's name, e.g., `f"__lock__queue__{self._name}"`.
 
-1.  **Lock Methods Implementation:**
+**Lock Methods Implementation:**
 
 * `acquire(self, timeout=None, ...)`: Calls `self._lock.acquire(timeout=timeout, ...)` internally.
 * `release(self)`: Calls `self._lock.release()` internally.
 * `__enter__(self)`: Calls `self.acquire()`.
 * `__exit__(self, exc_type, exc_val, exc_tb)`: Calls `self.release()`.
 
-1.  **Targeted Manager Classes:**
+**Targeted Manager Classes:**
 
 * `DictManager` (`beaver/dicts.py`)
 * `ListManager` (`beaver/lists.py`)
@@ -75,7 +75,7 @@ except TimeoutError:
 * `CollectionManager` (`beaver/collections.py`)
 * `BlobManager` (`beaver/blobs.py`)
 
-1.  **Exclusions:** `ChannelManager` and `LogManager` will **not** be modified, as their core write operations are already atomic, and imposing a lock would create an unnecessary performance bottleneck for their high-concurrency design.
+**Exclusions:** `ChannelManager` and `LogManager` will **not** be modified, as their core write operations are already atomic, and imposing a lock would create an unnecessary performance bottleneck for their high-concurrency design.
 
 ### 5. Alignment with Philosophy
 
