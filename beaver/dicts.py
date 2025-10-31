@@ -12,10 +12,8 @@ class DictManager[T]:
         self._name = name
         self._db = db
         self._model = model
-        # 1. Initialize the internal LockManager instance
-        # The lock name is derived from the manager's type and name.
         lock_name = f"__lock__dict__{name}"
-        self._lock = LockManager(db, lock_name) # Uses LockManager defaults
+        self._lock = LockManager(db, lock_name)
 
     def _serialize(self, value: T) -> str:
         """Serializes the given value to a JSON string."""
