@@ -1,7 +1,7 @@
 ---
 number: 10
 title: "Expose `db.lock()` functionality on all high-level data managers"
-state: close
+state: closed
 labels:
 ---
 
