@@ -4,6 +4,10 @@ on:
   issues:
     types: [opened, edited]
 
+permissions:
+  issues: read    # To read the issue content
+  contents: write # To commit the new/updated file
+
 jobs:
   sync:
     runs-on: ubuntu-latest
