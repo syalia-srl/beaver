@@ -1,4 +1,6 @@
-<img src="https://github.com/syalia-srl/beaver/blob/main/logo.png?raw=true" width="256px">
+<div style="text-align: center;">
+  <img src="https://github.com/syalia-srl/beaver/blob/main/logo.png?raw=true" width="256px">
+</div>
 
 # beaver 🦫
 
