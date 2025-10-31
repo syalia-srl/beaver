@@ -21,3 +21,10 @@ push-docker:
 	docker tag apiad/beaverdb:$(VERSION) apiad/beaverdb:latest
 	docker push apiad/beaverdb:$(VERSION)
 	docker push apiad/beaverdb:latest
+
+.PHONY: issues
+issues:
+	git add issues
+	bash push-issues.sh
+	git commit -m "Sync issues"
+	bash pull-issues.sh

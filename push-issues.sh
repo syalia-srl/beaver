@@ -6,81 +6,88 @@ REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
 
 echo "Checking for local modifications to sync..."
 
-# Use 'git status' to find all changed, added, or untracked .md files.
-# This is much faster than 'find'.
 git status --porcelain "$OPEN_DIR/" | grep '\.md$' | while read -r line; do
 
-  # Get the file path (it's the last field, handles spaces in names)
+  # Get the file path (this works for all statuses, including 'D')
   FILE=$(echo "$line" | awk '{print $NF}')
 
   echo "---"
   echo "Processing $FILE..."
 
-  # --- 1. Parse Local File ---
+  # ✅ FIX: Check if the file exists *before* trying to read it
+  if [ ! -f "$FILE" ]; then
+    # --- FILE IS DELETED ---
+    echo "File not found. Assuming deletion."
 
-  # Get number (will be blank for new files)
-  NUMBER=$(grep '^number: ' "$FILE" | awk '{print $2}')
+    # Parse the issue number from the FILENAME (e.g., "issues/123.md")
+    NUMBER=$(basename "$FILE" .md)
 
-  # Get title
-  TITLE=$(grep '^title: ' "$FILE" | sed -E 's/^title: "(.*)"$/\1/' | sed -E "s/^title: '(.*)'$/\1/")
-
-  # Get state
-  STATE=$(grep '^state: ' "$FILE" | awk '{print $2}')
-  if [ -z "$STATE" ]; then
-    STATE="open"
-  fi
-
-  # Get body
-  BODY_FILE=$(mktemp)
-  awk 'NR>1 && /^---$/ {f=1; next} f' "$FILE" > $BODY_FILE
-
-  # --- 2. Process Based on NUMBER ---
-
-  # The logic is simple. No number? Create. Number? Update.
-  if [ -z "$NUMBER" ]; then
-    # --- CREATE NEW ISSUE ---
-    if [ -z "$TITLE" ]; then
-        echo "ERROR: New file $FILE is missing 'title:'. Skipping."
-        rm $BODY_FILE
-        continue
+    # Safety check: If filename isn't a number, skip
+    if ! [[ "$NUMBER" =~ ^[0-9]+$ ]]; then
+      echo "Skipping deleted file $FILE (could not parse issue number from name)."
+      continue
     fi
 
-    echo "Creating new issue with title: $TITLE"
-    NEW_ISSUE_URL=$(gh issue create --title "$TITLE" --body-file $BODY_FILE --repo $REPO)
-
-    NEW_NUMBER=$(echo "$NEW_ISSUE_URL" | awk -F'/' '{print $NF}')
-
-    echo "Created Issue #$NEW_NUMBER. Updating $FILE with new number..."
-
-    # Edit the file in place to add the number
-    sed -i.bak "s/^---$/---\
-number: $NEW_NUMBER/" "$FILE" && rm -f "$FILE.bak"
-
-    echo "Successfully updated $FILE. You should 'git add' this change."
+    # Check if issue is already closed
+    CURRENT_STATE=$(gh issue view $NUMBER --json state --repo $REPO -q .state)
+    if [ "$CURRENT_STATE" == "open" ]; then
+        echo "Closing Issue #$NUMBER on GitHub..."
+        gh issue close $NUMBER --repo $REPO
+    else
+        echo "Issue #$NUMBER is already closed."
+    fi
 
   else
-    # --- UPDATE EXISTING ISSUE ---
-    # This is a "dumb" push as requested. It doesn't check for remote
-    # changes, it just overwrites the remote with your local file's content.
-    echo "Updating Issue #$NUMBER..."
+    # --- FILE EXISTS ---
 
-    # A) Sync Title and Body
-    gh issue edit $NUMBER --title "$TITLE" --body-file $BODY_FILE --repo $REPO
-
-    # B) Sync State (but check first to avoid needless API call)
-    CURRENT_STATE=$(gh issue view $NUMBER --json state --repo $REPO -q .state)
-
-    if [ "$STATE" == "closed" ] && [ "$CURRENT_STATE" == "open" ]; then
-      echo "Closing Issue #$NUMBER..."
-      gh issue close $NUMBER --repo $REPO
-    elif [ "$STATE" == "open" ] && [ "$CURRENT_STATE" == "closed" ]; then
-      echo "Reopening Issue #$NUMBER..."
-      gh issue reopen $NUMBER --repo $REPO
+    # --- 1. Parse Local File ---
+    NUMBER=$(grep '^number: ' "$FILE" | awk '{print $2}')
+    TITLE=$(grep '^title: ' "$FILE" | sed -E 's/^title: "(.*)"$/\1/' | sed -E "s/^title: '(.*)'$/\1/")
+    STATE=$(grep '^state: ' "$FILE" | awk '{print $2}')
+    if [ -z "$STATE" ]; then
+      STATE="open"
     fi
-  fi
+    BODY_FILE=$(mktemp)
+    awk 'NR>1 && /^---$/ {f=1; next} f' "$FILE" > $BODY_FILE
 
-  # Clean up temp file
-  rm $BODY_FILE
+    # --- 2. Process Based on NUMBER ---
+    if [ -z "$NUMBER" ]; then
+      # --- CREATE NEW ISSUE ---
+      if [ -z "$TITLE" ]; then
+          echo "ERROR: New file $FILE is missing 'title:'. Skipping."
+          rm $BODY_FILE
+          continue
+      fi
+
+      echo "Creating new issue with title: $TITLE"
+      NEW_ISSUE_URL=$(gh issue create --title "$TITLE" --body-file $BODY_FILE --repo $REPO)
+      NEW_NUMBER=$(echo "$NEW_ISSUE_URL" | awk -F'/' '{print $NF}')
+      echo "Created Issue #$NEW_NUMBER. Updating $FILE with new number..."
+
+      sed -i.bak "s/^---$/---\
+number: $NEW_NUMBER/" "$FILE" && rm -f "$FILE.bak"
+
+      echo "Successfully updated $FILE. You should 'git add' this change."
+
+    else
+      # --- UPDATE EXISTING ISSUE ---
+      echo "Updating Issue #$NUMBER..."
+
+      gh issue edit $NUMBER --title "$TITLE" --body-file $BODY_FILE --repo $REPO
+
+      CURRENT_STATE=$(gh issue view $NUMBER --json state --repo $REPO -q .state)
+
+      if [ "$STATE" == "closed" ] && [ "$CURRENT_STATE" == "open" ]; then
+        echo "Closing Issue #$NUMBER..."
+        gh issue close $NUMBER --repo $REPO
+      elif [ "$STATE" == "open" ] && [ "$CURRENT_STATE" == "closed" ]; then
+        echo "Reopening Issue #$NUMBER..."
+        gh issue reopen $NUMBER --repo $REPO
+      fi
+    fi
+
+    rm $BODY_FILE
+  fi
 done
 
 echo "---"
