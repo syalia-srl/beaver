@@ -1,6 +1,8 @@
 ---
 number: 10
-title: Expose `db.lock()` functionality on all high-level data managers
+title: "Expose `db.lock()` functionality on all high-level data managers"
+state: open
+labels:
 ---
 
 ### 1. Concept
