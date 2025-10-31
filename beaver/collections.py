@@ -3,15 +3,16 @@ import sqlite3
 import threading
 import uuid
 from enum import Enum
-from typing import Any, Iterator, List, Literal, Tuple, Type, TypeVar
+from typing import Any, Iterator, List, Literal, Tuple, Type, TypeVar, Optional
 from .types import Model, stub, IDatabase
+from .locks import LockManager
 
 try:
     import numpy as np
     from .vectors import VectorIndex
 except ImportError:
-    np = stub("This feature requires to install beaver-db[faiss]")()
-    VectorIndex = stub("This feature requires to install beaver-db[faiss]")
+    np = stub("This feature requires to install beaver-db[vector]")()
+    VectorIndex = stub("This feature requires to install beaver-db[vector]")
 
 # --- Fuzzy Search Helper Functions ---
 
@@ -134,6 +135,9 @@ class CollectionManager[D: Document]:
         # A lock to ensure only one compaction thread runs at a time for this collection.
         self._compaction_lock = threading.Lock()
         self._compaction_thread: threading.Thread | None = None
+
+        lock_name = f"__lock__collection__{name}"
+        self._lock = LockManager(db, lock_name)
 
     def _flatten_metadata(self, metadata: dict, prefix: str = "") -> dict[str, Any]:
         """Flattens a nested dictionary for indexing."""
@@ -642,6 +646,38 @@ class CollectionManager[D: Document]:
         count = cursor.fetchone()[0]
         cursor.close()
         return count
+
+    def acquire(
+        self,
+        timeout: Optional[float] = None,
+        lock_ttl: Optional[float] = None,
+        poll_interval: Optional[float] = None,
+    ) -> "CollectionManager[D]":
+        """
+        Acquires an inter-process lock on this collection, blocking until acquired.
+        This guarantees exclusive access for multi-step atomic operations
+        (e.g., index + connect).
+
+        Parameters override the default settings of the underlying LockManager.
+        """
+        self._lock.acquire(
+            timeout=timeout, lock_ttl=lock_ttl, poll_interval=poll_interval
+        )
+        return self
+
+    def release(self):
+        """
+        Releases the inter-process lock on this collection.
+        """
+        self._lock.release()
+
+    def __enter__(self) -> "CollectionManager[D]":
+        """Acquires the lock upon entering a 'with' statement."""
+        return self.acquire()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Releases the lock when exiting a 'with' statement."""
+        self.release()
 
 
 def rerank[D: Document](
