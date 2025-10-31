@@ -5,9 +5,11 @@ state: open
 labels:
 ---
 
+### 1. Concept
+
 Currently, beaver-db is process-safe for concurrent reads and writes, thanks to SQLite's WAL mode. However, it lacks a high-level, "native" primitive for coordinating logic between multiple independent processes.
 
-This becomes a critical problem in multi-process architectures (e.g., a web server with multiple Gunicorn workers) where a singleton task must be performed. 
+This becomes a critical problem in multi-process architectures (e.g., a web server with multiple Gunicorn workers) where a singleton task must be performed.
 
 A key example is the proposed NumpyVectorIndex.compact() method. If all 10 worker processes hit the compaction threshold simultaneously, they would all try to run the same expensive O(N) rebuild, creating a "thundering herd" that would overload the database.
 
@@ -32,10 +34,10 @@ from .sync import LockManager
 
 class BeaverDB:
     # ... existing methods ...
-    
-    def lock(self, 
-             name: str, 
-             timeout: float | None = None, 
+
+    def lock(self,
+             name: str,
+             timeout: float | None = None,
              lock_ttl: float = 60.0,
              poll_interval: float = 0.1) -> LockManager:
         """
@@ -43,7 +45,7 @@ class BeaverDB:
 
         Args:
             name: The unique name of the lock (e.g., "run_compaction").
-            timeout: Max seconds to wait to acquire the lock. 
+            timeout: Max seconds to wait to acquire the lock.
                      If None, it will wait forever.
             lock_ttl: Max seconds the lock can be held. If the process crashes,
                       the lock will auto-expire after this time.
@@ -65,7 +67,7 @@ try:
 except TimeoutError:
     # Failed to get the lock, another process is still working.
     print("Task is already running elsewhere.")
-
+```
 
 ### Example 2: Manual acquire() / release() (Flexible/API Usage)
 
@@ -86,7 +88,10 @@ finally:
 This feature will be built as a new, self-contained LockManager in a beaver/sync.py file. It will use its own dedicated table and will not be built on db.dict().
 
 1. New Schema Table (beaver/core.py)
+
 A new table, beaver_lock_waiters, will be added to _create_all_tables(). This table acts as a FIFO queue.
+
+```python
 def _create_locks_table(self):
     """Creates the table for managing inter-process lock waiters."""
     self.connection.execute(
@@ -100,11 +105,14 @@ def _create_locks_table(self):
         )
         """
     )
+```
 
  * lock_name & requested_at: The composite PRIMARY KEY creates the fair (FIFO) queue.
  * waiter_id: A unique ID for the lock holder (e.g., "pid:123:ts:456").
  * expires_at: The time.time() timestamp. This is our deadlock-prevention mechanism.
+
 2. New LockManager Class (beaver/sync.py)
+
 This class will contain the core acquisition and release logic.
  * acquire(self):
    * Generates a unique _waiter_id.
