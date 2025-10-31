@@ -1,9 +1,9 @@
 import json
 import sqlite3
 import time
-from typing import Any, Iterator, Tuple, Type
-
+from typing import Any, Iterator, Tuple, Type, Optional
 from .types import JsonSerializable, IDatabase
+from .locks import LockManager
 
 class DictManager[T]:
     """A wrapper providing a Pythonic interface to a dictionary in the database."""
@@ -12,6 +12,10 @@ class DictManager[T]:
         self._name = name
         self._db = db
         self._model = model
+        # 1. Initialize the internal LockManager instance
+        # The lock name is derived from the manager's type and name.
+        lock_name = f"__lock__dict__{name}"
+        self._lock = LockManager(db, lock_name) # Uses LockManager defaults
 
     def _serialize(self, value: T) -> str:
         """Serializes the given value to a JSON string."""
@@ -148,3 +152,34 @@ class DictManager[T]:
 
     def __repr__(self) -> str:
         return f"DictManager(name='{self._name}')"
+
+    def acquire(
+        self,
+        timeout: Optional[float] = None,
+        lock_ttl: Optional[float] = None,
+        poll_interval: Optional[float] = None,
+    ) -> "DictManager[T]":
+        """
+        Acquires an inter-process lock on this dictionary, blocking until acquired.
+        Parameters override the default settings of the underlying LockManager.
+        """
+        self._lock.acquire(
+            timeout=timeout,
+            lock_ttl=lock_ttl,
+            poll_interval=poll_interval
+        )
+        return self
+
+    def release(self):
+        """
+        Releases the inter-process lock on this dictionary.
+        """
+        self._lock.release()
+
+    def __enter__(self) -> "DictManager[T]":
+        """Acquires the lock upon entering a 'with' statement."""
+        return self.acquire()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Releases the lock when exiting a 'with' statement."""
+        self.release()
