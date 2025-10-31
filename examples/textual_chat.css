@@ -1,0 +1,48 @@
+/* examples/textual_chat.css */
+
+#app-grid {
+    layout: grid;
+    grid-size: 2 1;
+    grid-rows: 1fr auto auto;
+    grid-columns: 1fr;
+    height: 100%;
+}
+
+#room-title {
+    height: 1;
+    content-align: center middle;
+    background: $primary-darken-2;
+}
+
+Horizontal {
+    layout: grid;
+    grid-size: 2;
+    grid-columns: 3fr 1fr; /* Main chat area takes 3/4, sidebar takes 1/4 */
+}
+
+#messages {
+    border: tall $primary;
+    background: $surface;
+    width: 100%;
+    height: 100%;
+}
+
+#sidebar {
+    border: tall $primary;
+    background: $surface-lighten-2;
+    padding: 1;
+    height: 100%;
+}
+
+.sidebar-title {
+    dock: top;
+    text-style: bold;
+    text-align: center;
+    width: 100%;
+    margin-bottom: 1;
+}
+
+#message-input {
+    dock: bottom;
+    margin-top: 1;
+}
