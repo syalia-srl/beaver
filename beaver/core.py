@@ -9,6 +9,7 @@ from .channels import ChannelManager
 from .collections import CollectionManager, Document
 from .dicts import DictManager
 from .lists import ListManager
+from .locks import LockManager
 from .logs import LogManager
 from .queues import QueueManager
 
@@ -99,6 +100,35 @@ class BeaverDB:
             self._create_pubsub_table()
             self._create_trigrams_table()
             self._create_versions_table()
+            self._create_locks_table()
+
+    def _create_locks_table(self):  # <-- Add this new method
+        """Creates the table for managing inter-process lock waiters."""
+        self.connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS beaver_lock_waiters (
+                lock_name TEXT NOT NULL,
+                waiter_id TEXT NOT NULL,
+                requested_at REAL NOT NULL,
+                expires_at REAL NOT NULL,
+                PRIMARY KEY (lock_name, requested_at)
+            )
+            """
+        )
+        # Index for fast cleanup of expired locks
+        self.connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_lock_expires
+            ON beaver_lock_waiters (lock_name, expires_at)
+            """
+        )
+        # Index for fast deletion by the lock holder
+        self.connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_lock_waiter_id
+            ON beaver_lock_waiters (lock_name, waiter_id)
+            """
+        )
 
     def _create_logs_table(self):
         """Creates the table for time-indexed logs."""
@@ -421,3 +451,24 @@ class BeaverDB:
             raise TypeError("The model parameter must be a JsonSerializable class.")
 
         return LogManager(name, self, self._db_path, model)
+
+    def lock(
+        self,
+        name: str,
+        timeout: float | None = None,
+        lock_ttl: float = 60.0,
+        poll_interval: float = 0.1,
+    ) -> LockManager:
+        """
+        Returns an inter-process lock manager for a given lock name.
+
+        Args:
+            name: The unique name of the lock (e.g., "run_compaction").
+            timeout: Max seconds to wait to acquire the lock.
+                    If None, it will wait forever.
+            lock_ttl: Max seconds the lock can be held. If the process crashes,
+                    the lock will auto-expire after this time.
+            poll_interval: Seconds to wait between polls. Shorter intervals
+                        are more responsive but create more DB I/O.
+        """
+        return LockManager(self, name, timeout, lock_ttl, poll_interval)
