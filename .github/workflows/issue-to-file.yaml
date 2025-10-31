@@ -22,7 +22,7 @@ jobs:
         uses: eunjae-lee/issue-to-markdown@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          path: "issues" # The folder to store the markdown files
+          dest: "issues" # The folder to store the markdown files
 
       - name: Auto-commit changes
         uses: stefanzweifel/git-auto-commit-action@v5
