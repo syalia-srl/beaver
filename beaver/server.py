@@ -2,17 +2,30 @@ try:
     from typing import Any, Optional, List
     import json
     from datetime import datetime, timedelta, timezone
-    from fastapi import FastAPI, HTTPException, Body, UploadFile, File, Form, Response, WebSocket, WebSocketDisconnect
+    from fastapi import (
+        FastAPI,
+        HTTPException,
+        Body,
+        UploadFile,
+        File,
+        Form,
+        Response,
+        WebSocket,
+        WebSocketDisconnect,
+    )
     import uvicorn
     from pydantic import BaseModel, Field
 except ImportError:
-    raise ImportError("Please install server dependencies with: pip install \"beaver-db[server]\"")
+    raise ImportError(
+        'Please install server dependencies with: pip install "beaver-db[server]"'
+    )
 
 from .core import BeaverDB
 from .collections import Document, WalkDirection
 
 
 # --- Pydantic Models for Collections ---
+
 
 class IndexRequest(BaseModel):
     id: Optional[str] = None
@@ -21,9 +34,11 @@ class IndexRequest(BaseModel):
     fts: bool = True
     fuzzy: bool = False
 
+
 class SearchRequest(BaseModel):
     vector: List[float]
     top_k: int = 10
+
 
 class MatchRequest(BaseModel):
     query: str
@@ -31,16 +46,22 @@ class MatchRequest(BaseModel):
     top_k: int = 10
     fuzziness: int = 0
 
+
 class ConnectRequest(BaseModel):
     source_id: str
     target_id: str
     label: str
     metadata: Optional[dict] = None
 
+
 class WalkRequest(BaseModel):
     labels: List[str]
     depth: int
     direction: WalkDirection = WalkDirection.OUTGOING
+
+
+class CountResponse(BaseModel):
+    count: int
 
 
 def build(db: BeaverDB) -> FastAPI:
@@ -55,7 +76,9 @@ def build(db: BeaverDB) -> FastAPI:
         d = db.dict(name)
         value = d.get(key)
         if value is None:
-            raise HTTPException(status_code=404, detail=f"Key '{key}' not found in dictionary '{name}'")
+            raise HTTPException(
+                status_code=404, detail=f"Key '{key}' not found in dictionary '{name}'"
+            )
         return value
 
     @app.put("/dicts/{name}/{key}", tags=["Dicts"])
@@ -73,8 +96,15 @@ def build(db: BeaverDB) -> FastAPI:
             del d[key]
             return {"status": "ok"}
         except KeyError:
-            raise HTTPException(status_code=404, detail=f"Key '{key}' not found in dictionary '{name}'")
+            raise HTTPException(
+                status_code=404, detail=f"Key '{key}' not found in dictionary '{name}'"
+            )
 
+    @app.get("/dicts/{name}/count", tags=["Dicts"], response_model=CountResponse)
+    def get_dict_count(name: str) -> dict:
+        """Retrieves the number of key-value pairs in the dictionary."""
+        d = db.dict(name)
+        return {"count": len(d)}
 
     # --- Lists Endpoints ---
 
@@ -91,7 +121,9 @@ def build(db: BeaverDB) -> FastAPI:
         try:
             return l[index]
         except IndexError:
-            raise HTTPException(status_code=404, detail=f"Index {index} out of bounds for list '{name}'")
+            raise HTTPException(
+                status_code=404, detail=f"Index {index} out of bounds for list '{name}'"
+            )
 
     @app.post("/lists/{name}", tags=["Lists"])
     def push_list_item(name: str, value: Any = Body(...)):
@@ -108,7 +140,9 @@ def build(db: BeaverDB) -> FastAPI:
             l[index] = value
             return {"status": "ok"}
         except IndexError:
-            raise HTTPException(status_code=404, detail=f"Index {index} out of bounds for list '{name}'")
+            raise HTTPException(
+                status_code=404, detail=f"Index {index} out of bounds for list '{name}'"
+            )
 
     @app.delete("/lists/{name}/{index}", tags=["Lists"])
     def delete_list_item(name: str, index: int):
@@ -118,7 +152,15 @@ def build(db: BeaverDB) -> FastAPI:
             del l[index]
             return {"status": "ok"}
         except IndexError:
-            raise HTTPException(status_code=404, detail=f"Index {index} out of bounds for list '{name}'")
+            raise HTTPException(
+                status_code=404, detail=f"Index {index} out of bounds for list '{name}'"
+            )
+
+    @app.get("/lists/{name}/count", tags=["Lists"], response_model=CountResponse)
+    def get_list_count(name: str) -> dict:
+        """Retrieves the number of items in the list."""
+        l = db.list(name)
+        return {"count": len(l)}
 
     # --- Queues Endpoints ---
 
@@ -149,11 +191,19 @@ def build(db: BeaverDB) -> FastAPI:
             item = q.get(block=True, timeout=timeout)
             return item
         except TimeoutError:
-            raise HTTPException(status_code=408, detail=f"Request timed out after {timeout}s waiting for an item in queue '{name}'")
+            raise HTTPException(
+                status_code=408,
+                detail=f"Request timed out after {timeout}s waiting for an item in queue '{name}'",
+            )
         except IndexError:
             # This case is less likely with block=True but good to handle
             raise HTTPException(status_code=404, detail=f"Queue '{name}' is empty")
 
+    @app.get("/queues/{name}/count", tags=["Queues"], response_model=CountResponse)
+    def get_queue_count(name: str) -> dict:
+        """RetrieVIes the number of items currently in the queue."""
+        q = db.queue(name)
+        return {"count": len(q)}
 
     # --- Blobs Endpoints ---
 
@@ -163,12 +213,20 @@ def build(db: BeaverDB) -> FastAPI:
         blobs = db.blobs(name)
         blob = blobs.get(key)
         if blob is None:
-            raise HTTPException(status_code=404, detail=f"Blob with key '{key}' not found in store '{name}'")
+            raise HTTPException(
+                status_code=404,
+                detail=f"Blob with key '{key}' not found in store '{name}'",
+            )
         # Return the raw bytes with a generic binary content type
         return Response(content=blob.data, media_type="application/octet-stream")
 
     @app.put("/blobs/{name}/{key}", tags=["Blobs"])
-    async def put_blob(name: str, key: str, data: UploadFile = File(...), metadata: Optional[str] = Form(None)):
+    async def put_blob(
+        name: str,
+        key: str,
+        data: UploadFile = File(...),
+        metadata: Optional[str] = Form(None),
+    ):
         """Stores a blob (binary file) with optional JSON metadata."""
         blobs = db.blobs(name)
         file_bytes = await data.read()
@@ -178,7 +236,9 @@ def build(db: BeaverDB) -> FastAPI:
             try:
                 meta_dict = json.loads(metadata)
             except json.JSONDecodeError:
-                raise HTTPException(status_code=400, detail="Invalid JSON format for metadata.")
+                raise HTTPException(
+                    status_code=400, detail="Invalid JSON format for metadata."
+                )
 
         blobs.put(key=key, data=file_bytes, metadata=meta_dict)
         return {"status": "ok"}
@@ -191,8 +251,16 @@ def build(db: BeaverDB) -> FastAPI:
             blobs.delete(key)
             return {"status": "ok"}
         except KeyError:
-            raise HTTPException(status_code=404, detail=f"Blob with key '{key}' not found in store '{name}'")
+            raise HTTPException(
+                status_code=404,
+                detail=f"Blob with key '{key}' not found in store '{name}'",
+            )
 
+    @app.get("/blobs/{name}/count", tags=["Blobs"], response_model=CountResponse)
+    def get_blob_count(name: str) -> dict:
+        """Retrieves the number of blobs in the store."""
+        b = db.blobs(name)
+        return {"count": len(b)}
 
     # --- Logs Endpoints ---
 
@@ -208,12 +276,25 @@ def build(db: BeaverDB) -> FastAPI:
         """Retrieves log entries within a specific time window."""
         log = db.log(name)
         # Ensure datetimes are timezone-aware (UTC) for correct comparison
-        start_utc = start.astimezone(timezone.utc) if start.tzinfo else start.replace(tzinfo=timezone.utc)
-        end_utc = end.astimezone(timezone.utc) if end.tzinfo else end.replace(tzinfo=timezone.utc)
+        start_utc = (
+            start.astimezone(timezone.utc)
+            if start.tzinfo
+            else start.replace(tzinfo=timezone.utc)
+        )
+        end_utc = (
+            end.astimezone(timezone.utc)
+            if end.tzinfo
+            else end.replace(tzinfo=timezone.utc)
+        )
         return log.range(start=start_utc, end=end_utc)
 
     @app.websocket("/logs/{name}/live", name="Logs")
-    async def live_log_feed(websocket: WebSocket, name: str, window_seconds: int = 5, period_seconds: int = 1):
+    async def live_log_feed(
+        websocket: WebSocket,
+        name: str,
+        window_seconds: int = 5,
+        period_seconds: int = 1,
+    ):
         """Streams live, aggregated log data over a WebSocket."""
         await websocket.accept()
 
@@ -222,7 +303,10 @@ def build(db: BeaverDB) -> FastAPI:
         # This simple aggregator function runs in the background and returns a
         # JSON-serializable summary of the data in the current window.
         def simple_aggregator(window):
-            return {"count": len(window), "latest_timestamp": window[-1]["timestamp"] if window else None}
+            return {
+                "count": len(window),
+                "latest_timestamp": window[-1]["timestamp"] if window else None,
+            }
 
         live_stream = async_logs.live(
             window=timedelta(seconds=window_seconds),
@@ -238,7 +322,6 @@ def build(db: BeaverDB) -> FastAPI:
         finally:
             # Cleanly close the underlying iterator and its background thread.
             live_stream.close()
-
 
     # --- Channels Endpoints ---
 
@@ -263,7 +346,6 @@ def build(db: BeaverDB) -> FastAPI:
         except WebSocketDisconnect:
             print(f"Client disconnected from channel '{name}' subscription.")
 
-
     # --- Collections Endpoints ---
 
     @app.get("/collections/{name}", tags=["Collections"])
@@ -282,7 +364,10 @@ def build(db: BeaverDB) -> FastAPI:
             return {"status": "ok", "id": doc.id}
         except TypeError as e:
             if "vector" in str(e):
-                raise HTTPException(status_code=501, detail="Vector indexing requires the '[vector]' extra. Install with: pip install \"beaver-db[vector]\"")
+                raise HTTPException(
+                    status_code=501,
+                    detail="Vector indexing requires the '[vector]' extra. Install with: pip install \"beaver-db[vector]\"",
+                )
             raise e
 
     @app.post("/collections/{name}/search", tags=["Collections"])
@@ -291,18 +376,29 @@ def build(db: BeaverDB) -> FastAPI:
         collection = db.collection(name)
         try:
             results = collection.search(vector=req.vector, top_k=req.top_k)
-            return [{"document": doc.to_dict(metadata_only=False), "distance": dist} for doc, dist in results]
+            return [
+                {"document": doc.to_dict(metadata_only=False), "distance": dist}
+                for doc, dist in results
+            ]
         except TypeError as e:
             if "vector" in str(e):
-                raise HTTPException(status_code=501, detail="Vector search requires the '[vector]' extra. Install with: pip install \"beaver-db[vector]\"")
+                raise HTTPException(
+                    status_code=501,
+                    detail="Vector search requires the '[vector]' extra. Install with: pip install \"beaver-db[vector]\"",
+                )
             raise e
 
     @app.post("/collections/{name}/match", tags=["Collections"])
     def match_collection(name: str, req: MatchRequest) -> List[dict]:
         """Performs a full-text or fuzzy search on the collection."""
         collection = db.collection(name)
-        results = collection.match(query=req.query, on=req.on, top_k=req.top_k, fuzziness=req.fuzziness)
-        return [{"document": doc.to_dict(metadata_only=False), "score": score} for doc, score in results]
+        results = collection.match(
+            query=req.query, on=req.on, top_k=req.top_k, fuzziness=req.fuzziness
+        )
+        return [
+            {"document": doc.to_dict(metadata_only=False), "score": score}
+            for doc, score in results
+        ]
 
     @app.post("/collections/{name}/connect", tags=["Collections"])
     def connect_documents(name: str, req: ConnectRequest):
@@ -310,11 +406,15 @@ def build(db: BeaverDB) -> FastAPI:
         collection = db.collection(name)
         source_doc = Document(id=req.source_id)
         target_doc = Document(id=req.target_id)
-        collection.connect(source=source_doc, target=target_doc, label=req.label, metadata=req.metadata)
+        collection.connect(
+            source=source_doc, target=target_doc, label=req.label, metadata=req.metadata
+        )
         return {"status": "ok"}
 
     @app.get("/collections/{name}/{doc_id}/neighbors", tags=["Collections"])
-    def get_neighbors(name: str, doc_id: str, label: Optional[str] = None) -> List[dict]:
+    def get_neighbors(
+        name: str, doc_id: str, label: Optional[str] = None
+    ) -> List[dict]:
         """Retrieves the neighboring documents for a given document."""
         collection = db.collection(name)
         doc = Document(id=doc_id)
@@ -326,8 +426,21 @@ def build(db: BeaverDB) -> FastAPI:
         """Performs a graph traversal (BFS) from a starting document."""
         collection = db.collection(name)
         source_doc = Document(id=doc_id)
-        results = collection.walk(source=source_doc, labels=req.labels, depth=req.depth, direction=req.direction)
+        results = collection.walk(
+            source=source_doc,
+            labels=req.labels,
+            depth=req.depth,
+            direction=req.direction,
+        )
         return [doc.to_dict(metadata_only=False) for doc in results]
+
+    @app.get(
+        "/collections/{name}/count", tags=["Collections"], response_model=CountResponse
+    )
+    def get_collection_count(name: str) -> dict:
+        """RetrieRetrieves the number of documents in the collection."""
+        c = db.collection(name)
+        return {"count": len(c)}
 
     return app
 

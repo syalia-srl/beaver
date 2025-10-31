@@ -122,5 +122,16 @@ class BlobManager[M]:
             yield row["key"]
         cursor.close()
 
+    def __len__(self) -> int:
+        """Returns the number of blobs in the store."""
+        cursor = self._db.connection.cursor()
+        cursor.execute(
+            "SELECT COUNT(*) FROM beaver_blobs WHERE store_name = ?",
+            (self._name,)
+        )
+        count = cursor.fetchone()[0]
+        cursor.close()
+        return count
+
     def __repr__(self) -> str:
         return f"BlobManager(name='{self._name}')"
