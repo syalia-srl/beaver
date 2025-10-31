@@ -55,7 +55,11 @@ class LockManager:
         self._waiter_id = f"pid:{os.getpid()}:id:{uuid.uuid4()}"
         self._acquired = False  # State to track if this instance holds the lock
 
-    def acquire(self) -> "LockManager":
+    def acquire(self,
+                timeout: float|None = None,
+        lock_ttl: float |None = None,
+        poll_interval: float |None = None,
+        ) -> "LockManager":
         """
         Blocks until the lock is acquired or the timeout expires.
 
@@ -66,9 +70,18 @@ class LockManager:
             # This instance already holds the lock
             return self
 
+        if timeout is None:
+            timeout = self._timeout
+
+        if lock_ttl is None:
+            lock_ttl = self._lock_ttl
+
+        if poll_interval is None:
+            poll_interval = self._poll_interval
+
         start_time = time.time()
         requested_at = time.time()
-        expires_at = requested_at + self._lock_ttl
+        expires_at = requested_at + lock_ttl
 
         conn = self._db.connection
 
@@ -113,19 +126,19 @@ class LockManager:
                         return self
 
                 # 5. Check for timeout
-                if self._timeout is not None:
-                    if (time.time() - start_time) > self._timeout:
+                if timeout is not None:
+                    if (time.time() - start_time) > timeout:
                         # We timed out. Remove ourselves from the queue and raise.
                         self._release_from_queue()
                         raise TimeoutError(
-                            f"Failed to acquire lock '{self._lock_name}' within {self._timeout}s."
+                            f"Failed to acquire lock '{self._lock_name}' within {timeout}s."
                         )
 
                 # 6. Wait politely before polling again
                 # Add +/- 10% jitter to the poll interval to avoid thundering herd
-                jitter = self._poll_interval * 0.1
+                jitter = poll_interval * 0.1
                 sleep_time = random.uniform(
-                    self._poll_interval - jitter, self._poll_interval + jitter
+                    poll_interval - jitter, poll_interval + jitter
                 )
                 time.sleep(sleep_time)
 
