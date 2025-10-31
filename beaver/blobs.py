@@ -1,8 +1,8 @@
 import json
 import sqlite3
 from typing import Any, Dict, Iterator, NamedTuple, Optional, Type, TypeVar
-
 from .types import JsonSerializable, IDatabase
+from .locks import LockManager
 
 
 class Blob[M](NamedTuple):
@@ -16,10 +16,13 @@ class Blob[M](NamedTuple):
 class BlobManager[M]:
     """A wrapper providing a Pythonic interface to a blob store in the database."""
 
+# In beaver/blobs.py, inside class BlobManager[M]:
     def __init__(self, name: str, db: IDatabase, model: Type[M] | None = None):
         self._name = name
         self._db = db
         self._model = model
+        lock_name = f"__lock__blob__{name}"
+        self._lock = LockManager(db, lock_name)
 
     def _serialize(self, value: M) -> str | None:
         """Serializes the given value to a JSON string."""
@@ -135,3 +138,35 @@ class BlobManager[M]:
 
     def __repr__(self) -> str:
         return f"BlobManager(name='{self._name}')"
+
+    def acquire(
+        self,
+        timeout: Optional[float] = None,
+        lock_ttl: Optional[float] = None,
+        poll_interval: Optional[float] = None,
+    ) -> "BlobManager[M]":
+        """
+        Acquires an inter-process lock on this blob store, blocking until acquired.
+
+        Parameters override the default settings of the underlying LockManager.
+        """
+        self._lock.acquire(
+            timeout=timeout,
+            lock_ttl=lock_ttl,
+            poll_interval=poll_interval
+        )
+        return self
+
+    def release(self):
+        """
+        Releases the inter-process lock on this blob store.
+        """
+        self._lock.release()
+
+    def __enter__(self) -> "BlobManager[M]":
+        """Acquires the lock upon entering a 'with' statement."""
+        return self.acquire()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Releases the lock when exiting a 'with' statement."""
+        self.release()
