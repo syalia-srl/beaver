@@ -1,9 +1,8 @@
 ---
 number: 2
 title: "Comprehensive async wrappers"
-state: OPEN
+state: open
 labels:
-
 ---
 
 ## Tasks

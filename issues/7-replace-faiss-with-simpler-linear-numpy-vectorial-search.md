@@ -1,6 +1,9 @@
 ---
 number: 7
-title: Replace `faiss` with simpler, linear `numpy` vectorial search---
+title: "Replace `faiss` with simpler, linear `numpy` vectorial search"
+state: open
+labels:
+---
 
 ### 1. Concept
 

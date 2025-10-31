@@ -10,3 +10,4 @@ wheels/
 .venv
 *.db*
 .env
+.issues-sync-state

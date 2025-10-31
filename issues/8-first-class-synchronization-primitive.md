@@ -1,6 +1,9 @@
 ---
 number: 8
-title: First-class synchronization primitive---
+title: "First-class synchronization primitive"
+state: open
+labels:
+---
 
 ### 1. Concept
 

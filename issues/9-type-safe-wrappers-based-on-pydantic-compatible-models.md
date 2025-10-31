@@ -1,6 +1,9 @@
 ---
 number: 9
-title: Type-safe wrappers based on Pydantic-compatible models---
+title: "Type-safe wrappers based on Pydantic-compatible models"
+state: open
+labels:
+---
 
 ### 1. Concept
 
