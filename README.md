@@ -1,3 +1,5 @@
+<img src="https://github.com/syalia-srl/beaver/blob/main/logo.png?raw=true" width="256px">
+
 # beaver 🦫
 
 <!-- Project badges -->
