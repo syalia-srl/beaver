@@ -42,7 +42,7 @@ $BODY
 "
 
   # --- File & Directory Logic ---
-  if [ "$STATE" == "open" ]; then
+  if [ "$STATE" == "OPEN" ]; then
     FILE_PATH="$OPEN_DIR/$NUMBER.md"
     rm -f "$CLOSED_DIR/$NUMBER.md"
   else
