@@ -71,7 +71,7 @@ except TimeoutError:
 
 * `DictManager` (`beaver/dicts.py`)
 * `ListManager` (`beaver/lists.py`)
-* **`QueueManager`** (`beaver/queues.py`)
+* `QueueManager` (`beaver/queues.py`)
 * `CollectionManager` (`beaver/collections.py`)
 * `BlobManager` (`beaver/blobs.py`)
 
