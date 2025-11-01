@@ -2,41 +2,199 @@
   {
     "objectID": "index.html",
     "href": "index.html",
-    "title": "BeaverDB",
+    "title": "BeaverDB: The Complete Guide",
     "section": "",
-    "text": "Preface\nThis is a Quarto book.\nTo learn more about Quarto books visit https://quarto.org/docs/books.",
+    "text": "1 Introduction\nWelcome to BeaverDB!\nIf you’ve ever found yourself building a Python application that needs to save some data, but setting up a full-blown database server felt like massive overkill, you’re in the right place. BeaverDB is designed to be the “Swiss Army knife” for embedded Python data. It’s built for those exact “just right” scenarios: more powerful than a simple pickle file, but far less complex than a networked server like PostgreSQL or MySQL.",
     "crumbs": [
-      "Preface"
-    ]
-  },
-  {
-    "objectID": "intro.html",
-    "href": "intro.html",
-    "title": "1  Introduction",
-    "section": "",
-    "text": "This is a book created from markdown and executable code.\nSee Knuth (1984) for additional discussion of literate programming.\n\n\n\n\nKnuth, Donald E. 1984. “Literate Programming.” Comput. J. 27 (2): 97–111. https://doi.org/10.1093/comjnl/27.2.97.",
-    "crumbs": [
+      "Introduction",
       "<span class='chapter-number'>1</span>  <span class='chapter-title'>Introduction</span>"
     ]
   },
   {
-    "objectID": "summary.html",
-    "href": "summary.html",
-    "title": "2  Summary",
-    "section": "",
-    "text": "In summary, this book has no content whatsoever.",
+    "objectID": "index.html#what-is-beaverdb",
+    "href": "index.html#what-is-beaverdb",
+    "title": "BeaverDB: The Complete Guide",
+    "section": "1.1 What is BeaverDB?",
+    "text": "1.1 What is BeaverDB?\nAt its heart, BeaverDB is a multi-modal database in a single SQLite file.\nIt’s a Python library that lets you manage modern, complex data types without ever leaving the comfort of a local file. The name itself tells the story:\nB.E.A.V.E.R. stands for Backend for mbedded, All-in-one Vector, Entity, and Relationship storage.\nThis means that inside that one .db file, you can seamlessly store and query:\n\nKey-Value Pairs (like a dictionary for your app’s configuration)\nLists (like a persistent to-do list)\nVector Embeddings (for AI and semantic search)\nDocuments & Text (for full-text search)\nGraph Relationships (to connect your data together)\n…and much more.\n\nAll this power comes from building on top of the world’s most deployed database engine: SQLite.",
     "crumbs": [
-      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Summary</span>"
+      "Introduction",
+      "<span class='chapter-number'>1</span>  <span class='chapter-title'>Introduction</span>"
     ]
   },
   {
-    "objectID": "references.html",
-    "href": "references.html",
-    "title": "References",
-    "section": "",
-    "text": "Knuth, Donald E. 1984. “Literate Programming.” Comput.\nJ. 27 (2): 97–111. https://doi.org/10.1093/comjnl/27.2.97.",
+    "objectID": "index.html#the-beaverdb-philosophy",
+    "href": "index.html#the-beaverdb-philosophy",
+    "title": "BeaverDB: The Complete Guide",
+    "section": "1.2 The BeaverDB Philosophy",
+    "text": "1.2 The BeaverDB Philosophy\nBeaverDB is built on a few core principles. Understanding these will help you know when and why to choose it for your project.\nRobust, Safe, and Durable\nYour data should be safe, period. BeaverDB is built to be resilient. Thanks to SQLite’s atomic transactions and Write-Ahead Logging (WAL) mode, your database is crash-safe. If your program crashes mid-operation, your data is never lost or corrupted; the database simply rolls back the incomplete transaction.\nFurthermore, it’s designed for concurrency. It’s both thread-safe (different threads can share one BeaverDB object) and process-safe (multiple, independent Python scripts can read from and write to the same database file at the same time). For tasks that require true coordination, it even provides a simple, built-in distributed lock.\nPerformant by Default\nBeaverDB is fast. It’s not just “fast for a small database”–it’s genuinely fast for the vast majority of medium-sized projects. Because it’s an embedded library, there is zero network latency for any query.\nLet’s be clear: if you’re building the next X (formerly Twitter) and need to handle millions of documents and thousands of queries per second, you’ll need a distributed, networked database. But for almost everything else? BeaverDB is more than fast enough. If your project is in the thousand to tens-of-thousands of documents range, you’ll find it’s incredibly responsive.\nLocal-First & Embedded\nThe default, primary way to use BeaverDB is as a single file right next to your code. This means your entire database—users, vectors, chat logs, and all—is contained in one portable file (e.g., my_app.db). You can copy it, email it, or back it up. This “local-first” approach is what makes it so fast and simple to deploy.\nMinimal & Optional Dependencies\nThe core BeaverDB library has zero external dependencies. You can get started with key-value stores, lists, and queues right away.\nWant to add vector search? Great! Install the [vector] extra, and BeaverDB will activate its faiss integration. Need a web server? Install the [server] extra, and it unlocks a fastapi-based REST API. This “pay-as-you-go” approach keeps your project lightweight.\nPythonic API\nBeaverDB is designed to feel like you’re just using standard Python data structures. You shouldn’t have to write complex SQL queries just to save a Python dict or list. The goal is to make the database feel like a natural extension of your code.\nStandard SQLite Compatibility\nThis is the “no-magic” rule. The my_app.db file that BeaverDB creates is a 100% standard, valid SQLite file. You can open it with any database tool (like DB Browser for SQLite) and see your data in regular tables. This ensures your data is never locked into a proprietary format.\nSynchronous Core with Async Potential\nThe core library is synchronous, which makes it simple and robust for multi-threaded applications. However, BeaverDB is fully aware of the modern asyncio world. For every data structure, you can call .as_async() to get a fully awaitable version that runs its blocking operations in a background thread, keeping your asyncio event loop from getting blocked.",
     "crumbs": [
-      "References"
+      "Introduction",
+      "<span class='chapter-number'>1</span>  <span class='chapter-title'>Introduction</span>"
+    ]
+  },
+  {
+    "objectID": "index.html#ideal-use-cases",
+    "href": "index.html#ideal-use-cases",
+    "title": "BeaverDB: The Complete Guide",
+    "section": "1.3 Ideal Use Cases",
+    "text": "1.3 Ideal Use Cases\nBeaverDB shines in scenarios where simplicity, robustness, and local performance are more important than massive, web-scale concurrency.\n\nLocal AI & RAG: Perfect for building Retrieval-Augmented Generation (RAG) applications that run on your local machine. You can store your vector embeddings and their corresponding text right next to each other.\nDesktop Utilities & CLI Tools: The ideal companion for a custom tool that needs to remember user preferences, manage a history, or cache results.\nChatbots: A persistent list is a perfect, simple way to store a chatbot’s conversation history for a user.\nRapid Prototyping: Get your idea up and running in minutes. Start with a local .db file, and if your project grows, you can deploy it as a REST API without changing your application logic.",
+    "crumbs": [
+      "Introduction",
+      "<span class='chapter-number'>1</span>  <span class='chapter-title'>Introduction</span>"
+    ]
+  },
+  {
+    "objectID": "index.html#how-this-guide-is-structured",
+    "href": "index.html#how-this-guide-is-structured",
+    "title": "BeaverDB: The Complete Guide",
+    "section": "1.4 How This Guide is Structured",
+    "text": "1.4 How This Guide is Structured\nWe’ve designed this documentation to get you the information you need, whether you’re building your first script or contributing to the core.\nThis guide is split into two main parts:\n\nPart 1: The User Guide\nThis is your starting point. After the Quickstart, this is where you’ll find an in-depth guide that walks you through how to use every single feature of BeaverDB. We’ll explore each “modality” one by one with practical examples.\nPart 2: The Developer Guide\nThis part is for power users and contributors. We’ll go under the hood to look at the why behind the design. This is where we do deep dives into the core architecture, the concurrency model (threading and locking), and the internals of how features like vector search are implemented.",
+    "crumbs": [
+      "Introduction",
+      "<span class='chapter-number'>1</span>  <span class='chapter-title'>Introduction</span>"
+    ]
+  },
+  {
+    "objectID": "quickstart.html",
+    "href": "quickstart.html",
+    "title": "2  Quickstart Guide",
+    "section": "",
+    "text": "2.1 Installation\nThis is where the fun begins. Let’s get BeaverDB installed and run your first multi-modal script. You’ll be up and running in about 30 seconds.\nBeaverDB is a Python library, so you can install it right from your terminal using pip.\nThe Core Install\nIf you just want the core features—like key-value dictionaries, lists, and queues—you can install the zero-dependency package.\nThis gives you all the core data structures and is perfect for many simple applications.\nInstalling Optional Features\nBeaverDB keeps its core light by making advanced features optional. You can install them as “extras” as needed.\nFor this guide, we recommend installing the beaver-db[full] package, which includes everything, so you can follow along with all the examples.\nWith that, you’re ready to write some code.",
+    "crumbs": [
+      "Introduction",
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Quickstart Guide</span>"
+    ]
+  },
+  {
+    "objectID": "quickstart.html#installation",
+    "href": "quickstart.html#installation",
+    "title": "2  Quickstart Guide",
+    "section": "",
+    "text": "# This has NO external dependencies\npip install beaver-db\n\n\n\n\nbeaver-db[vector]: Adds AI-powered vector search (using faiss).\nbeaver-db[server,cli]: Adds the fastapi-based REST server and the beaver command-line tool.\n\n\n# To install all features, including vector search and the server\npip install \"beaver-db[full]\"",
+    "crumbs": [
+      "Introduction",
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Quickstart Guide</span>"
+    ]
+  },
+  {
+    "objectID": "quickstart.html#your-first-example-in-10-lines",
+    "href": "quickstart.html#your-first-example-in-10-lines",
+    "title": "2  Quickstart Guide",
+    "section": "2.2 Your First Example in 10 Lines",
+    "text": "2.2 Your First Example in 10 Lines\nLet’s create a single Python script that shows off BeaverDB’s “multi-modal” power. We’ll use three different data types—a dictionary, a list, and a document collection—all in the same database file.\nCreate a new file named quickstart.py and add the following:\nfrom beaver import BeaverDB, Document\n\n# 1. Initialize the database\n# This creates a single file \"my_data.db\" if it doesn't exist\n# and sets it up for safe, concurrent access.\ndb = BeaverDB(\"my_data.db\")\n\n# 2. Use a namespaced dictionary (like a Python dict)\n# This is perfect for storing app configuration or user settings.\nconfig = db.dict(\"app_config\")\nconfig[\"theme\"] = \"dark\"\nconfig[\"user_id\"] = 123\n\n# You can read the value back just as easily:\nprint(f\"App theme is: {config['theme']}\")\n\n# 3. Use a persistent list (like a Python list)\n# This is great for a to-do list, a job queue, or a chat history.\ntasks = db.list(\"daily_tasks\")\ntasks.push({\"id\": \"task-001\", \"desc\": \"Write project report\"})\ntasks.push({\"id\": \"task-002\", \"desc\": \"Deploy new feature\"})\n\n# You can access items by index, just like a normal list:\nprint(f\"First task is: {tasks[0]['desc']}\")\n\n# 4. Use a collection for rich documents and search\n# This is the most powerful feature, combining data and search.\narticles = db.collection(\"articles\")\n\n# Create a Document to store.\n# We give it a unique ID and some text content.\ndoc = Document(\n    id=\"sqlite-001\",\n    content=\"SQLite is a powerful embedded database ideal for local apps.\"\n)\n\n# 5. Index the document\n# This not only saves the document but also automatically\n# makes its text content searchable via a Full-Text Search (FTS) index\n# with optional fuzzy matching.\narticles.index(doc, fts=True, fuzzy=True)\n\n# 6. Perform a full-text search\n# This isn't a simple string find; it's a real search engine with fuzzy matching!\nresults = articles.match(query=\"datbase\", fuzziness=1)\n\n# The result is a list of tuples: (document, score)\ntop_doc, rank = results[0]\nprint(f\"Search found: '{top_doc.content}' (Score: {rank:.2f})\")\nHere’s a line-by-line explanation of what you just did:\n\nfrom beaver import BeaverDB, Document BeaverDB is the main class, your entry point to the database. A Document is a special data object used when you’re working with db.collection().\ndb = BeaverDB(\"my_data.db\") This is the most important line. It finds my_data.db or creates it if it’s not there. It also automatically enables all the high-performance and safety features (like Write-Ahead Logging) so it’s ready for use.\nconfig = db.dict(\"app_config\") Here, you’re asking BeaverDB for a dictionary. \"app_config\" is the “namespace.” This means you can have many different dictionaries (app_config, user_prefs, cache, etc.) that won’t interfere with each other. The config object you get back behaves just like a standard Python dict. When you do config[\"theme\"] = \"dark\", that change is instantly saved to the my_data.db file.\ntasks = db.list(\"daily_tasks\") Same idea, but for a list. You get back a tasks object that acts like a Python list. You can push (append) items, get items by index (tasks[i]), or pop them. You can also insert and remove items at an arbitrary index, and it all works instantaneously (in CS terms, it’s O(1) for all operations).\narticles = db.collection(\"articles\") This gets you a “collection,” which is the most powerful data structure. A collection is designed to hold rich data, like articles, user profiles, or AI embeddings.\ndoc = Document(...) To put something in a collection, you wrap it in a Document. Here, we give it a unique id and some content. You can add any other fields you want just by passing them as keyword arguments.\narticles.index(doc, ...) This is where the magic happens. When you call .index(), BeaverDB saves your document. But it also reads the content field and automatically puts all the words into a Full-Text Search (FTS) index and a clever fuzzy index, which are optional.\nresults = articles.match(query=\"database\") This line runs a search. Because index() already did the work, this query is fast. It searches the FTS index for the word “database” and finds your document.\n\nWhen you run the script, you’ve created a single my_data.db file that now contains your config, your task list, and your searchable articles.",
+    "crumbs": [
+      "Introduction",
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Quickstart Guide</span>"
+    ]
+  },
+  {
+    "objectID": "guide-dicts-blobs.html",
+    "href": "guide-dicts-blobs.html",
+    "title": "3  Key-Value and Blob Storage",
+    "section": "",
+    "text": "Chapter Outline:\n\n3.1. Dictionaries & Caching (db.dict)\n\nA Python-like dictionary interface: config[\"api_key\"] = ...\nStandard methods: .get(), del, len(), iterating with .items().\nUse Case: Caching with TTL: Using .set(key, value, ttl_seconds=3600).\n\n3.2. Blob Storage (db.blobs)\n\nStoring binary data (images, PDFs, files) with metadata.\nAPI: .put(key, data, metadata), .get(key).\nThe Blob object: Accessing .data and .metadata.",
+    "crumbs": [
+      "Part 1: The User Guide",
+      "<span class='chapter-number'>3</span>  <span class='chapter-title'>Key-Value and Blob Storage</span>"
+    ]
+  },
+  {
+    "objectID": "guide-lists-queues.html",
+    "href": "guide-lists-queues.html",
+    "title": "4  Lists and Queues",
+    "section": "",
+    "text": "Chapter Outline:\n\n4.1. Persistent Lists (db.list)\n\nA full-featured, persistent Python list.\nFull support for: push, pop, prepend, deque, slicing my_list[1:5], and in-place updates my_list[0] = ....\n\n4.2. Priority Queues (db.queue)\n\nCreating a persistent, multi-process task queue.\nAdding tasks: .put(data, priority=N) (lower number is higher priority).\nConsuming tasks: The blocking .get(timeout=N) method.\nUse Case: A multi-process producer/consumer pattern.",
+    "crumbs": [
+      "Part 1: The User Guide",
+      "<span class='chapter-number'>4</span>  <span class='chapter-title'>Lists and Queues</span>"
+    ]
+  },
+  {
+    "objectID": "guide-collections.html",
+    "href": "guide-collections.html",
+    "title": "5  The Document Collection (db.collection)",
+    "section": "",
+    "text": "Chapter Outline:\n\n5.1. Documents & Indexing\n\nThe Document class: id, embedding, and metadata.\nIndexing and Upserting: .index(doc) performs an atomic insert-or-replace.\nRemoving data: .drop(doc).\n\n5.2. Vector Search (ANN)\n\nAdding vectors via the Document(embedding=...) field.\nQuerying: .search(vector, top_k=N).\nUse Case: Building a RAG system by combining text and vector search.\nHelper: The rerank() function for hybrid search results.\n\n5.3. Full-Text & Fuzzy Search\n\nFull-Text Search (FTS): .match(query, on=[\"field.path\"]).\nFuzzy Search: .match(query, fuzziness=2) for typo-tolerance.\n\n5.4. Knowledge Graph\n\nCreating relationships: .connect(source, target, label, metadata).\nSingle-hop traversal: .neighbors(doc, label).\nMulti-hop (BFS) traversal: .walk(source, labels, depth, direction).",
+    "crumbs": [
+      "Part 1: The User Guide",
+      "<span class='chapter-number'>5</span>  <span class='chapter-title'>The Document Collection (`db.collection`)</span>"
+    ]
+  },
+  {
+    "objectID": "guide-realtime.html",
+    "href": "guide-realtime.html",
+    "title": "6  Real-Time Data",
+    "section": "",
+    "text": "Chapter Outline:\n\n6.1. Publish/Subscribe (db.channel)\n\nHigh-efficiency, multi-process messaging.\nPublishing: channel.publish(payload).\nSubscribing: with channel.subscribe() as listener: for msg in listener.listen(): ...\n\n6.2. Time-Indexed Logs (db.log)\n\nCreating structured, time-series logs: logs.log(data).\nQuerying history: .range(start_time, end_time).\nFeature: Creating a live dashboard with .live(window, period, aggregator).",
+    "crumbs": [
+      "Part 1: The User Guide",
+      "<span class='chapter-number'>6</span>  <span class='chapter-title'>Real-Time Data</span>"
+    ]
+  },
+  {
+    "objectID": "guide-concurrency.html",
+    "href": "guide-concurrency.html",
+    "title": "7  Concurrency",
+    "section": "",
+    "text": "Chapter Outline:\n\n7.1. Inter-Process Locks (db.lock)\n\nCreating a critical section: with db.lock(\"my_task\", timeout=10): ...\nGuarantees: Fair (FIFO) and Deadlock-Proof (via TTL).\n\n7.2. Atomic Operations on Data Structures\n\nLocking a specific manager: with db.dict(\"config\") as config: ...\nUse Case: Atomically getting and processing a batch of items from a queue.",
+    "crumbs": [
+      "Part 1: The User Guide",
+      "<span class='chapter-number'>7</span>  <span class='chapter-title'>Concurrency</span>"
+    ]
+  },
+  {
+    "objectID": "guide-deployment.html",
+    "href": "guide-deployment.html",
+    "title": "8  Deployment & Access",
+    "section": "",
+    "text": "Chapter Outline:\n\n8.1. The REST API Server (beaver serve)\n\nExposing your database as a FastAPI application.\nCommand: beaver serve --database my.db --port 8000\nAccessing the interactive OpenAPI docs at /docs.\n\n8.2. The Command-Line Client (beaver client)\n\nInteracting with your database from the terminal for admin and debugging.\nExample: beaver client --database my.db dict config get theme\n\n8.3. Docker Deployment\n\nRunning the server in a container for stable deployment.\ndocker run -p 8000:8000 -v $(pwd)/data:/app apiad/beaverdb",
+    "crumbs": [
+      "Part 1: The User Guide",
+      "<span class='chapter-number'>8</span>  <span class='chapter-title'>Deployment & Access</span>"
+    ]
+  },
+  {
+    "objectID": "dev-architecture.html",
+    "href": "dev-architecture.html",
+    "title": "9  Core Architecture & Design",
+    "section": "",
+    "text": "Chapter Outline:\n\n9.1. Guiding Principles (Developer Focus)\n\nA deeper dive into the “Why” from design.md.\nStandard SQLite Compatibility as a “no-magic” rule.\nConvention over Configuration.\n\n9.2. The Manager Delegation Pattern\n\nHow BeaverDB acts as a factory.\nHow managers (e.g., DictManager) are initialized with a reference to the core BeaverDB connection pool.\nHow all tables are prefixed with beaver_ to avoid user-space conflicts.\n\n9.3. Type-Safe Models (beaver.Model)\n\nUsing the model=... parameter for automatic serialization and deserialization.\nInheriting from beaver.Model for a lightweight, Pydantic-compatible solution.",
+    "crumbs": [
+      "Part 2: The Developer Guide",
+      "<span class='chapter-number'>9</span>  <span class='chapter-title'>Core Architecture & Design</span>"
+    ]
+  },
+  {
+    "objectID": "dev-concurrency.html",
+    "href": "dev-concurrency.html",
+    "title": "10  Concurrency Model",
+    "section": "",
+    "text": "Chapter Outline:\n\n10.1. Thread Safety (threading.local)\n\nHow BeaverDB provides a unique sqlite3.Connection for every thread.\nWhy this is the key to preventing thread-related errors.\nEnabling WAL (Write-Ahead Logging) for concurrent reads.\n\n10.2. Inter-Process Locking (The Implementation)\n\nHow db.lock() works under the hood.\nThe beaver_lock_waiters table as a fair (FIFO) queue.\nThe expires_at column as a deadlock-prevention (TTL) mechanism.\n\n10.3. The Asynchronous .as_async() Pattern\n\nHow the Async...Manager wrappers are implemented.\nUsing asyncio.to_thread to run blocking I/O without blocking the event loop.",
+    "crumbs": [
+      "Part 2: The Developer Guide",
+      "<span class='chapter-number'>10</span>  <span class='chapter-title'>Concurrency Model</span>"
+    ]
+  },
+  {
+    "objectID": "dev-search.html",
+    "href": "dev-search.html",
+    "title": "11  Search Architecture",
+    "section": "",
+    "text": "Chapter Outline:\n\n11.1. Vector Search (ANN) Internals\n\nThe “Hybrid Index System”: Base Index and Delta Index.\nCrash-Safe Logging: How additions and deletions are written to SQLite logs (_beaver_ann_... tables).\nBackground Compaction: The compact() process.\n\n11.2. Text Search (FTS & Fuzzy) Internals\n\nFTS: How beaver_fts_index is a fts5 virtual table.\nFuzzy Search: How BeaverDB builds a custom trigram index (beaver_trigrams table) and uses Levenshtein distance.",
+    "crumbs": [
+      "Part 2: The Developer Guide",
+      "<span class='chapter-number'>11</span>  <span class='chapter-title'>Search Architecture</span>"
+    ]
+  },
+  {
+    "objectID": "dev-contributing.html",
+    "href": "dev-contributing.html",
+    "title": "12  Future Roadmap & Contributing",
+    "section": "",
+    "text": "Chapter Outline:\n\n12.1. The Future of BeaverDB\n\nThe BeaverClient as a drop-in network client.\nReplacing faiss with a simpler, pure-numpy linear search.\n\n12.2. How to Contribute\n\n(Standard contribution guidelines, linking to Makefile, etc.)",
+    "crumbs": [
+      "Part 2: The Developer Guide",
+      "<span class='chapter-number'>12</span>  <span class='chapter-title'>Future Roadmap & Contributing</span>"
     ]
   }
 ]

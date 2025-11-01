@@ -6,9 +6,8 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="author" content="SYALIA S.R.L.">
 
-<title>BeaverDB: The Complete Guide</title>
+<title>2&nbsp; Quickstart Guide – BeaverDB: The Complete Guide</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -21,6 +20,41 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
@@ -30,7 +64,8 @@ ul.task-list li input[type="checkbox"] {
 <script src="site_libs/quarto-search/fuse.min.js"></script>
 <script src="site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="./">
-<link href="./quickstart.html" rel="next">
+<link href="./guide-dicts-blobs.html" rel="next">
+<link href="./index.html" rel="prev">
 <script src="site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
@@ -81,7 +116,7 @@ ul.task-list li input[type="checkbox"] {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./index.html">Introduction</a></li><li class="breadcrumb-item"><a href="./index.html"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./index.html">Introduction</a></li><li class="breadcrumb-item"><a href="./quickstart.html"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Quickstart Guide</span></a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
       <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
@@ -120,13 +155,13 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./index.html" class="sidebar-item-text sidebar-link active">
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./quickstart.html" class="sidebar-item-text sidebar-link">
+  <a href="./quickstart.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Quickstart Guide</span></span></a>
   </div>
 </li>
@@ -224,34 +259,23 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">Table of contents</h2>
    
   <ul>
-  <li><a href="#introduction" id="toc-introduction" class="nav-link active" data-scroll-target="#introduction"><span class="header-section-number">1</span> Introduction</a>
-  <ul class="collapse">
-  <li><a href="#what-is-beaverdb" id="toc-what-is-beaverdb" class="nav-link" data-scroll-target="#what-is-beaverdb"><span class="header-section-number">1.1</span> What is BeaverDB?</a></li>
-  <li><a href="#the-beaverdb-philosophy" id="toc-the-beaverdb-philosophy" class="nav-link" data-scroll-target="#the-beaverdb-philosophy"><span class="header-section-number">1.2</span> The BeaverDB Philosophy</a></li>
-  <li><a href="#ideal-use-cases" id="toc-ideal-use-cases" class="nav-link" data-scroll-target="#ideal-use-cases"><span class="header-section-number">1.3</span> Ideal Use Cases</a></li>
-  <li><a href="#how-this-guide-is-structured" id="toc-how-this-guide-is-structured" class="nav-link" data-scroll-target="#how-this-guide-is-structured"><span class="header-section-number">1.4</span> How This Guide is Structured</a></li>
-  </ul></li>
+  <li><a href="#installation" id="toc-installation" class="nav-link active" data-scroll-target="#installation"><span class="header-section-number">2.1</span> Installation</a></li>
+  <li><a href="#your-first-example-in-10-lines" id="toc-your-first-example-in-10-lines" class="nav-link" data-scroll-target="#your-first-example-in-10-lines"><span class="header-section-number">2.2</span> Your First Example in 10 Lines</a></li>
   </ul>
 </nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./index.html">Introduction</a></li><li class="breadcrumb-item"><a href="./index.html"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./index.html">Introduction</a></li><li class="breadcrumb-item"><a href="./quickstart.html"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Quickstart Guide</span></a></li></ol></nav>
 <div class="quarto-title">
-<h1 class="title">BeaverDB: The Complete Guide</h1>
+<h1 class="title"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Quickstart Guide</span></h1>
 </div>
 
 
 
 <div class="quarto-title-meta">
 
-    <div>
-    <div class="quarto-title-meta-heading">Author</div>
-    <div class="quarto-title-meta-contents">
-             <p>SYALIA S.R.L. </p>
-          </div>
-  </div>
     
   
     
@@ -262,70 +286,93 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<section id="introduction" class="level1" data-number="1">
-<h1 data-number="1"><span class="header-section-number">1</span> Introduction</h1>
-<p>Welcome to BeaverDB!</p>
-<p>If you’ve ever found yourself building a Python application that needs to save some data, but setting up a full-blown database server felt like massive overkill, you’re in the right place. BeaverDB is designed to be the “Swiss Army knife” for embedded Python data. It’s built for those exact “just right” scenarios: more powerful than a simple pickle file, but far less complex than a networked server like PostgreSQL or MySQL.</p>
-<section id="what-is-beaverdb" class="level2" data-number="1.1">
-<h2 data-number="1.1" class="anchored" data-anchor-id="what-is-beaverdb"><span class="header-section-number">1.1</span> What is BeaverDB?</h2>
-<p>At its heart, BeaverDB is a multi-modal database in a single SQLite file.</p>
-<p>It’s a Python library that lets you manage modern, complex data types without ever leaving the comfort of a local file. The name itself tells the story:</p>
-<p><strong>B.E.A.V.E.R.</strong> stands for <strong>B</strong>ackend for mbedded, <strong>A</strong>ll-in-one <strong>V</strong>ector, <strong>E</strong>ntity, and <strong>R</strong>elationship storage.</p>
-<p>This means that inside that one <code>.db</code> file, you can seamlessly store and query:</p>
+<p>This is where the fun begins. Let’s get BeaverDB installed and run your first multi-modal script. You’ll be up and running in about 30 seconds.</p>
+<section id="installation" class="level2" data-number="2.1">
+<h2 data-number="2.1" class="anchored" data-anchor-id="installation"><span class="header-section-number">2.1</span> Installation</h2>
+<p>BeaverDB is a Python library, so you can install it right from your terminal using pip.</p>
+<p><strong>The Core Install</strong></p>
+<p>If you just want the core features—like key-value dictionaries, lists, and queues—you can install the zero-dependency package.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># This has NO external dependencies</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install beaver-db</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>This gives you all the core data structures and is perfect for many simple applications.</p>
+<p><strong>Installing Optional Features</strong></p>
+<p>BeaverDB keeps its core light by making advanced features optional. You can install them as “extras” as needed.</p>
 <ul>
-<li>Key-Value Pairs (like a dictionary for your app’s configuration)</li>
-<li>Lists (like a persistent to-do list)</li>
-<li>Vector Embeddings (for AI and semantic search)</li>
-<li>Documents &amp; Text (for full-text search)</li>
-<li>Graph Relationships (to connect your data together)</li>
-<li>…and much more.</li>
+<li><code>beaver-db[vector]</code>: Adds AI-powered vector search (using faiss).</li>
+<li><code>beaver-db[server,cli]</code>: Adds the fastapi-based REST server and the beaver command-line tool.</li>
 </ul>
-<p>All this power comes from building on top of the world’s most deployed database engine: SQLite.</p>
+<p>For this guide, we recommend installing the <code>beaver-db[full]</code> package, which includes everything, so you can follow along with all the examples.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># To install all features, including vector search and the server</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install <span class="st">"beaver-db[full]"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>With that, you’re ready to write some code.</p>
 </section>
-<section id="the-beaverdb-philosophy" class="level2" data-number="1.2">
-<h2 data-number="1.2" class="anchored" data-anchor-id="the-beaverdb-philosophy"><span class="header-section-number">1.2</span> The BeaverDB Philosophy</h2>
-<p>BeaverDB is built on a few core principles. Understanding these will help you know when and why to choose it for your project.</p>
-<p><strong>Robust, Safe, and Durable</strong></p>
-<p>Your data should be safe, period. BeaverDB is built to be resilient. Thanks to SQLite’s atomic transactions and Write-Ahead Logging (WAL) mode, your database is crash-safe. If your program crashes mid-operation, your data is never lost or corrupted; the database simply rolls back the incomplete transaction.</p>
-<p>Furthermore, it’s designed for concurrency. It’s both thread-safe (different threads can share one BeaverDB object) and process-safe (multiple, independent Python scripts can read from and write to the same database file at the same time). For tasks that require true coordination, it even provides a simple, built-in distributed lock.</p>
-<p><strong>Performant by Default</strong></p>
-<p>BeaverDB is fast. It’s not just “fast for a small database”–it’s genuinely fast for the vast majority of medium-sized projects. Because it’s an embedded library, there is zero network latency for any query.</p>
-<p>Let’s be clear: if you’re building the next X (formerly Twitter) and need to handle millions of documents and thousands of queries per second, you’ll need a distributed, networked database. But for almost everything else? BeaverDB is more than fast enough. If your project is in the thousand to tens-of-thousands of documents range, you’ll find it’s incredibly responsive.</p>
-<p><strong>Local-First &amp; Embedded</strong></p>
-<p>The default, primary way to use BeaverDB is as a single file right next to your code. This means your entire database—users, vectors, chat logs, and all—is contained in one portable file (e.g., my_app.db). You can copy it, email it, or back it up. This “local-first” approach is what makes it so fast and simple to deploy.</p>
-<p><strong>Minimal &amp; Optional Dependencies</strong></p>
-<p>The core BeaverDB library has zero external dependencies. You can get started with key-value stores, lists, and queues right away.</p>
-<p>Want to add vector search? Great! Install the [vector] extra, and BeaverDB will activate its faiss integration. Need a web server? Install the [server] extra, and it unlocks a fastapi-based REST API. This “pay-as-you-go” approach keeps your project lightweight.</p>
-<p><strong>Pythonic API</strong></p>
-<p>BeaverDB is designed to feel like you’re just using standard Python data structures. You shouldn’t have to write complex SQL queries just to save a Python dict or list. The goal is to make the database feel like a natural extension of your code.</p>
-<p><strong>Standard SQLite Compatibility</strong></p>
-<p>This is the “no-magic” rule. The my_app.db file that BeaverDB creates is a 100% standard, valid SQLite file. You can open it with any database tool (like DB Browser for SQLite) and see your data in regular tables. This ensures your data is never locked into a proprietary format.</p>
-<p><strong>Synchronous Core with Async Potential</strong></p>
-<p>The core library is synchronous, which makes it simple and robust for multi-threaded applications. However, BeaverDB is fully aware of the modern asyncio world. For every data structure, you can call .as_async() to get a fully awaitable version that runs its blocking operations in a background thread, keeping your asyncio event loop from getting blocked.</p>
-</section>
-<section id="ideal-use-cases" class="level2" data-number="1.3">
-<h2 data-number="1.3" class="anchored" data-anchor-id="ideal-use-cases"><span class="header-section-number">1.3</span> Ideal Use Cases</h2>
-<p>BeaverDB shines in scenarios where simplicity, robustness, and local performance are more important than massive, web-scale concurrency.</p>
+<section id="your-first-example-in-10-lines" class="level2" data-number="2.2">
+<h2 data-number="2.2" class="anchored" data-anchor-id="your-first-example-in-10-lines"><span class="header-section-number">2.2</span> Your First Example in 10 Lines</h2>
+<p>Let’s create a single Python script that shows off BeaverDB’s “multi-modal” power. We’ll use three different data types—a dictionary, a list, and a document collection—all in the same database file.</p>
+<p>Create a new file named <code>quickstart.py</code> and add the following:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver <span class="im">import</span> BeaverDB, Document</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Initialize the database</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co"># This creates a single file "my_data.db" if it doesn't exist</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="co"># and sets it up for safe, concurrent access.</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>db <span class="op">=</span> BeaverDB(<span class="st">"my_data.db"</span>)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Use a namespaced dictionary (like a Python dict)</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co"># This is perfect for storing app configuration or user settings.</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>config <span class="op">=</span> db.<span class="bu">dict</span>(<span class="st">"app_config"</span>)</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>config[<span class="st">"theme"</span>] <span class="op">=</span> <span class="st">"dark"</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>config[<span class="st">"user_id"</span>] <span class="op">=</span> <span class="dv">123</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="co"># You can read the value back just as easily:</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"App theme is: </span><span class="sc">{</span>config[<span class="st">'theme'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Use a persistent list (like a Python list)</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a><span class="co"># This is great for a to-do list, a job queue, or a chat history.</span></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>tasks <span class="op">=</span> db.<span class="bu">list</span>(<span class="st">"daily_tasks"</span>)</span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>tasks.push({<span class="st">"id"</span>: <span class="st">"task-001"</span>, <span class="st">"desc"</span>: <span class="st">"Write project report"</span>})</span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>tasks.push({<span class="st">"id"</span>: <span class="st">"task-002"</span>, <span class="st">"desc"</span>: <span class="st">"Deploy new feature"</span>})</span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a><span class="co"># You can access items by index, just like a normal list:</span></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"First task is: </span><span class="sc">{</span>tasks[<span class="dv">0</span>][<span class="st">'desc'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. Use a collection for rich documents and search</span></span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a><span class="co"># This is the most powerful feature, combining data and search.</span></span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>articles <span class="op">=</span> db.collection(<span class="st">"articles"</span>)</span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a Document to store.</span></span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a><span class="co"># We give it a unique ID and some text content.</span></span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>doc <span class="op">=</span> Document(</span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>    <span class="bu">id</span><span class="op">=</span><span class="st">"sqlite-001"</span>,</span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>    content<span class="op">=</span><span class="st">"SQLite is a powerful embedded database ideal for local apps."</span></span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a><span class="co"># 5. Index the document</span></span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a><span class="co"># This not only saves the document but also automatically</span></span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a><span class="co"># makes its text content searchable via a Full-Text Search (FTS) index</span></span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a><span class="co"># with optional fuzzy matching.</span></span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>articles.index(doc, fts<span class="op">=</span><span class="va">True</span>, fuzzy<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a><span class="co"># 6. Perform a full-text search</span></span>
+<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a><span class="co"># This isn't a simple string find; it's a real search engine with fuzzy matching!</span></span>
+<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> articles.match(query<span class="op">=</span><span class="st">"datbase"</span>, fuzziness<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a><span class="co"># The result is a list of tuples: (document, score)</span></span>
+<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>top_doc, rank <span class="op">=</span> results[<span class="dv">0</span>]</span>
+<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Search found: '</span><span class="sc">{</span>top_doc<span class="sc">.</span>content<span class="sc">}</span><span class="ss">' (Score: </span><span class="sc">{</span>rank<span class="sc">:.2f}</span><span class="ss">)"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Here’s a line-by-line explanation of what you just did:</p>
 <ul>
-<li><p><strong>Local AI &amp; RAG:</strong> Perfect for building Retrieval-Augmented Generation (RAG) applications that run on your local machine. You can store your vector embeddings and their corresponding text right next to each other.</p></li>
-<li><p><strong>Desktop Utilities &amp; CLI Tools:</strong> The ideal companion for a custom tool that needs to remember user preferences, manage a history, or cache results.</p></li>
-<li><p><strong>Chatbots:</strong> A persistent list is a perfect, simple way to store a chatbot’s conversation history for a user.</p></li>
-<li><p><strong>Rapid Prototyping:</strong> Get your idea up and running in minutes. Start with a local .db file, and if your project grows, you can deploy it as a REST API without changing your application logic.</p></li>
+<li><p><strong><code>from beaver import BeaverDB, Document</code></strong> <code>BeaverDB</code> is the main class, your entry point to the database. A <code>Document</code> is a special data object used when you’re working with <code>db.collection()</code>.</p></li>
+<li><p><strong><code>db = BeaverDB("my_data.db")</code></strong> This is the most important line. It finds <code>my_data.db</code> or creates it if it’s not there. It also automatically enables all the high-performance and safety features (like Write-Ahead Logging) so it’s ready for use.</p></li>
+<li><p><strong><code>config = db.dict("app_config")</code></strong> Here, you’re asking BeaverDB for a dictionary. <code>"app_config"</code> is the “namespace.” This means you can have <em>many</em> different dictionaries (<code>app_config</code>, <code>user_prefs</code>, <code>cache</code>, etc.) that won’t interfere with each other. The <code>config</code> object you get back behaves just like a standard Python <code>dict</code>. When you do <code>config["theme"] = "dark"</code>, that change is instantly saved to the <code>my_data.db</code> file.</p></li>
+<li><p><strong><code>tasks = db.list("daily_tasks")</code></strong> Same idea, but for a list. You get back a <code>tasks</code> object that acts like a Python <code>list</code>. You can <code>push</code> (append) items, get items by index (<code>tasks[i]</code>), or <code>pop</code> them. You can also insert and remove items at an arbitrary index, and it all works instantaneously (in CS terms, it’s O(1) for all operations).</p></li>
+<li><p><strong><code>articles = db.collection("articles")</code></strong> This gets you a “collection,” which is the most powerful data structure. A collection is designed to hold rich data, like articles, user profiles, or AI embeddings.</p></li>
+<li><p><strong><code>doc = Document(...)</code></strong> To put something in a collection, you wrap it in a <code>Document</code>. Here, we give it a unique <code>id</code> and some <code>content</code>. You can add any other fields you want just by passing them as keyword arguments.</p></li>
+<li><p><strong><code>articles.index(doc, ...)</code></strong> This is where the magic happens. When you call <code>.index()</code>, BeaverDB saves your document. But it <em>also</em> reads the <code>content</code> field and automatically puts all the words into a Full-Text Search (FTS) index and a clever fuzzy index, which are optional.</p></li>
+<li><p><strong><code>results = articles.match(query="database")</code></strong> This line runs a search. Because <code>index()</code> already did the work, this query is fast. It searches the FTS index for the word “database” and finds your document.</p></li>
 </ul>
-</section>
-<section id="how-this-guide-is-structured" class="level2" data-number="1.4">
-<h2 data-number="1.4" class="anchored" data-anchor-id="how-this-guide-is-structured"><span class="header-section-number">1.4</span> How This Guide is Structured</h2>
-<p>We’ve designed this documentation to get you the information you need, whether you’re building your first script or contributing to the core.</p>
-<p>This guide is split into two main parts:</p>
-<ul>
-<li><p><strong>Part 1: The User Guide</strong></p>
-<p>This is your starting point. After the Quickstart, this is where you’ll find an in-depth guide that walks you through how to use every single feature of BeaverDB. We’ll explore each “modality” one by one with practical examples.</p></li>
-<li><p><strong>Part 2: The Developer Guide</strong></p>
-<p>This part is for power users and contributors. We’ll go under the hood to look at the why behind the design. This is where we do deep dives into the core architecture, the concurrency model (threading and locking), and the internals of how features like vector search are implemented.</p></li>
-</ul>
+<p>When you run the script, you’ve created a single <code>my_data.db</code> file that now contains your config, your task list, and your searchable articles.</p>
 
 
-</section>
 </section>
 
 </main> <!-- /main -->
@@ -730,10 +777,13 @@ ul.task-list li input[type="checkbox"] {
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
+      <a href="./index.html" class="pagination-link" aria-label="Introduction">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></span>
+      </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="./quickstart.html" class="pagination-link" aria-label="Quickstart Guide">
-        <span class="nav-page-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Quickstart Guide</span></span> <i class="bi bi-arrow-right-short"></i>
+      <a href="./guide-dicts-blobs.html" class="pagination-link" aria-label="Key-Value and Blob Storage">
+        <span class="nav-page-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Key-Value and Blob Storage</span></span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>

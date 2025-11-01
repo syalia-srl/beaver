@@ -6,9 +6,8 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="author" content="SYALIA S.R.L.">
 
-<title>BeaverDB: The Complete Guide</title>
+<title>10&nbsp; Concurrency Model – BeaverDB: The Complete Guide</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -30,7 +29,8 @@ ul.task-list li input[type="checkbox"] {
 <script src="site_libs/quarto-search/fuse.min.js"></script>
 <script src="site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="./">
-<link href="./quickstart.html" rel="next">
+<link href="./dev-search.html" rel="next">
+<link href="./dev-architecture.html" rel="prev">
 <script src="site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
@@ -81,7 +81,7 @@ ul.task-list li input[type="checkbox"] {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./index.html">Introduction</a></li><li class="breadcrumb-item"><a href="./index.html"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./dev-architecture.html">Part 2: The Developer Guide</a></li><li class="breadcrumb-item"><a href="./dev-concurrency.html"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Concurrency Model</span></a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
       <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
@@ -111,16 +111,16 @@ ul.task-list li input[type="checkbox"] {
     <ul class="list-unstyled mt-1">
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false">
  <span class="menu-text">Introduction</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./index.html" class="sidebar-item-text sidebar-link active">
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></span></a>
   </div>
 </li>
@@ -181,13 +181,13 @@ ul.task-list li input[type="checkbox"] {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false">
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
  <span class="menu-text">Part 2: The Developer Guide</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 ">  
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./dev-architecture.html" class="sidebar-item-text sidebar-link">
@@ -196,7 +196,7 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./dev-concurrency.html" class="sidebar-item-text sidebar-link">
+  <a href="./dev-concurrency.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Concurrency Model</span></span></a>
   </div>
 </li>
@@ -219,39 +219,21 @@ ul.task-list li input[type="checkbox"] {
 </nav>
 <div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
 <!-- margin-sidebar -->
-    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-        <nav id="TOC" role="doc-toc" class="toc-active">
-    <h2 id="toc-title">Table of contents</h2>
-   
-  <ul>
-  <li><a href="#introduction" id="toc-introduction" class="nav-link active" data-scroll-target="#introduction"><span class="header-section-number">1</span> Introduction</a>
-  <ul class="collapse">
-  <li><a href="#what-is-beaverdb" id="toc-what-is-beaverdb" class="nav-link" data-scroll-target="#what-is-beaverdb"><span class="header-section-number">1.1</span> What is BeaverDB?</a></li>
-  <li><a href="#the-beaverdb-philosophy" id="toc-the-beaverdb-philosophy" class="nav-link" data-scroll-target="#the-beaverdb-philosophy"><span class="header-section-number">1.2</span> The BeaverDB Philosophy</a></li>
-  <li><a href="#ideal-use-cases" id="toc-ideal-use-cases" class="nav-link" data-scroll-target="#ideal-use-cases"><span class="header-section-number">1.3</span> Ideal Use Cases</a></li>
-  <li><a href="#how-this-guide-is-structured" id="toc-how-this-guide-is-structured" class="nav-link" data-scroll-target="#how-this-guide-is-structured"><span class="header-section-number">1.4</span> How This Guide is Structured</a></li>
-  </ul></li>
-  </ul>
-</nav>
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
+        
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./index.html">Introduction</a></li><li class="breadcrumb-item"><a href="./index.html"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./dev-architecture.html">Part 2: The Developer Guide</a></li><li class="breadcrumb-item"><a href="./dev-concurrency.html"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Concurrency Model</span></a></li></ol></nav>
 <div class="quarto-title">
-<h1 class="title">BeaverDB: The Complete Guide</h1>
+<h1 class="title"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Concurrency Model</span></h1>
 </div>
 
 
 
 <div class="quarto-title-meta">
 
-    <div>
-    <div class="quarto-title-meta-heading">Author</div>
-    <div class="quarto-title-meta-contents">
-             <p>SYALIA S.R.L. </p>
-          </div>
-  </div>
     
   
     
@@ -262,71 +244,28 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<section id="introduction" class="level1" data-number="1">
-<h1 data-number="1"><span class="header-section-number">1</span> Introduction</h1>
-<p>Welcome to BeaverDB!</p>
-<p>If you’ve ever found yourself building a Python application that needs to save some data, but setting up a full-blown database server felt like massive overkill, you’re in the right place. BeaverDB is designed to be the “Swiss Army knife” for embedded Python data. It’s built for those exact “just right” scenarios: more powerful than a simple pickle file, but far less complex than a networked server like PostgreSQL or MySQL.</p>
-<section id="what-is-beaverdb" class="level2" data-number="1.1">
-<h2 data-number="1.1" class="anchored" data-anchor-id="what-is-beaverdb"><span class="header-section-number">1.1</span> What is BeaverDB?</h2>
-<p>At its heart, BeaverDB is a multi-modal database in a single SQLite file.</p>
-<p>It’s a Python library that lets you manage modern, complex data types without ever leaving the comfort of a local file. The name itself tells the story:</p>
-<p><strong>B.E.A.V.E.R.</strong> stands for <strong>B</strong>ackend for mbedded, <strong>A</strong>ll-in-one <strong>V</strong>ector, <strong>E</strong>ntity, and <strong>R</strong>elationship storage.</p>
-<p>This means that inside that one <code>.db</code> file, you can seamlessly store and query:</p>
+<p><strong>Chapter Outline:</strong></p>
 <ul>
-<li>Key-Value Pairs (like a dictionary for your app’s configuration)</li>
-<li>Lists (like a persistent to-do list)</li>
-<li>Vector Embeddings (for AI and semantic search)</li>
-<li>Documents &amp; Text (for full-text search)</li>
-<li>Graph Relationships (to connect your data together)</li>
-<li>…and much more.</li>
-</ul>
-<p>All this power comes from building on top of the world’s most deployed database engine: SQLite.</p>
-</section>
-<section id="the-beaverdb-philosophy" class="level2" data-number="1.2">
-<h2 data-number="1.2" class="anchored" data-anchor-id="the-beaverdb-philosophy"><span class="header-section-number">1.2</span> The BeaverDB Philosophy</h2>
-<p>BeaverDB is built on a few core principles. Understanding these will help you know when and why to choose it for your project.</p>
-<p><strong>Robust, Safe, and Durable</strong></p>
-<p>Your data should be safe, period. BeaverDB is built to be resilient. Thanks to SQLite’s atomic transactions and Write-Ahead Logging (WAL) mode, your database is crash-safe. If your program crashes mid-operation, your data is never lost or corrupted; the database simply rolls back the incomplete transaction.</p>
-<p>Furthermore, it’s designed for concurrency. It’s both thread-safe (different threads can share one BeaverDB object) and process-safe (multiple, independent Python scripts can read from and write to the same database file at the same time). For tasks that require true coordination, it even provides a simple, built-in distributed lock.</p>
-<p><strong>Performant by Default</strong></p>
-<p>BeaverDB is fast. It’s not just “fast for a small database”–it’s genuinely fast for the vast majority of medium-sized projects. Because it’s an embedded library, there is zero network latency for any query.</p>
-<p>Let’s be clear: if you’re building the next X (formerly Twitter) and need to handle millions of documents and thousands of queries per second, you’ll need a distributed, networked database. But for almost everything else? BeaverDB is more than fast enough. If your project is in the thousand to tens-of-thousands of documents range, you’ll find it’s incredibly responsive.</p>
-<p><strong>Local-First &amp; Embedded</strong></p>
-<p>The default, primary way to use BeaverDB is as a single file right next to your code. This means your entire database—users, vectors, chat logs, and all—is contained in one portable file (e.g., my_app.db). You can copy it, email it, or back it up. This “local-first” approach is what makes it so fast and simple to deploy.</p>
-<p><strong>Minimal &amp; Optional Dependencies</strong></p>
-<p>The core BeaverDB library has zero external dependencies. You can get started with key-value stores, lists, and queues right away.</p>
-<p>Want to add vector search? Great! Install the [vector] extra, and BeaverDB will activate its faiss integration. Need a web server? Install the [server] extra, and it unlocks a fastapi-based REST API. This “pay-as-you-go” approach keeps your project lightweight.</p>
-<p><strong>Pythonic API</strong></p>
-<p>BeaverDB is designed to feel like you’re just using standard Python data structures. You shouldn’t have to write complex SQL queries just to save a Python dict or list. The goal is to make the database feel like a natural extension of your code.</p>
-<p><strong>Standard SQLite Compatibility</strong></p>
-<p>This is the “no-magic” rule. The my_app.db file that BeaverDB creates is a 100% standard, valid SQLite file. You can open it with any database tool (like DB Browser for SQLite) and see your data in regular tables. This ensures your data is never locked into a proprietary format.</p>
-<p><strong>Synchronous Core with Async Potential</strong></p>
-<p>The core library is synchronous, which makes it simple and robust for multi-threaded applications. However, BeaverDB is fully aware of the modern asyncio world. For every data structure, you can call .as_async() to get a fully awaitable version that runs its blocking operations in a background thread, keeping your asyncio event loop from getting blocked.</p>
-</section>
-<section id="ideal-use-cases" class="level2" data-number="1.3">
-<h2 data-number="1.3" class="anchored" data-anchor-id="ideal-use-cases"><span class="header-section-number">1.3</span> Ideal Use Cases</h2>
-<p>BeaverDB shines in scenarios where simplicity, robustness, and local performance are more important than massive, web-scale concurrency.</p>
+<li><strong>10.1. Thread Safety (<code>threading.local</code>)</strong>
 <ul>
-<li><p><strong>Local AI &amp; RAG:</strong> Perfect for building Retrieval-Augmented Generation (RAG) applications that run on your local machine. You can store your vector embeddings and their corresponding text right next to each other.</p></li>
-<li><p><strong>Desktop Utilities &amp; CLI Tools:</strong> The ideal companion for a custom tool that needs to remember user preferences, manage a history, or cache results.</p></li>
-<li><p><strong>Chatbots:</strong> A persistent list is a perfect, simple way to store a chatbot’s conversation history for a user.</p></li>
-<li><p><strong>Rapid Prototyping:</strong> Get your idea up and running in minutes. Start with a local .db file, and if your project grows, you can deploy it as a REST API without changing your application logic.</p></li>
-</ul>
-</section>
-<section id="how-this-guide-is-structured" class="level2" data-number="1.4">
-<h2 data-number="1.4" class="anchored" data-anchor-id="how-this-guide-is-structured"><span class="header-section-number">1.4</span> How This Guide is Structured</h2>
-<p>We’ve designed this documentation to get you the information you need, whether you’re building your first script or contributing to the core.</p>
-<p>This guide is split into two main parts:</p>
+<li>How BeaverDB provides a unique <code>sqlite3.Connection</code> for <em>every thread</em>.</li>
+<li>Why this is the key to preventing thread-related errors.</li>
+<li>Enabling WAL (Write-Ahead Logging) for concurrent reads.</li>
+</ul></li>
+<li><strong>10.2. Inter-Process Locking (The Implementation)</strong>
 <ul>
-<li><p><strong>Part 1: The User Guide</strong></p>
-<p>This is your starting point. After the Quickstart, this is where you’ll find an in-depth guide that walks you through how to use every single feature of BeaverDB. We’ll explore each “modality” one by one with practical examples.</p></li>
-<li><p><strong>Part 2: The Developer Guide</strong></p>
-<p>This part is for power users and contributors. We’ll go under the hood to look at the why behind the design. This is where we do deep dives into the core architecture, the concurrency model (threading and locking), and the internals of how features like vector search are implemented.</p></li>
+<li>How <code>db.lock()</code> works under the hood.</li>
+<li>The <code>beaver_lock_waiters</code> table as a fair (FIFO) queue.</li>
+<li>The <code>expires_at</code> column as a deadlock-prevention (TTL) mechanism.</li>
+</ul></li>
+<li><strong>10.3. The Asynchronous <code>.as_async()</code> Pattern</strong>
+<ul>
+<li>How the <code>Async...Manager</code> wrappers are implemented.</li>
+<li>Using <code>asyncio.to_thread</code> to run blocking I/O without blocking the event loop.</li>
+</ul></li>
 </ul>
 
 
-</section>
-</section>
 
 </main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">
@@ -730,10 +669,13 @@ ul.task-list li input[type="checkbox"] {
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
+      <a href="./dev-architecture.html" class="pagination-link" aria-label="Core Architecture &amp; Design">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Core Architecture &amp; Design</span></span>
+      </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="./quickstart.html" class="pagination-link" aria-label="Quickstart Guide">
-        <span class="nav-page-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Quickstart Guide</span></span> <i class="bi bi-arrow-right-short"></i>
+      <a href="./dev-search.html" class="pagination-link" aria-label="Search Architecture">
+        <span class="nav-page-text"><span class="chapter-number">11</span>&nbsp; <span class="chapter-title">Search Architecture</span></span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>
