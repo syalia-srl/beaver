@@ -12,12 +12,10 @@ book:
 
   # Define the chapters and their structure
   chapters:
-    - part: "Introduction"
-      chapters:
-        - index.qmd             # Chapter 1: Introduction and Philosophy
-        - quickstart.qmd        # Chapter 2: Quickstart Guide
+    - index.qmd             # Chapter 1: Introduction and Philosophy
+    - quickstart.qmd        # Chapter 2: Quickstart Guide
 
-    - part: "Part 1: The User Guide"
+    - part: "The User Guide"
       chapters:
         - guide-dicts-blobs.qmd   # Chapter 3: Key-Value and Blob Storage
         - guide-lists-queues.qmd  # Chapter 4: Lists and Queues
@@ -26,7 +24,7 @@ book:
         - guide-concurrency.qmd   # Chapter 7: Concurrency
         - guide-deployment.qmd    # Chapter 8: Deployment & Access
 
-    - part: "Part 2: The Developer Guide"
+    - part: "The Developer Guide"
       chapters:
         - dev-architecture.qmd    # Chapter 9: Core Architecture & Design
         - dev-concurrency.qmd   # Chapter 10: Deep Dive: Concurrency Model
