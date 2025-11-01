@@ -1,22 +1,64 @@
+# Main configuration for the BeaverDB Quarto book
+
 project:
   type: book
+  output-dir: _book
 
+# Book-level metadata
 book:
-  title: "BeaverDB"
-  author: "Norah Jones"
-  date: "10/31/2025"
-  chapters:
-    - index.qmd
-    - intro.qmd
-    - summary.qmd
-    - references.qmd
+  title: "BeaverDB: The Complete Guide"
+  author: "SYALIA S.R.L."
+  license: "CC BY-NC-SA 4.0"
 
-bibliography: references.bib
+  # Define the chapters and their structure
+  chapters:
+    - part: "Introduction"
+      chapters:
+        - index.qmd             # Chapter 1: Introduction and Philosophy
+        - quickstart.qmd        # Chapter 2: Quickstart Guide
+
+    - part: "Part 1: The User Guide"
+      chapters:
+        - guide-dicts-blobs.qmd   # Chapter 3: Key-Value and Blob Storage
+        - guide-lists-queues.qmd  # Chapter 4: Lists and Queues
+        - guide-collections.qmd   # Chapter 5: The Document Collection
+        - guide-realtime.qmd      # Chapter 6: Real-Time Data
+        - guide-concurrency.qmd   # Chapter 7: Concurrency
+        - guide-deployment.qmd    # Chapter 8: Deployment & Access
+
+    - part: "Part 2: The Developer Guide"
+      chapters:
+        - dev-architecture.qmd    # Chapter 9: Core Architecture & Design
+        - dev-concurrency.qmd   # Chapter 10: Deep Dive: Concurrency Model
+        - dev-search.qmd        # Chapter 11: Deep Dive: Search Architecture
+        - dev-contributing.qmd  # Chapter 12: Future Roadmap & Contributing
+
+  # Sidebar navigation options
+  sidebar:
+    logo: "logo.png"
+    pinned: true
+    search: true
+    style: "docked"
+    collapse-level: 1
 
 format:
+  # HTML output format (the website)
   html:
     theme:
-      - cosmo
-      - brand
+      light: cosmo
+      # dark:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    code-copy: true
+    # code-line-numbers: true
+    mainfont: "Inter"
+
+  # PDF output format
   pdf:
     documentclass: scrreprt
+    papersize: a4
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    colorlinks: true
