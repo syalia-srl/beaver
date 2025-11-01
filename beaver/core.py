@@ -167,7 +167,7 @@ class BeaverDB:
         """Creates the table to store the serialized base ANN index."""
         self.connection.execute(
             """
-            CREATE TABLE IF NOT EXISTS _beaver_ann_indexes (
+            CREATE TABLE IF NOT EXISTS beaver_ann_indexes (
                 collection_name TEXT PRIMARY KEY,
                 index_data BLOB,
                 base_index_version INTEGER NOT NULL DEFAULT 0
@@ -179,7 +179,7 @@ class BeaverDB:
         """Creates the log for new vector additions."""
         self.connection.execute(
             """
-            CREATE TABLE IF NOT EXISTS _beaver_ann_pending_log (
+            CREATE TABLE IF NOT EXISTS beaver_ann_pending_log (
                 collection_name TEXT NOT NULL,
                 str_id TEXT NOT NULL,
                 PRIMARY KEY (collection_name, str_id)
@@ -191,7 +191,7 @@ class BeaverDB:
         """Creates the log for vector deletions (tombstones)."""
         self.connection.execute(
             """
-            CREATE TABLE IF NOT EXISTS _beaver_ann_deletions_log (
+            CREATE TABLE IF NOT EXISTS beaver_ann_deletions_log (
                 collection_name TEXT NOT NULL,
                 int_id INTEGER NOT NULL,
                 PRIMARY KEY (collection_name, int_id)
@@ -203,7 +203,7 @@ class BeaverDB:
         """Creates the table to map string IDs to integer IDs for Faiss."""
         self.connection.execute(
             """
-            CREATE TABLE IF NOT EXISTS _beaver_ann_id_mapping (
+            CREATE TABLE IF NOT EXISTS beaver_ann_id_mapping (
                 collection_name TEXT NOT NULL,
                 str_id TEXT NOT NULL,
                 int_id INTEGER PRIMARY KEY AUTOINCREMENT,

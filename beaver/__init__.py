@@ -2,4 +2,4 @@ from .core import BeaverDB
 from .types import Model
 from .collections import Document, WalkDirection
 
-__version__ = "0.19.3"
+__version__ = "0.20.1"
