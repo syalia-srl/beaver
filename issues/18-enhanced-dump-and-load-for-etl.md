@@ -1,6 +1,9 @@
 ---
 number: 18
-title: Enhanced `dump` and `load` for ETL
+title: "Enhanced `dump` and `load` for ETL"
+state: open
+labels:
+- enhancement
 ---
 
 ### 1. Feature Concept
