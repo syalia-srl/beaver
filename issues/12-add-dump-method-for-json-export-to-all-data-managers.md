@@ -7,7 +7,7 @@ labels:
 
 ## Tasks
 
-- [ ] DictManager
+- [x] DictManager
 - [ ] ListManager
 - [ ] LogManager
 - [ ] QueueManager
