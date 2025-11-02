@@ -6,6 +6,8 @@ labels:
 - enhancement
 ---
 
+**Depends on: #2**
+
 ### 1. Feature Concept
 
 This feature involves the full implementation of the `BeaverClient` and its associated `Remote...Manager` classes. The `BeaverClient` will act as a **drop-in, API-identical replacement** for the local `BeaverDB` class.
