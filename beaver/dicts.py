@@ -1,7 +1,8 @@
+from datetime import datetime, timezone
 import json
 import sqlite3
 import time
-from typing import Any, Iterator, Tuple, Type, Optional
+from typing import IO, Any, Iterator, Tuple, Type, Optional
 from .types import JsonSerializable, IDatabase
 from .locks import LockManager
 
@@ -14,6 +15,55 @@ class DictManager[T]:
         self._model = model
         lock_name = f"__lock__dict__{name}"
         self._lock = LockManager(db, lock_name)
+
+    def _get_dump_object(self) -> dict:
+        """Builds the JSON-compatible dump object."""
+        items = []
+
+        for k, v in self.items():
+            item_value = v
+            # Check if a model is defined and the value is a model instance
+            if self._model and isinstance(v, JsonSerializable):
+                # Use the model's serializer to get its string representation,
+                # then parse that string back into a dict.
+                # This ensures the dump contains serializable dicts, not model objects.
+                item_value = json.loads(v.model_dump_json())
+
+            items.append({"key": k, "value": item_value})
+
+        metadata = {
+            "type": "Dict",
+            "name": self._name,
+            "count": len(items),
+            "dump_date": datetime.now(timezone.utc).isoformat()
+        }
+
+        return {
+            "metadata": metadata,
+            "items": items
+        }
+
+    def dump(self, fp: IO[str] | None = None) -> dict | None:
+        """
+        Dumps the entire contents of the dictionary to a JSON-compatible
+        Python object or a file-like object.
+
+        Args:
+            fp: A file-like object opened in text mode (e.g., with 'w').
+                If provided, the JSON dump will be written to this file.
+                If None (default), the dump will be returned as a dictionary.
+
+        Returns:
+            A dictionary containing the dump if fp is None.
+            None if fp is provided.
+        """
+        dump_object = self._get_dump_object()
+
+        if fp:
+            json.dump(dump_object, fp, indent=2)
+            return None
+
+        return dump_object
 
     def _serialize(self, value: T) -> str:
         """Serializes the given value to a JSON string."""
