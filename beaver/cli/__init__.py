@@ -1,9 +1,18 @@
 import typer
 import rich
 from typing_extensions import Annotated
-import beaver
 
+import beaver
+from beaver import BeaverDB
+
+# Import the command group from the new file
+from beaver.cli import dicts as dicts_cli
+
+# --- Main App ---
 app = typer.Typer()
+
+# Register the command group
+app.add_typer(dicts_cli.app)
 
 
 def version_callback(value: bool):
@@ -11,9 +20,12 @@ def version_callback(value: bool):
         print(beaver.__version__)
         raise typer.Exit()
 
-
 @app.callback()
 def main(
+    ctx: typer.Context,
+    database: Annotated[
+        str, typer.Option(help="The path to the BeaverDB database file.")
+    ] = "beaver.db",
     version: Annotated[
         bool,
         typer.Option(
@@ -27,9 +39,14 @@ def main(
     """
     BeaverDB command-line interface.
     """
-    pass
+    try:
+        # Store the db instance in the context for all subcommands
+        ctx.obj = {"db": BeaverDB(database)}
+    except Exception as e:
+        rich.print(f"[bold red]Error opening database:[/] {e}")
+        raise typer.Exit(code=1)
 
-
+# --- Serve Command ---
 @app.command()
 def serve(
     database: Annotated[
@@ -40,46 +57,14 @@ def serve(
 ):
     """Starts a REST API server for the BeaverDB database."""
     try:
-        from . import server
+        from beaver import server
     except ImportError:
         rich.print(
             "[red]Error:[/] To use the serve command, please install the server dependencies:\n"
             'pip install "beaver-db[server]"'
         )
         raise typer.Exit(code=1)
-
     server.serve(database, host=host, port=port)
-
-
-@app.command(
-    context_settings={"allow_extra_args": True, "ignore_unknown_options": True}
-)
-def client(
-    ctx: typer.Context,
-    database: Annotated[
-        str, typer.Option(help="The path to the BeaverDB database file.")
-    ] = "beaver.db",
-):
-    """
-    Provides a command-line client to interact with the database.
-
-    All arguments after 'client' are passed directly to the database object.
-    Example: beaver client --database my.db dict my_dict get my_key
-    """
-    try:
-        import fire
-        from .core import BeaverDB
-    except ImportError:
-        rich.print(
-            "[red]Error:[/] To use the client command, please install the CLI dependencies:\n"
-            'pip install "beaver-db[cli]"'
-        )
-        raise typer.Exit(code=1)
-
-    db = BeaverDB(database)
-    # The arguments for fire are passed via ctx.args, which captures everything
-    # after the 'client' command.
-    fire.Fire(db, command=ctx.args)
 
 
 if __name__ == "__main__":
