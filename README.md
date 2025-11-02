@@ -154,12 +154,12 @@ Here are a couple of examples using `curl`:
 
 ```bash
 # Set a value in the 'app_config' dictionary
-curl -X PUT [http://127.0.0.1:8000/dicts/app_config/api_key](http://127.0.0.1:8000/dicts/app_config/api_key) \
+curl -X PUT http://127.0.0.1:8000/dicts/app_config/api_key \
      -H "Content-Type: application/json" \
      -d '"your-secret-api-key"'
 
 # Get the value back
-curl [http://127.0.0.1:8000/dicts/app_config/api_key](http://127.0.0.1:8000/dicts/app_config/api_key)
+curl http://127.0.0.1:8000/dicts/app_config/api_key
 # Output: "your-secret-api-key"
 ```
 
