@@ -1,9 +1,10 @@
+from datetime import datetime, timezone
 import json
 import sqlite3
 import threading
 import uuid
 from enum import Enum
-from typing import Any, Iterator, List, Literal, Tuple, Type, TypeVar, Optional
+from typing import IO, Any, Iterator, List, Literal, Tuple, Type, TypeVar, Optional
 from .types import Model, stub, IDatabase
 from .locks import LockManager
 
@@ -679,6 +680,47 @@ class CollectionManager[D: Document]:
         """Releases the lock when exiting a 'with' statement."""
         self.release()
 
+    def _get_dump_object(self) -> dict:
+        """Builds the JSON-compatible dump object."""
+
+        # The __iter__ method yields Document instances.
+        # doc.to_dict(metadata_only=False) correctly serializes
+        # the Document (including embedding) to a plain dictionary.
+        items_list = [doc.to_dict(metadata_only=False) for doc in self]
+
+        metadata = {
+            "type": "Collection",
+            "name": self._name,
+            "count": len(items_list),
+            "dump_date": datetime.now(timezone.utc).isoformat()
+        }
+
+        return {
+            "metadata": metadata,
+            "items": items_list
+        }
+
+    def dump(self, fp: IO[str] | None = None) -> dict | None:
+        """
+        Dumps the entire contents of the collection to a JSON-compatible
+        Python object or a file-like object.
+
+        Args:
+            fp: A file-like object opened in text mode (e.g., with 'w').
+                If provided, the JSON dump will be written to this file.
+                If None (default), the dump will be returned as a dictionary.
+
+        Returns:
+            A dictionary containing the dump if fp is None.
+            None if fp is provided.
+        """
+        dump_object = self._get_dump_object()
+
+        if fp:
+            json.dump(dump_object, fp, indent=2)
+            return None
+
+        return dump_object
 
 def rerank[D: Document](
     *results: list[D], weights: list[float] | None = None, k: int = 60

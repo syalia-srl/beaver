@@ -1,9 +1,9 @@
 import json
 import sqlite3
-from typing import Any, Iterator, Type, Union, Optional
+from typing import Any, Iterator, Type, Union, Optional, IO
+from datetime import datetime, timezone
 from .types import JsonSerializable, IDatabase
 from .locks import LockManager
-
 
 class ListManager[T]:
     """A wrapper providing a Pythonic, full-featured interface to a list in the database."""
@@ -14,6 +14,53 @@ class ListManager[T]:
         self._model = model
         lock_name = f"__lock__list__{name}"
         self._lock = LockManager(db, lock_name)
+
+    def _get_dump_object(self) -> dict:
+        """Builds the JSON-compatible dump object."""
+        items = []
+
+        for item in self:
+            item_value = item
+            # Check if a model is defined and the item is a model instance
+            if self._model and isinstance(item, JsonSerializable):
+                # Convert the model object to a serializable dict
+                item_value = json.loads(item.model_dump_json())
+
+            items.append(item_value)
+
+        metadata = {
+            "type": "List",
+            "name": self._name,
+            "count": len(items),
+            "dump_date": datetime.now(timezone.utc).isoformat()
+        }
+
+        return {
+            "metadata": metadata,
+            "items": items
+        }
+
+    def dump(self, fp: IO[str] | None = None) -> dict | None:
+        """
+        Dumps the entire contents of the list to a JSON-compatible
+        Python object or a file-like object.
+
+        Args:
+            fp: A file-like object opened in text mode (e.g., with 'w').
+                If provided, the JSON dump will be written to this file.
+                If None (default), the dump will be returned as a dictionary.
+
+        Returns:
+            A dictionary containing the dump if fp is None.
+            None if fp is provided.
+        """
+        dump_object = self._get_dump_object()
+
+        if fp:
+            json.dump(dump_object, fp, indent=2)
+            return None
+
+        return dump_object
 
     def _serialize(self, value: T) -> str:
         """Serializes the given value to a JSON string."""

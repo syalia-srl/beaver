@@ -6,7 +6,7 @@ import threading
 import time
 from datetime import datetime, timedelta, timezone
 from queue import Empty, Queue
-from typing import Any, AsyncIterator, Callable, Iterator, Type, TypeVar
+from typing import IO, Any, AsyncIterator, Callable, Iterator, Type, TypeVar
 
 from .types import JsonSerializable, IDatabase
 
@@ -15,7 +15,7 @@ from .types import JsonSerializable, IDatabase
 _SHUTDOWN_SENTINEL = object()
 
 
-class LiveIterator[T,R]:
+class LiveIterator[T, R]:
     """
     A thread-safe, blocking iterator that yields aggregated results from a
     rolling window of log data.
@@ -119,10 +119,10 @@ class LiveIterator[T,R]:
             self._thread.join()
 
 
-class AsyncLiveIterator[T,R]:
+class AsyncLiveIterator[T, R]:
     """An async wrapper for the LiveIterator."""
 
-    def __init__(self, sync_iterator: LiveIterator[T,R]):
+    def __init__(self, sync_iterator: LiveIterator[T, R]):
         self._sync_iterator = sync_iterator
 
     async def __anext__(self) -> R:
@@ -162,9 +162,7 @@ class AsyncLogManager[T]:
         aggregator: Callable[[list[T]], R],
     ) -> AsyncIterator[R]:
         """Returns an async, infinite iterator for real-time log analysis."""
-        sync_iterator = self._sync_manager.live(
-            window, period, aggregator
-        )
+        sync_iterator = self._sync_manager.live(window, period, aggregator)
         return AsyncLiveIterator(sync_iterator)
 
 
@@ -272,3 +270,70 @@ class LogManager[T]:
     def as_async(self) -> AsyncLogManager[T]:
         """Returns an async-compatible version of the log manager."""
         return AsyncLogManager(self)
+
+    def __iter__(self) -> Iterator[tuple[float, T]]:
+        """Returns an iterator over all log entries, in chronological order.
+
+        Yields:
+            A dictionary for each log entry with keys "timestamp" and "data".
+            The "data" is deserialized.
+        """
+        cursor = self._db.connection.cursor()
+        cursor.execute(
+            "SELECT timestamp, data FROM beaver_logs WHERE log_name = ? ORDER BY timestamp ASC",
+            (self._name,),
+        )
+        try:
+            for row in cursor:
+                yield (row["timestamp"], self._deserialize(row["data"]))
+        finally:
+            cursor.close()
+
+    def _get_dump_object(self) -> dict:
+        """Builds the JSON-compatible dump object."""
+
+        items_list = []
+        # Use the new __iter__ method
+        for timestamp, data in self:
+
+            # Handle model instances
+            if self._model and isinstance(data, JsonSerializable):
+                data = json.loads(data.model_dump_json())
+
+            items_list.append(
+                {
+                    "timestamp": timestamp,
+                    "data": data,
+                }
+            )
+
+        metadata = {
+            "type": "Log",
+            "name": self._name,
+            "count": len(items_list),
+            "dump_date": datetime.now(timezone.utc).isoformat(),
+        }
+
+        return {"metadata": metadata, "items": items_list}
+
+    def dump(self, fp: IO[str] | None = None) -> dict | None:
+        """
+        Dumps the entire contents of the log to a JSON-compatible
+        Python object or a file-like object.
+
+        Args:
+            fp: A file-like object opened in text mode (e.g., with 'w').
+                If provided, the JSON dump will be written to this file.
+                If None (default), the dump will be returned as a dictionary.
+
+        Returns:
+            A dictionary containing the dump if fp is None.
+            None if fp is provided.
+        """
+        dump_object = self._get_dump_object()
+
+        if fp:
+            json.dump(dump_object, fp, indent=2)
+            return None
+
+        return dump_object

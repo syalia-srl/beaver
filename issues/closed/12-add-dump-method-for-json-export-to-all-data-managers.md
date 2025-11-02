@@ -1,18 +1,18 @@
 ---
 number: 12
 title: "Add `.dump()` method for JSON export to all data managers"
-state: open
+state: closed
 labels:
 ---
 
 ## Tasks
 
 - [x] DictManager
-- [ ] ListManager
-- [ ] LogManager
-- [ ] QueueManager
-- [ ] CollectionManager
-- [ ] BlobManager
+- [x] ListManager
+- [x] LogManager
+- [x] QueueManager
+- [x] CollectionManager
+- [x] BlobManager
 
 ### 1. Concept
 

@@ -1,6 +1,8 @@
+import base64
+from datetime import datetime, timezone
 import json
 import sqlite3
-from typing import Any, Dict, Iterator, NamedTuple, Optional, Type, TypeVar
+from typing import IO, Any, Dict, Iterator, NamedTuple, Optional, Type, TypeVar
 from .types import JsonSerializable, IDatabase
 from .locks import LockManager
 
@@ -170,3 +172,60 @@ class BlobManager[M]:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Releases the lock when exiting a 'with' statement."""
         self.release()
+
+    def _get_dump_object(self) -> dict:
+        """Builds the JSON-compatible dump object."""
+
+        items_list = []
+        # __iter__ yields keys, so we get each blob
+        for key in self:
+            blob = self.get(key)
+            if blob:
+                metadata = blob.metadata
+
+                # Handle model instances in metadata
+                if self._model and isinstance(metadata, JsonSerializable):
+                    metadata = json.loads(metadata.model_dump_json())
+
+                # Encode binary data to a base64 string
+                data_b64 = base64.b64encode(blob.data).decode('utf-8')
+
+                items_list.append({
+                    "key": blob.key,
+                    "metadata": metadata,
+                    "data_b64": data_b64
+                })
+
+        metadata = {
+            "type": "BlobStore",
+            "name": self._name,
+            "count": len(items_list),
+            "dump_date": datetime.now(timezone.utc).isoformat()
+        }
+
+        return {
+            "metadata": metadata,
+            "items": items_list
+        }
+
+    def dump(self, fp: IO[str] | None = None) -> dict | None:
+        """
+        Dumps the entire contents of the blob store to a JSON-compatible
+        Python object or a file-like object.
+
+        Args:
+            fp: A file-like object opened in text mode (e.g., with 'w').
+                If provided, the JSON dump will be written to this file.
+                If None (default), the dump will be returned as a dictionary.
+
+        Returns:
+            A dictionary containing the dump if fp is None.
+            None if fp is provided.
+        """
+        dump_object = self._get_dump_object()
+
+        if fp:
+            json.dump(dump_object, fp, indent=2)
+            return None
+
+        return dump_object

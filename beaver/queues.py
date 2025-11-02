@@ -1,8 +1,9 @@
 import asyncio
+from datetime import datetime, timezone
 import json
 import sqlite3
 import time
-from typing import Any, Literal, NamedTuple, Type, overload, Optional
+from typing import IO, Any, Iterator, Literal, NamedTuple, Type, overload, Optional
 from .types import JsonSerializable, IDatabase
 from .locks import LockManager
 
@@ -219,3 +220,83 @@ class QueueManager[T]:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Releases the lock when exiting a 'with' statement."""
         self.release()
+
+    def __iter__(self) -> Iterator[QueueItem[T]]:
+        """
+        Returns an iterator over all items in the queue, in priority order,
+        without removing them.
+
+        Yields:
+            QueueItem: The next item in the queue (priority, timestamp, data).
+        """
+        cursor = self._db.connection.cursor()
+        cursor.execute(
+            """
+            SELECT priority, timestamp, data
+            FROM beaver_priority_queues
+            WHERE queue_name = ?
+            ORDER BY priority ASC, timestamp ASC
+            """,
+            (self._name,),
+        )
+        try:
+            for row in cursor:
+                yield QueueItem(
+                    priority=row["priority"],
+                    timestamp=row["timestamp"],
+                    data=self._deserialize(row["data"])
+                )
+        finally:
+            cursor.close()
+
+    def _get_dump_object(self) -> dict:
+        """Builds the JSON-compatible dump object."""
+
+        items_list = []
+        # Use the new __iter__ method
+        for item in self:
+            data = item.data
+
+            # Handle model instances
+            if self._model and isinstance(data, JsonSerializable):
+                data = json.loads(data.model_dump_json())
+
+            items_list.append({
+                "priority": item.priority,
+                "timestamp": item.timestamp,
+                "data": data
+            })
+
+        metadata = {
+            "type": "Queue",
+            "name": self._name,
+            "count": len(items_list),
+            "dump_date": datetime.now(timezone.utc).isoformat()
+        }
+
+        return {
+            "metadata": metadata,
+            "items": items_list
+        }
+
+    def dump(self, fp: IO[str] | None = None) -> dict | None:
+        """
+        Dumps the entire contents of the queue to a JSON-compatible
+        Python object or a file-like object.
+
+        Args:
+            fp: A file-like object opened in text mode (e.g., with 'w').
+                If provided, the JSON dump will be written to this file.
+                If None (default), the dump will be returned as a dictionary.
+
+        Returns:
+            A dictionary containing the dump if fp is None.
+            None if fp is provided.
+        """
+        dump_object = self._get_dump_object()
+
+        if fp:
+            json.dump(dump_object, fp, indent=2)
+            return None
+
+        return dump_object
