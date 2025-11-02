@@ -1,6 +1,8 @@
 ---
 number: 14
-title: Deprecate `fire`-based CLI and build a feature-rich `typer` and `rich` CLI
+title: "Deprecate `fire`-based CLI and build a feature-rich `typer` and `rich` CLI"
+state: closed
+labels:
 ---
 
 ### 1. Justification
