@@ -7,12 +7,26 @@ from beaver import BeaverDB
 
 # Import the command group from the new file
 from beaver.cli import dicts as dicts_cli
+from beaver.cli import lists as lists_cli
+from beaver.cli import queues as queues_cli
+from beaver.cli import blobs as blobs_cli
+from beaver.cli import locks as locks_cli
+from beaver.cli import logs as logs_cli
+from beaver.cli import channels as channels_cli
+from beaver.cli import collections as collections_cli
 
 # --- Main App ---
 app = typer.Typer()
 
 # Register the command group
 app.add_typer(dicts_cli.app)
+app.add_typer(lists_cli.app)
+app.add_typer(queues_cli.app)
+app.add_typer(blobs_cli.app)
+app.add_typer(locks_cli.app)
+app.add_typer(logs_cli.app)
+app.add_typer(channels_cli.app)
+app.add_typer(collections_cli.app)
 
 
 def version_callback(value: bool):

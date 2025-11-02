@@ -450,7 +450,7 @@ class BeaverDB:
         if model and not isinstance(model, JsonSerializable):
             raise TypeError("The model parameter must be a JsonSerializable class.")
 
-        return LogManager(name, self, self._db_path, model)
+        return LogManager(name, self, model)
 
     def lock(
         self,
