@@ -13,8 +13,6 @@
 
 > A fast, single-file, multi-modal database for Python, built with the standard `sqlite3` library.
 
----
-
 `beaver` is the **B**ackend for **E**mbedded, **A**ll-in-one **V**ector, **E**ntity, and **R**elationship storage. It's a simple, local, and embedded database designed to manage complex, modern data types without requiring a database server, built on top of SQLite.
 
 > If you like beaver's minimalist, no-bullshit philosophy, check out [castor](https://github.com/apiad/castor "null") for an equally minimalistic approach to task orchestration.
@@ -54,7 +52,7 @@ BeaverDB is architected as a set of targeted wrappers around a standard SQLite d
 
 When you call a method like `db.dict("my_dict")` or `db.collection("my_docs")`, you get back a specialized manager object (`DictManager`, `CollectionManager`, etc.) that provides a clean, Pythonic API for that specific data modality. These managers translate the simple method calls (e.g., `my_dict["key"] = "value"`) into the appropriate SQL queries, handling all the complexity of data serialization, indexing, and transaction management behind the scenes. This design provides a minimal and intuitive API surface while leveraging the power and reliability of SQLite.
 
-The vector store in BeaverDB is designed for high performance and reliability, using a hybrid faiss-based index that is both fast and persistent. Here's a look at the core ideas behind its implementation:
+The vector store in BeaverDB is designed for high performance and reliability, using a hybrid faiss-based index that is both fast and durable. Here's a look at the core ideas behind its implementation:
 
 - **Hybrid Index System**: The vector store uses a two-tiered system to balance fast writes with efficient long-term storage:
 - **Base Index**: A large, optimized faiss index that contains the majority of the vectors. This index is serialized and stored as a BLOB inside a dedicated SQLite table, ensuring it remains part of the single database file.
@@ -78,8 +76,8 @@ To include optional features, you can install them as extras:
 # For vector search capabilities
 pip install "beaver-db[vector]"
 
-# For the REST API server and CLI
-pip install "beaver-db[server,cli]"
+# For the REST API server
+pip install "beaver-db[server]"
 
 # To install all optional features at once
 pip install "beaver-db[full]"
@@ -93,7 +91,7 @@ For a fully embedded and lightweight solution, you can run the BeaverDB REST API
 docker run -p 8000:8000 -v $(pwd)/data:/app apiad/beaverdb
 ```
 
-This command will start the BeaverDB server, and your database file will be stored in the data directory on your host machine. You can access the API at [http://localhost:8000](http://localhost:8000").
+This command will start the BeaverDB server, and your database file will be stored in the data directory on your host machine. You can access the API at [http://localhost:8000](http://localhost:8000" "null").
 
 ## Quickstart
 
@@ -134,7 +132,7 @@ db.close()
 
 ## Built-in Server and CLI
 
-Beaver comes with a built-in REST API server and a full-featured command-line client, allowing you to interact with your database without writing any code.
+Beaver comes with a built-in REST API server and a powerful, full-featured command-line client, allowing you to interact with your database without writing any code.
 
 ### REST API Server
 
@@ -155,8 +153,8 @@ Here are a couple of examples using `curl`:
 
 ```bash
 # Set a value in the 'app_config' dictionary
-curl -X PUT [http://127.0.0.1:8000/dicts/app_config/api_key](http://127.0.0.1:8000/dicts/app_config/api_key)
-     -H "Content-Type: application/json"
+curl -X PUT [http://127.0.0.1:8000/dicts/app_config/api_key](http://127.0.0.1:8000/dicts/app_config/api_key) \
+     -H "Content-Type: application/json" \
      -d '"your-secret-api-key"'
 
 # Get the value back
@@ -164,19 +162,25 @@ curl [http://127.0.0.1:8000/dicts/app_config/api_key](http://127.0.0.1:8000/dict
 # Output: "your-secret-api-key"
 ```
 
-### Command-Line Client
+### Full-Featured CLI Client
 
-The CLI client allows you to call any BeaverDB method directly from your terminal.
+The CLI client allows you to call any BeaverDB method directly from your terminal. Built with `typer` and `rich`, it provides a user-friendly, task-oriented interface with beautiful output.
 
 ```bash
-# Set a value in a dictionary
-beaver client --database data.db dict app_config set theme light
+# Get a value from a dictionary
+beaver dict app_config get theme
 
-# Get the value back
-beaver client --database data.db dict app_config get theme
+# Set a value (JSON is automatically parsed)
+beaver dict app_config set user '{"name": "Alice", "id": 123}'
 
 # Push an item to a list
-beaver client --database data.db list daily_tasks push "Review PRs"
+beaver list daily_tasks push "Review PRs"
+
+# Watch a live, aggregated dashboard of a log
+beaver log system_metrics watch
+
+# Run a script protected by a distributed lock
+beaver lock my-cron-job run bash -c 'run_daily_report.sh'
 ```
 
 ## Data Export for Backups
@@ -214,6 +218,12 @@ with open("config_backup.json", "w") as f:
 
 # You can also get the dump as a Python object
 dump_data = config.dump()
+```
+
+You can also use the CLI to dump data:
+
+```bash
+beaver --database data.db collection my_documents dump > my_documents.json
 ```
 
 ## Things You Can Build with Beaver
@@ -427,30 +437,13 @@ In the same way you can have typed message payloads in `db.channel`, typed metad
 
 Basically everywhere you can store or get some object in BeaverDB, you can use a typed version adding `model=MyClass` to the corresponding wrapper methond in `BeaverDB` and enjoy first-class type safety and inference.
 
-## More Examples
+## Documentation
 
-For more in-depth examples, check out the scripts in the `examples/` directory:
+For a complete API reference, in-depth guides, and more examples, please visit the official documentation at:
 
-- [`async_pubsub.py`](examples/async_pubsub.py): A demonstration of the asynchronous wrapper for the publish/subscribe system.
-- [`blobs.py`](examples/blobs.py): Demonstrates how to store and retrieve binary data in the database.
-- [`cache.py`](examples/cache.py): A practical example of using a dictionary with TTL as a cache for API calls.
-- [`fts.py`](examples/fts.py): A detailed look at full-text search, including targeted searches on specific metadata fields.
-- [`fuzzy.py`](examples/fuzzy.py): Demonstrates fuzzy search capabilities for text search.
-- [`general_test.py`](examples/general_test.py): A general-purpose test to run all operations randomly which allows testing long-running processes and synchronicity issues.
-- [`graph.py`](examples/graph.py): Shows how to create relationships between documents and perform multi-hop graph traversals.
-- [`kvstore.py`](examples/kvstore.py): A comprehensive demo of the namespaced dictionary feature.
-- [`list.py`](examples/list.py): Shows the full capabilities of the persistent list, including slicing and in-place updates.
-- [`locks.py`](examples/lock_test.py): Demonstrates how to use the inter-process lock to create critical sections.
-- [`logs.py`](examples/logs.py): A short example showing how to build a realtime dashboard with the logging feature.
-- [`pqueue.py`](examples/pqueue.py): A practical example of using the persistent priority queue for task management.
-- [`producer_consumer.py`](examples/producer_consumer.py): A demonstration of the distributed task queue system in a multi-process environment.
-- [`publisher.py`](examples/publisher.py) and [`subscriber.py`](examples/subscriber.py): A pair of examples demonstrating inter-process message passing with the publish/subscribe system.
-- [`pubsub.py`](examples/pubsub.py): A demonstration of the synchronous, thread-safe publish/subscribe system in a single process.
-- [`rerank.py`](examples/rerank.py): Shows how to combine results from vector and text search for more refined results.
-- [`stress_vectors.py`](examples/stress_vectors.py): A stress test for the vector search functionality.
-- [`textual_chat.py`](examples/textual_chat.py): A chat application built with `textual` and `beaver` to illustrate the use of several primitives (lists, dicts, and channels) at the same time.
-- [`type_hints.py`](examples/type_hints.py): Shows how to use type hints with `beaver` to get better IDE support and type safety.
-- [`vector.py`](examples/vector.py): Demonstrates how to index and search vector embeddings, including upserts.
+[**https://syalia.com/beaver**](https://syalia.com/beaver)
+
+Also, check the [examples](./examples) folder for a comprehensive list of working examples using `beaver`.
 
 ## Roadmap
 
