@@ -456,15 +456,8 @@ For more in-depth examples, check out the scripts in the `examples/` directory:
 
 `beaver` is roughly feature-complete, but there are still some features and improvements planned for future releases, mostly directed to improving developer experience.
 
-These are some of the features and improvements planned for future releases:
-
-- **[Issue #2](https://github.com/syalia-srl/beaver/issues/2) Comprehensive async wrappers**: Extend the async support with on-demand wrappers for all data structures, not just channels.
-- **[Issue #6](https://github.com/syalia-srl/beaver/issues/6) Drop-in replacement for Beaver REST server client**: Implement a `BeaverClient` class that acts as a drop-in replacement for `BeaverDB` but works against the REST API server.
-- **[Issue #7](https://github.com/syalia-srl/beaver/issues/7) Replace `faiss` with simpler, linear `numpy` vectorial search**: Investigate removing the heavy `faiss` dependency in favor of a pure `numpy` implementation to improve installation simplicity, accepting a trade-off in search performance for O(1) installation.
-- **[Issue #9](https://github.com/syalia-srl/beaver/issues/9) Type-safe wrappers based on Pydantic-compatible models**: Enhance the built-in `Model` to handle recursive and embedded types and provide Pydantic compatibility.
-
-
 If you think of something that would make `beaver` more useful for your use case, please open an issue and/or submit a pull request.
+
 ## License
 
 This project is licensed under the MIT License.
