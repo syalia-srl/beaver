@@ -88,10 +88,11 @@ pip install "beaver-db[full]"
 For a fully embedded and lightweight solution, you can run the BeaverDB REST API server using Docker. This is the easiest way to get a self-hosted instance up and running.
 
 ```bash
-docker run -p 8000:8000 -v $(pwd)/data:/app apiad/beaverdb
+docker pull ghcr.io/syalia-srl/beaver:latest
+docker run -p 8000:8000 -v $(pwd)/data:/app ghcr.io/syalia-srl/beaver
 ```
 
-This command will start the BeaverDB server, and your database file will be stored in the data directory on your host machine. You can access the API at [http://localhost:8000](http://localhost:8000" "null").
+This command will start the BeaverDB server, and your database file will be stored in the data directory on your host machine. You can access the API at [http://localhost:8000](http://localhost:8000).
 
 ## Quickstart
 
