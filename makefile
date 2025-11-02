@@ -1,11 +1,4 @@
-.PHONY: publish
-publish: clean build
-	uv publish --token `dotenv -f .env get PYPI_TOKEN`
-
-.PHONY: build
-build:
-	uv build
-	uv pip install -e .[full]
+default: release
 
 .PHONY: clean
 clean:
@@ -13,14 +6,6 @@ clean:
 	rm -rf beaver_db.egg-info
 	find . -name '*.pyc' -exec rm -f {} +
 	find . -name '__pycache__' -exec rm -rf {} +
-
-.PHONY: push-docker
-push-docker:
-	$(eval VERSION := $(shell beaver --version))
-	docker build --build-arg VERSION=$(VERSION) -t apiad/beaverdb:$(VERSION) .
-	docker tag apiad/beaverdb:$(VERSION) apiad/beaverdb:latest
-	docker push apiad/beaverdb:$(VERSION)
-	docker push apiad/beaverdb:latest
 
 .PHONY: issues
 issues:
@@ -35,7 +20,7 @@ CURRENT_VERSION := $(shell grep 'version = ' pyproject.toml | cut -d '"' -f 2)
 release:
 	@if [ -z "$(NEW_VERSION)" ]; then \
 		echo "ERROR: NEW_VERSION environment variable is not set."; \
-		echo "Usage: NEW_VERSION=0.23.0 make release"; \
+		echo "Usage: NEW_VERSION=x.y.z make release"; \
 		exit 1; \
 	fi
 	@echo "Bumping version from $(CURRENT_VERSION) to $(NEW_VERSION)..."
