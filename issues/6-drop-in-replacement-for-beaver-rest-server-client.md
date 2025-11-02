@@ -83,7 +83,7 @@ This is the most complex part of the implementation.
 
   * **`RemoteLogManager.live()`:** This will return a `RemoteLiveIterator` that performs the same function as above, connecting to the `ws://.../logs/{name}/live` endpoint.
 
-  * **Async Client (`AsyncBeaverClient`):** The `as_async()` method will be implemented to return an `AsyncBeaverClient` that uses `httpx.AsyncClient` and async-native `websockets` calls, fulfilling the stubs in `beaver/client.py` and the plan in **Issue \#2**.
+  * **Async Client (`AsyncBeaverClient`):** The `as_async()` method will be implemented to return an `AsyncBeaverClient` that uses `httpx.AsyncClient` and async-native `websockets` calls, fulfilling the stubs in `beaver/client.py` and the plan in **Issue #2**.
 
 ### 4. High-Level Roadmap
 
@@ -109,7 +109,7 @@ This is the most complex part of the implementation.
 5.  **Phase 5: Implement `AsyncBeaverClient`**
 
       * Implement the `AsyncBeaverClient` class using `httpx.AsyncClient`.
-      * Create async-native versions of all `Remote...Manager` classes that are returned by the `AsyncBeaverClient`. This fulfills a large part of **Issue \#2**.
+      * Create async-native versions of all `Remote...Manager` classes that are returned by the `AsyncBeaverClient`. This fulfills a large part of **Issue #2**.
 
 6.  **Phase 6: Documentation**
 
