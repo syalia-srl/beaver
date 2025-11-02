@@ -46,6 +46,7 @@
 - **Built-in REST API Server (Optional)**: Instantly serve your database over a RESTful API with automatic OpenAPI documentation using FastAPI.
 - **Full-Featured CLI Client (Optional)**: Interact with your database directly from the command line for administrative tasks and data exploration.
 - **Optional Type-Safety:** Although the database is schemaless, you can use a minimalistic typing system for automatic serialization and deserialization that is Pydantic-compatible out of the box.
+- **Data Export & Backups:** Dump any dictionary, list, collection, queue, blob, or log structure to a portable JSON file with a single `.dump()` command.
 
 ## How Beaver is Implemented
 
@@ -176,6 +177,43 @@ beaver client --database data.db dict app_config get theme
 
 # Push an item to a list
 beaver client --database data.db list daily_tasks push "Review PRs"
+```
+
+## Data Export for Backups
+
+All data structures (`dict`, `list`, `collection`, `queue`, `log`, and `blobs`) support a `.dump()` method for easy backups and migration. You can either write the data directly to a JSON file or get it as a Python dictionary.
+
+```python
+import json
+from beaver import BeaverDB
+
+db = BeaverDB("my_app.db")
+config = db.dict("app_config")
+
+# Add some data
+config["theme"] = "dark"
+config["user_id"] = 456
+
+# Dump the dictionary's contents to a JSON file
+with open("config_backup.json", "w") as f:
+    config.dump(f)
+
+# 'config_backup.json' now contains:
+# {
+#   "metadata": {
+#     "type": "Dict",
+#     "name": "app_config",
+#     "count": 2,
+#     "dump_date": "2025-11-02T09:05:10.123456Z"
+#   },
+#   "items": [
+#     {"key": "theme", "value": "dark"},
+#     {"key": "user_id", "value": 456}
+#   ]
+# }
+
+# You can also get the dump as a Python object
+dump_data = config.dump()
 ```
 
 ## Things You Can Build with Beaver
