@@ -1,7 +1,7 @@
 ---
 number: 9
 title: "Type-safe wrappers based on Pydantic-compatible models"
-state: open
+state: closed
 labels:
 ---
 
