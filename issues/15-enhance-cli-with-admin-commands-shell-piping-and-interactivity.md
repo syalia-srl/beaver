@@ -1,6 +1,9 @@
 ---
 number: 15
-title: Enhance CLI with admin commands, shell piping, and interactivity
+title: "Enhance CLI with admin commands, shell piping, and interactivity"
+state: open
+labels:
+- enhancement
 ---
 
 ### 1. Justification

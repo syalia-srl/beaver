@@ -1,6 +1,9 @@
 ---
 number: 17
-title: Replace atomic operations with custom beaver lock
+title: "Replace atomic operations with custom beaver lock"
+state: open
+labels:
+- bug
 ---
 
 ### 1. Feature Concept

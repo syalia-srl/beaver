@@ -3,6 +3,7 @@ number: 7
 title: "Replace `faiss` with simpler, linear `numpy` vectorial search"
 state: open
 labels:
+- enhancement
 ---
 
 ### 1. Concept

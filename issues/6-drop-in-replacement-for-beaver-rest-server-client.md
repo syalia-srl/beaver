@@ -3,6 +3,7 @@ number: 6
 title: "Drop-in replacement for Beaver REST server client"
 state: open
 labels:
+- enhancement
 ---
 
 ### 1. Concept

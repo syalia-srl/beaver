@@ -1,6 +1,10 @@
 ---
 number: 16
-title: Add `clear` method for all data structures
+title: "Add `clear` method for all data structures"
+state: open
+labels:
+- enhancement
+- good first issue
 ---
 
 ### 1. Feature Concept
