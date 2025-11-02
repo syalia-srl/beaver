@@ -235,6 +235,8 @@ class BeaverClient:
         self._channels: dict[str, RemoteChannelManager] = {}
         self._channels_lock = threading.Lock()
 
+        raise NotImplemented
+
     def close(self):
         """Closes the underlying HTTP client session."""
         self._client.close()
