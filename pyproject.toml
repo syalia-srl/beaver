@@ -1,6 +1,6 @@
 [project]
 name = "beaver-db"
-version = "0.20.2"
+version = "0.21.1"
 description = "Fast, embedded, and multi-modal DB based on SQLite for AI-powered applications."
 readme = "README.md"
 requires-python = ">=3.13"
@@ -10,6 +10,10 @@ classifiers = [
     "Operating System :: OS Independent",
     "Topic :: Database",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
+dependencies = [
+    "rich>=14.2.0",
+    "typer>=0.20.0",
 ]
 
 [project.scripts]
@@ -25,8 +29,7 @@ packages = ["beaver"]
 [project.optional-dependencies]
 vector = ["faiss-cpu>=1.12.0"]
 server = ["fastapi[standard]>=0.118.0"]
-cli = ["typer>=0.19.2", "fire[cli]>=0.7.1"]
-full = ["beaver-db[server]", "beaver-db[vector]", "beaver-db[cli]"]
+full = ["beaver-db[server]", "beaver-db[vector]"]
 
 [dependency-groups]
 dev = ["textual>=6.1.0"]
