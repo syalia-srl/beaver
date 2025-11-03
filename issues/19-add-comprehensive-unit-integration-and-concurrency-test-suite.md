@@ -66,9 +66,9 @@ Here is a checklist of test cases to be implemented.
     * [x] `test_queue_fifo`: `q.put(1, priority=1)`, `q.put(2, priority=1)`, assert `q.get().data == 1`, assert `q.get().data == 2`.
     * [x] `test_queue_get_nonblocking_empty`: Assert `q.get(block=False)` raises `IndexError`.
 * **`BlobManager`:**
-    * [ ] `test_blob_put_get_del`: `b.put("k", b"data")`, assert `b.get("k").data == b"data"`, `b.delete("k")`.
-    * [ ] `test_blob_metadata`: `b.put("k", b"d", metadata={"m": 1})`, assert `b.get("k").metadata == {"m": 1}`.
-    * [ ] `test_blob_contains`: `b.put("k", b"d")`, assert `"k" in b`.
+    * [x] `test_blob_put_get_del`: `b.put("k", b"data")`, assert `b.get("k").data == b"data"`, `b.delete("k")`.
+    * [x] `test_blob_metadata`: `b.put("k", b"d", metadata={"m": 1})`, assert `b.get("k").metadata == {"m": 1}`.
+    * [x] `test_blob_contains`: `b.put("k", b"d")`, assert `"k" in b`.
 * **`CollectionManager (Core)`:**
     * [ ] `test_collection_index_upsert`: `c.index(doc1)`, `c.index(doc1_updated)`, assert `len(c) == 1`.
     * [ ] `test_collection_drop`: `c.index(doc1)`, `c.drop(doc1)`, assert `len(c) == 0`.
