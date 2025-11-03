@@ -1,0 +1,33 @@
+name: Run Tests
+
+# Trigger the workflow on push and pull request events
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          # Use the python version from your .python-version file
+          python-version: "3.13"
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Install dependencies
+        run: |
+          # Install the project in editable mode with all dev dependencies
+          uv pip install -e .[dev]
+
+      - name: Run tests
+        run: |
+          # Run the test suite
+          pytest
