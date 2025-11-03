@@ -32,4 +32,9 @@ remote = ["fastapi[standard]>=0.118.0"]
 full = ["beaver-db[remote]"]
 
 [dependency-groups]
-dev = ["textual>=6.1.0"]
+dev = [
+    "pytest>=8.4.2",
+    "pytest-asyncio>=1.2.0",
+    "pytest-cov>=7.0.0",
+    "textual>=6.1.0",
+]
