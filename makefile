@@ -11,7 +11,7 @@ test-all:
 clean:
 	rm -rf dist
 	rm -rf beaver_db.egg-info
-	rm -rf *.db
+	rm -rf *.db*
 	find . -name '*.pyc' -exec rm -f {} +
 	find . -name '__pycache__' -exec rm -rf {} +
 
