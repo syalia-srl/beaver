@@ -26,7 +26,6 @@ def stress_test():
     print(f"Vector dimension: {VECTOR_DIMENSION}")
     print("-" * 35)
 
-    # --- 2. Indexing Phase ---
     print("\n--- Phase 1: Indexing ---")
     start_time = time.time()
 
@@ -53,15 +52,7 @@ def stress_test():
     end_time = time.time()
     print(f"\nIndexing finished in {end_time - start_time:.2f} seconds.")
 
-    # --- 3. Final Compaction ---
-    print("\n--- Phase 2: Final Compaction ---")
-    print("Waiting for any background compaction to finish...")
-    # This ensures the on-disk index is fully consistent before we start searching.
-    collection.compact(block=True)
-    print("Compaction complete.")
-
-    # --- 4. Verification Phase ---
-    print("\n--- Phase 3: Search Verification ---")
+    print("\n--- Phase 2: Search Verification ---")
     print(f"Randomly selecting {SEARCH_SAMPLE_SIZE} vectors to search for...")
 
     sample_ids = random.sample(list(indexed_data.keys()), SEARCH_SAMPLE_SIZE)
@@ -87,7 +78,6 @@ def stress_test():
     search_end_time = time.time()
     print(f"\nSearch verification finished in {search_end_time - search_start_time:.2f} seconds.")
 
-    # --- 5. Final Report ---
     print("\n--- Test Summary ---")
     print(f"Total documents indexed: {NUM_VECTORS}")
     print(f"Searches performed: {SEARCH_SAMPLE_SIZE}")
@@ -96,7 +86,7 @@ def stress_test():
     success_rate = (success_count / SEARCH_SAMPLE_SIZE) * 100
     print(f"Success Rate: {success_rate:.1f}%")
 
-    if success_rate > 99:
+    if success_rate >= 100.0:
         print("\n✅ Test Passed")
     else:
         print("\n❌ Test Failed")
