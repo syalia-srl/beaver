@@ -11,6 +11,7 @@ clean:
 .PHONY: issues
 issues:
 	gh md-issues push
+	sleep 5
 	gh md-issues pull
 	git add issues && git commit -m "Sync issues"
 
