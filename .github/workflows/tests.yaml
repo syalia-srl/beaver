@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: |
           # Install the project in editable mode with all dev dependencies
-          uv --system pip install -e .[dev]
+          uv pip install --system -e .[dev]
 
       - name: Run tests with coverage
         run: |
