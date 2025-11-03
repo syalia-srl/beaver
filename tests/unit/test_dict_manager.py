@@ -75,13 +75,13 @@ def test_dict_ttl_expiry(db_memory: BeaverDB):
     cache = db_memory.dict("cache")
 
     # Set a key with a 1-second TTL
-    cache.set("short_lived", "data", ttl_seconds=1)
+    cache.set("short_lived", "data", ttl_seconds=0.01)
 
     # It should exist immediately
     assert cache.get("short_lived") == "data"
 
     # Wait for it to expire
-    time.sleep(1.1)
+    time.sleep(0.01)
 
     # .get() should now return None
     assert cache.get("short_lived") is None
