@@ -70,14 +70,14 @@ Here is a checklist of test cases to be implemented.
     * [x] `test_blob_metadata`: `b.put("k", b"d", metadata={"m": 1})`, assert `b.get("k").metadata == {"m": 1}`.
     * [x] `test_blob_contains`: `b.put("k", b"d")`, assert `"k" in b`.
 * **`CollectionManager (Core)`:**
-    * [ ] `test_collection_index_upsert`: `c.index(doc1)`, `c.index(doc1_updated)`, assert `len(c) == 1`.
-    * [ ] `test_collection_drop`: `c.index(doc1)`, `c.drop(doc1)`, assert `len(c) == 0`.
+    * [x] `test_collection_index_upsert`: `c.index(doc1)`, `c.index(doc1_updated)`, assert `len(c) == 1`.
+    * [x] `test_collection_drop`: `c.index(doc1)`, `c.drop(doc1)`, assert `len(c) == 0`.
 * **`CollectionManager (Search/Graph)`:**
-    * [ ] `test_fts_match`: Test `c.match("query")` returns correct doc.
-    * [ ] `test_fts_match_on_field`: Test `c.match("query", on=["field.path"])`.
-    * [ ] `test_fuzzy_match`: Test `c.match("qury", fuzziness=1)` returns doc.
-    * [ ] `test_graph_connect_neighbors`: `c.connect(d1, d2, "L")`, assert `d2 in c.neighbors(d1, "L")`.
-    * [ ] `test_graph_walk`: Test `c.walk(d1, ["L"], depth=2)` returns correct multi-hop neighbors.
+    * [x] `test_fts_match`: Test `c.match("query")` returns correct doc.
+    * [x] `test_fts_match_on_field`: Test `c.match("query", on=["field.path"])`.
+    * [x] `test_fuzzy_match`: Test `c.match("qury", fuzziness=1)` returns doc.
+    * [x] `test_graph_connect_neighbors`: `c.connect(d1, d2, "L")`, assert `d2 in c.neighbors(d1, "L")`.
+    * [x] `test_graph_walk`: Test `c.walk(d1, ["L"], depth=2)` returns correct multi-hop neighbors.
 
 #### Phase 2: Integration Tests (Multi-Step & Async)
 
