@@ -1,7 +1,10 @@
-default: test
+default: test-unit
 
-.PHONY: test
-test:
+.PHONY: test-unit test-all
+test-unit:
+	pytest -m "unit" --cov=beaver
+
+test-all:
 	pytest --cov=beaver
 
 .PHONY: clean
