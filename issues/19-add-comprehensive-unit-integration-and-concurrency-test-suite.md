@@ -69,31 +69,54 @@ Here is a checklist of test cases to be implemented.
     * [x] `test_blob_put_get_del`: `b.put("k", b"data")`, assert `b.get("k").data == b"data"`, `b.delete("k")`.
     * [x] `test_blob_metadata`: `b.put("k", b"d", metadata={"m": 1})`, assert `b.get("k").metadata == {"m": 1}`.
     * [x] `test_blob_contains`: `b.put("k", b"d")`, assert `"k" in b`.
+* **`LogManager`:**
+    * [ ] `test_log_log`: `logs.log(data)`, check `logs.range(...)` finds it.
+    * [ ] `test_log_range`: `logs.log(...)` multiple, check `logs.range(start, end)` returns correct subset.
+    * [ ] `test_log_model`: Test with `model=...` works.
+    * [ ] `test_log_dump`: Test `.dump()` method.
+* **`ChannelManager`:**
+    * [ ] `test_channel_publish`: `c.publish(data)`, check `beaver_pubsub_log` table.
+    * [ ] `test_channel_model`: Test with `model=...` works (serialization).
+    * [ ] `test_channel_prune`: `c.publish(...)`, `c.prune()`, check log is empty.
 * **`CollectionManager (Core)`:**
     * [x] `test_collection_index_upsert`: `c.index(doc1)`, `c.index(doc1_updated)`, assert `len(c) == 1`.
     * [x] `test_collection_drop`: `c.index(doc1)`, `c.drop(doc1)`, assert `len(c) == 0`.
 * **`CollectionManager (Search/Graph)`:**
+    * [x] `test_vector_search`: `c.index(vec_doc)`, `c.search(...)` returns correct doc.
     * [x] `test_fts_match`: Test `c.match("query")` returns correct doc.
     * [x] `test_fts_match_on_field`: Test `c.match("query", on=["field.path"])`.
     * [x] `test_fuzzy_match`: Test `c.match("qury", fuzziness=1)` returns doc.
     * [x] `test_graph_connect_neighbors`: `c.connect(d1, d2, "L")`, assert `d2 in c.neighbors(d1, "L")`.
     * [x] `test_graph_walk`: Test `c.walk(d1, ["L"], depth=2)` returns correct multi-hop neighbors.
+* **`VectorIndex (NumpyVectorIndex)`:**
+    * [ ] `test_vector_index_add`: `v.index(vec1, "id1")`, assert `v.delta_size == 1`.
+    * [ ] `test_vector_drop`: `v.drop("id1")`, assert `"id1" in v._deleted_ids`.
+    * [ ] `test_vector_search_correctness`: `v.index(vec1, "id1")`, `v.index(vec2, "id2")`, assert `v.search(vec1, 1)[0][0] == "id1"`.
 
 #### Phase 2: Integration Tests (Multi-Step & Async)
 
 * **Type Safety (`model=...`):**
-    * [ ] `test_model_serialization`: `db.dict("d", model=Person).set("k", Person(...))`, assert `isinstance(db.dict("d", model=Person).get("k"), Person)`.
-    * [ ] `test_model_in_all_managers`: Repeat for `list`, `queue`, `log`, `blob`, `channel`.
+    * [x] `test_model_serialization_dict`: `db.dict("d", model=Person).set("k", Person(...))`, assert `isinstance(db.dict("d", model=Person).get("k"), Person)`.
+    * [x] `test_model_serialization_list`: Repeat for `list`.
+    * [x] `test_model_serialization_queue`: Repeat for `queue`.
+    * [x] `test_model_serialization_blob`: Repeat for `blob`.
+    * [ ] `test_model_serialization_log`: Repeat for `log`.
+    * [ ] `test_model_serialization_channel`: Repeat for `channel`.
 * **Async Wrappers (`.as_async()`):**
     * [ ] `test_async_dict_get`: `await db.dict("d").as_async().set(...)`, `await db.dict("d").as_async().get(...)`.
     * [ ] `test_async_collection_search`: `await db.collection("c").as_async().index(...)`, `await db.collection("c").as_async().search(...)`.
 * **Real-time Features:**
     * [ ] `test_queue_blocking_get`: Start `q.get(block=True)` in a thread, `q.put()` in main thread, assert `get()` receives item.
-    * [ ] `test_queue_blocking_timeout`: Assert `q.get(block=True, timeout=0.1)` raises `TimeoutError`.
+    * [x] `test_queue_blocking_timeout`: Assert `q.get(block=True, timeout=0.1)` raises `TimeoutError`.
     * [ ] `test_channel_subscribe`: Start `listener.listen()` in a thread, `c.publish()` in main thread, assert listener receives message.
     * [ ] `test_log_live`: Start `log.live()` in a thread, `log.log()` in main thread, assert `live()` yields aggregated data.
 * **Data Export (`.dump()`):**
-    * [ ] `test_dump_format`: For every manager, call `.dump()`, assert the output JSON matches the documented structure (metadata, items).
+    * [x] `test_dump_dict`: For `DictManager`, call `.dump()`, assert the output JSON matches the documented structure.
+    * [x] `test_dump_list`: Repeat for `ListManager`.
+    * [x] `test_dump_queue`: Repeat for `QueueManager`.
+    * [x] `test_dump_blob`: Repeat for `BlobManager`.
+    * [ ] `test_dump_log`: Repeat for `LogManager`.
+    * [ ] `test_dump_collection`: Repeat for `CollectionManager`.
 * **`NumpyVectorIndex` (Compaction):**
     * [ ] `test_vector_compaction`: `c.index(doc1)`, `c.drop(doc2)`, `c.compact()`, assert `v._local_base_version` increments and `v.delta_size == 0`.
 
@@ -128,10 +151,3 @@ Here is a checklist of test cases to be implemented.
     * [ ] `test_cli_all_commands`: Use `CliRunner` to invoke every CLI command (e.g., `beaver dict my-dict get my-key`) and check `result.exit_code == 0`.
     * [ ] `test_cli_lock_run`: Test `beaver lock my-lock run echo "hello"` runs successfully.
     * [ ] `test_cli_interactive`: Test `beaver channel ... listen` and `beaver log ... watch` (will require mocking/patching the live loops).
-
-### 5. Acceptance Criteria
-
-* All test cases in the checklist are implemented.
-* A CI workflow (e.g., in `.github/workflows/`) is created to run the *entire* test suite (unit, integration, and concurrency) on every push and pull request.
-* Test coverage is measured and reported (e.g., via `pytest-cov`).
-* All tests pass reliably.
