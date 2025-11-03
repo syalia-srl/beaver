@@ -85,16 +85,16 @@ class DictManager[T]:
 
         return json.loads(value)
 
-    def set(self, key: str, value: T, ttl_seconds: int | None = None):
+    def set(self, key: str, value: T, ttl_seconds: float | None = None):
         """Sets a value for a key, with an optional TTL."""
         self.__setitem__(key, value, ttl_seconds=ttl_seconds)
 
-    def __setitem__(self, key: str, value: T, ttl_seconds: int | None = None):
+    def __setitem__(self, key: str, value: T, ttl_seconds: float | None = None):
         """Sets a value for a key (e.g., `my_dict[key] = value`)."""
         expires_at = None
         if ttl_seconds is not None:
-            if not isinstance(ttl_seconds, int) or ttl_seconds <= 0:
-                raise ValueError("ttl_seconds must be a positive integer.")
+            if not isinstance(ttl_seconds, (int, float)) or ttl_seconds <= 0:
+                raise ValueError("ttl_seconds must be a positive integer or float.")
             expires_at = time.time() + ttl_seconds
 
         with self._db.connection:
