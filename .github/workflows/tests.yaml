@@ -3,7 +3,9 @@ name: Run Tests
 # Trigger the workflow on push and pull request events
 on:
   push:
+    branches: [ main ]
   pull_request:
+    branches: [ main ]
 
 jobs:
   test:
@@ -27,7 +29,13 @@ jobs:
           # Install the project in editable mode with all dev dependencies
           uv pip install -e .[dev]
 
-      - name: Run tests
+      - name: Run tests with coverage
         run: |
-          # Run the test suite
-          pytest
+          # Run the test suite and generate coverage reports
+          pytest --cov=beaver --cov-report=xml --cov-report=term
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: true

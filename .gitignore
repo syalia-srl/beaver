@@ -11,3 +11,4 @@ wheels/
 *.db*
 .env
 .issues-sync-state
+.coverage
