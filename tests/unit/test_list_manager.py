@@ -1,6 +1,8 @@
 import pytest
 from beaver import BeaverDB, Model
 
+pytestmark = pytest.mark.unit
+
 # --- Test Model for Serialization ---
 class Person(Model):
     name: str

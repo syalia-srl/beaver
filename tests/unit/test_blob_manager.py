@@ -3,6 +3,8 @@ import base64
 from beaver import BeaverDB, Model
 from beaver.blobs import Blob
 
+pytestmark = pytest.mark.unit
+
 # --- Test Model for Serialization ---
 class FileMeta(Model):
     mimetype: str

@@ -1,6 +1,8 @@
 import pytest
 from beaver import BeaverDB, Document
 
+pytestmark = pytest.mark.unit
+
 # --- Test Data Fixtures ---
 
 # A set of documents with text metadata for FTS/fuzzy tests

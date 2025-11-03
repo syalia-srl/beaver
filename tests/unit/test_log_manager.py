@@ -3,6 +3,8 @@ import time
 from datetime import datetime, timedelta, timezone
 from beaver import BeaverDB, Model
 
+pytestmark = pytest.mark.unit
+
 # --- Test Model for Serialization ---
 class LogEntry(Model):
     level: str

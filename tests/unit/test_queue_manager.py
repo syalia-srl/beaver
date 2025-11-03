@@ -3,6 +3,8 @@ import time
 from beaver import BeaverDB, Model
 from beaver.queues import QueueItem
 
+pytestmark = pytest.mark.unit
+
 # --- Test Model for Serialization ---
 class Task(Model):
     action: str
