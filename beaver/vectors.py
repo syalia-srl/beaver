@@ -1,378 +1,372 @@
-import io
 import sqlite3
 import threading
-from typing import Dict, List, Set, Tuple
+import time
+import random
+from typing import List, Tuple, Set, Dict, Optional
 
 from .types import IDatabase
+from .locks import LockManager
 
-try:
-    import faiss
-    import numpy as np
+import numpy as np
 
-    HAVE_FAISS = True
-except ImportError:
-    raise ImportError("This feature requires to install beaver-db[vector]")
+# --- Constants for change log ---
+INSERT_OPERATION = 1
+DELETE_OPERATION = 2
 
 
-class VectorIndex:
+class NumpyVectorIndex:
     """
-    Manages a persistent, high-performance hybrid vector index for a single collection.
+    Manages a persistent, multi-process-safe vector index using numpy for
+    linear search.
 
-    This class handles the complexities of a two-tiered index system (a large, on-disk
-    base index and a small, in-memory delta index), crash-safe logging for additions
-    and deletions, and multi-process synchronization. The vector dimension is inferred
-    from the first vector indexed and then enforced. It also transparently maps
-    user-provided string IDs to the internal integer IDs required by Faiss.
+    This class uses a log-based delta-sync mechanism to keep multiple processes
+    up-to-date with minimal overhead, performing O(N) search and O(k) sync performance.
     """
 
     def __init__(self, collection_name: str, db: IDatabase):
         """
-        Initializes the VectorIndex for a specific collection.
+        Initializes the NumpyVectorIndex for a specific collection.
         """
         self._collection = collection_name
         self._db = db
+
         # A lock to ensure thread safety for in-memory operations and synchronization checks.
-        self._lock = threading.Lock()
-        # Tracks the overall version of the collection this instance is aware of.
-        self._local_version = -1
-        # Tracks the specific version of the on-disk base index this instance has loaded.
-        self._local_base_index_version = -1
+        self._thread_lock = threading.Lock()
 
-        # In-memory components
-        # The dimension of the vectors in this collection. Inferred from the first vector.
+        # --- In-Memory State ---
+        # The dimension of the vectors in this collection.
         self._dimension: int | None = None
-        # The large, persistent Faiss index loaded from the database BLOB.
-        self._base_index: faiss.Index | None = None
-        # The small, in-memory Faiss index for newly added vectors ("delta").
-        self._delta_index: faiss.IndexIDMap | None = None
-        # A set of integer IDs for vectors that have been deleted but not yet compacted.
-        self._deleted_int_ids: Set[int] = set()
 
-        # In-memory caches for the bidirectional mapping between user-facing string IDs
-        # and Faiss's internal integer IDs.
-        self._str_to_int_id: Dict[str, int] = {}
-        self._int_to_str_id: Dict[int, str] = {}
+        # Base Index (Compacted, O(N))
+        self._n_matrix: np.ndarray | None = None
+        self._n_ids: List[str] = []
+
+        # Delta Index (In-memory, O(k))
+        self._k_matrix: np.ndarray | None = None
+        self._k_ids: List[str] = []
+
+        # Tombstones for deleted IDs
+        self._deleted_ids: Set[str] = set()
+
+        # State tracking
+        self._local_base_version: int = -1
+        self._last_seen_log_id: int = -1
+        self._is_initialized: bool = False
+
+    @property
+    def base_size(self) -> int:
+        """Returns the number of vectors in the base (compacted) index."""
+        with self._thread_lock:
+            return len(self._n_ids)
+
+    @property
+    def delta_size(self) -> int:
+        """Returns the number of vectors in the delta (in-memory) index."""
+        with self._thread_lock:
+            return len(self._k_ids)
+
+    def index(self, vector: np.ndarray, item_id: str, cursor: sqlite3.Cursor):
+        """
+        Logs a vector insertion and updates the current process's in-memory
+        delta index immediately.
+
+        This must be called inside a transaction managed by CollectionManager.
+        """
+        # 1. Log the insertion to the database
+        cursor.execute(
+            "INSERT INTO _vector_change_log (collection_name, item_id, operation_type) VALUES (?, ?, ?)",
+            (self._collection, item_id, INSERT_OPERATION)
+        )
+        new_log_id = cursor.lastrowid
+
+        # 2. Call the fast-path helper to update this process's in-memory state
+        if new_log_id:
+            self._fast_path_insert(vector, item_id, new_log_id)
+
+    def drop(self, item_id: str, cursor: sqlite3.Cursor):
+        """
+        Logs a vector deletion and updates the current process's in-memory
+        tombstones immediately.
+
+        This must be called inside a transaction managed by CollectionManager.
+        """
+        # 1. Log the deletion to the database
+        cursor.execute(
+            "INSERT INTO _vector_change_log (collection_name, item_id, operation_type) VALUES (?, ?, ?)",
+            (self._collection, item_id, DELETE_OPERATION)
+        )
+        new_log_id = cursor.lastrowid
+
+        # 2. Call the fast-path helper to update this process's in-memory state
+        if new_log_id:
+            self._fast_path_delete(item_id, new_log_id)
 
     def _infer_and_validate_dimension(self, vector: np.ndarray):
         """
         Infers the vector dimension from the first operation and validates
-        subsequent vectors against it. This ensures data consistency.
+        subsequent vectors against it.
         """
-        # Get the last element of the shape tuple, which is the dimension.
         dim = vector.shape[-1]
-        with self._lock:
+        with self._thread_lock:
             if self._dimension is None:
-                # If this is the first vector we've seen, establish its dimension
-                # as the official dimension for this entire collection.
                 self._dimension = dim
             elif self._dimension != dim:
-                # If a dimension is already set, all subsequent vectors must match.
                 raise ValueError(
                     f"Vector dimension mismatch for collection '{self._collection}'. "
                     f"Expected {self._dimension}, but got {dim}."
                 )
 
-    def _get_or_create_int_id(self, str_id: str, cursor: sqlite3.Cursor) -> int:
-        """
-        Retrieves the integer ID for a string ID, creating it if it doesn't exist.
-        This must be called within a transaction to be atomic.
-        """
-        # First, check our fast in-memory cache.
-        if str_id in self._str_to_int_id:
-            return self._str_to_int_id[str_id]
-
-        # If not in cache, get it from the database, creating it if necessary.
-        # INSERT OR IGNORE is an atomic and safe way to create a new mapping only if it's missing.
+    def _get_db_versions(self, cursor: sqlite3.Cursor) -> Tuple[int, int]:
+        """Gets the current base_version and max_log_id from the database."""
         cursor.execute(
-            "INSERT OR IGNORE INTO _beaver_ann_id_mapping (collection_name, str_id) VALUES (?, ?)",
-            (self._collection, str_id)
-        )
-        # Retrieve the now-guaranteed-to-exist integer ID.
-        cursor.execute(
-            "SELECT int_id FROM _beaver_ann_id_mapping WHERE collection_name = ? AND str_id = ?",
-            (self._collection, str_id)
-        )
-        result = cursor.fetchone()
-        if not result:
-            # This case should be virtually impossible given the logic above.
-            raise RuntimeError(f"Failed to create or retrieve int_id for {str_id}")
-
-        int_id = result["int_id"]
-        # Update our in-memory caches for future calls.
-        self._str_to_int_id[str_id] = int_id
-        self._int_to_str_id[int_id] = str_id
-        return int_id
-
-    def _get_db_version(self) -> int:
-        """Gets the current overall version of the collection from the database."""
-        cursor = self._db.connection.cursor()
-        cursor.execute(
-            "SELECT version FROM beaver_collection_versions WHERE collection_name = ?",
+            "SELECT base_version FROM beaver_collection_versions WHERE collection_name = ?",
             (self._collection,),
         )
         result = cursor.fetchone()
-        return result[0] if result else 0
+        db_base_version = result[0] if result else 0
 
-    def _get_db_base_index_version(self) -> int:
-        """Gets the version of the persistent on-disk base index from the database."""
-        cursor = self._db.connection.cursor()
         cursor.execute(
-            "SELECT base_index_version FROM _beaver_ann_indexes WHERE collection_name = ?",
-            (self._collection,),
+            "SELECT MAX(log_id) FROM _vector_change_log WHERE collection_name = ?",
+            (self._collection,)
         )
         result = cursor.fetchone()
-        return result[0] if result else 0
+        db_max_log_id = result[0] if result and result[0] is not None else 0
+
+        return db_base_version, db_max_log_id
+
+    def _load_base_index(self, cursor: sqlite3.Cursor, db_base_version: int, db_max_log_id: int):
+        """
+        Loads all data from the main tables, rebuilding the in-memory index
+        from scratch. This is the "pay the cost" moment for startup and
+        post-compaction.
+        """
+        # Fetch all non-deleted vectors
+        cursor.execute(
+            """
+            SELECT c.item_id, c.item_vector
+            FROM beaver_collections c
+            LEFT JOIN _vector_change_log l ON c.collection = l.collection_name AND c.item_id = l.item_id AND l.operation_type = ?
+            WHERE c.collection = ? AND c.item_vector IS NOT NULL
+            GROUP BY c.item_id
+            HAVING MAX(CASE WHEN l.operation_type = ? THEN l.log_id ELSE 0 END) = 0
+            """,
+            (DELETE_OPERATION, self._collection, DELETE_OPERATION)
+        )
+
+        base_vectors = []
+        base_ids = []
+        for row in cursor.fetchall():
+            vector = np.frombuffer(row["item_vector"], dtype=np.float32)
+            self._infer_and_validate_dimension(vector)
+            base_vectors.append(vector)
+            base_ids.append(row["item_id"])
+
+        if base_vectors:
+            assert isinstance(self._dimension, int)
+            self._n_matrix = np.array(base_vectors).reshape(-1, self._dimension)
+            self._n_ids = base_ids
+        else:
+            self._n_matrix = None
+            self._n_ids = []
+
+        # Base index is now loaded, so delta index and tombstones are empty
+        self._k_matrix = None
+        self._k_ids = []
+        self._deleted_ids = set()
+
+        # Update state
+        self._local_base_version = db_base_version
+        self._last_seen_log_id = db_max_log_id
+        self._is_initialized = True
+
+    def _sync_deltas(self, cursor: sqlite3.Cursor, db_max_log_id: int):
+        """
+        Applies only the new changes from the log table since the last sync.
+        """
+        cursor.execute(
+            """
+            SELECT l.log_id, l.item_id, l.operation_type, c.item_vector
+            FROM _vector_change_log l
+            LEFT JOIN beaver_collections c ON l.collection_name = c.collection AND l.item_id = c.item_id
+            WHERE l.collection_name = ? AND l.log_id > ?
+            ORDER BY l.log_id ASC
+            """,
+            (self._collection, self._last_seen_log_id)
+        )
+
+        rows = cursor.fetchall()
+        if not rows:
+            return  # No changes
+
+        new_k_vectors = list(self._k_matrix) if self._k_matrix is not None else []
+        new_k_ids = list(self._k_ids)
+
+        for row in rows:
+            item_id = row["item_id"]
+            op_type = row["operation_type"]
+
+            if op_type == INSERT_OPERATION:
+                if row["item_vector"]:
+                    vector = np.frombuffer(row["item_vector"], dtype=np.float32)
+                    self._infer_and_validate_dimension(vector)
+                    new_k_vectors.append(vector)
+                    new_k_ids.append(item_id)
+                    self._deleted_ids.discard(item_id)  # Remove from tombstones if re-indexed
+
+            elif op_type == DELETE_OPERATION:
+                self._deleted_ids.add(item_id)
+                # Also remove from delta if it was just added
+                if item_id in new_k_ids:
+                    indices_to_remove = [i for i, id in enumerate(new_k_ids) if id == item_id]
+                    for i in sorted(indices_to_remove, reverse=True):
+                        del new_k_vectors[i]
+                        del new_k_ids[i]
+
+        if new_k_vectors:
+            assert isinstance(self._dimension, int)
+            self._k_matrix = np.array(new_k_vectors).reshape(-1, self._dimension)
+            self._k_ids = new_k_ids
+        else:
+            self._k_matrix = None
+            self._k_ids = []
+
+        self._last_seen_log_id = db_max_log_id
 
     def _check_and_sync(self):
         """
-        Checks if the in-memory state is stale compared to the database and performs
-        a fast, targeted sync if needed. This is the core of multi-process consistency.
+        Checks if the in-memory state is stale and performs a sync.
+        This is the core multi-process synchronization method.
         """
-        db_version = self._get_db_version()
-        if self._local_version < db_version:
-            # Acquire a lock to prevent race conditions from multiple threads in the same process.
-            with self._lock:
-                # Double-checked locking: re-check the condition inside the lock.
-                if self._local_version < db_version:
-                    db_base_version = self._get_db_base_index_version()
-                    # Always reload the ID mappings as they can change on any write.
-                    self._load_id_mappings()
-                    # Only perform the expensive reload of the base index if a compaction
-                    # has occurred in another process.
-                    if self._local_base_index_version < db_base_version or self._base_index is None:
-                        self._load_base_index()
-                    # Always sync the lightweight delta and deletion logs.
-                    self._sync_delta_index_and_deletions()
-                    # Update our local version to match the database, marking us as "up-to-date".
-                    self._local_version = db_version
-
-    def _load_id_mappings(self):
-        """Loads the complete str <-> int ID mapping from the DB into in-memory caches."""
+        # We use the thread-local connection for the *initial* check for speed.
         cursor = self._db.connection.cursor()
-        cursor.execute(
-            "SELECT str_id, int_id FROM _beaver_ann_id_mapping WHERE collection_name = ?",
-            (self._collection,)
-        )
-        # Fetch all mappings at once for efficiency.
-        all_mappings = cursor.fetchall()
-        self._str_to_int_id = {row["str_id"]: row["int_id"] for row in all_mappings}
-        self._int_to_str_id = {v: k for k, v in self._str_to_int_id.items()}
+        db_base_version, db_max_log_id = self._get_db_versions(cursor)
 
-    def _load_base_index(self):
-        """Loads and deserializes the persistent base index from the database BLOB."""
-        cursor = self._db.connection.cursor()
-        cursor.execute(
-            "SELECT index_data, base_index_version FROM _beaver_ann_indexes WHERE collection_name = ?",
-            (self._collection,),
-        )
-        result = cursor.fetchone()
-        if result and result["index_data"]:
-            # The index is stored as bytes; we use an in-memory buffer to read it.
-            buffer = io.BytesIO(result["index_data"])
-            # Use Faiss's IO reader to deserialize the index from the buffer.
-            reader = faiss.PyCallbackIOReader(buffer.read)
-            self._base_index = faiss.read_index(reader)
-            self._local_base_index_version = result["base_index_version"]
-            # If the dimension is unknown, we can infer it from the loaded index.
-            if self._dimension is None and self._base_index.ntotal > 0:
-                self._dimension = self._base_index.d
-        else:
-            # If no base index exists in the DB yet.
-            self._base_index = None
-            self._local_base_index_version = result["base_index_version"] if result else 0
+        # Fast path: If local state matches DB state, do nothing.
+        if self._is_initialized and self._local_base_version == db_base_version and self._last_seen_log_id == db_max_log_id:
+            return
 
-    def _sync_delta_index_and_deletions(self):
+        # Slow path: State is different.
+        # We must modify this instance's in-memory state.
+        if not self._is_initialized or self._local_base_version < db_base_version:
+            # Compaction happened or first-time load.
+            self._load_base_index(cursor, db_base_version, db_max_log_id)
+        elif self._last_seen_log_id < db_max_log_id:
+            # Delta-sync is needed.
+            self._sync_deltas(cursor, db_max_log_id)
+
+    def _fast_path_insert(self, vector: np.ndarray, item_id: str, new_log_id: int):
         """
-        "Catches up" to changes by rebuilding the in-memory delta index and
-        deletion set from the database logs.
+        Updates the *current process's* in-memory delta index immediately
+        after a write, avoiding a self-sync.
         """
-        cursor = self._db.connection.cursor()
-        # Sync the set of deleted integer IDs.
-        cursor.execute(
-            "SELECT int_id FROM _beaver_ann_deletions_log WHERE collection_name = ?",
-            (self._collection,)
-        )
-        self._deleted_int_ids = {row["int_id"] for row in cursor.fetchall()}
+        with self._thread_lock:
+            self._infer_and_validate_dimension(vector)
 
-        # Get all vectors that are in the pending log.
-        cursor.execute(
-            """
-            SELECT p.str_id, c.item_vector
-            FROM _beaver_ann_pending_log p
-            JOIN beaver_collections c ON p.str_id = c.item_id AND p.collection_name = c.collection
-            WHERE p.collection_name = ?
-            """,
-            (self._collection,)
-        )
-        pending_items = cursor.fetchall()
+            new_k_vectors = list(self._k_matrix) if self._k_matrix is not None else []
+            new_k_ids = list(self._k_ids)
 
-        if pending_items:
-            # Convert fetched data into numpy arrays.
-            vectors = np.array([np.frombuffer(row["item_vector"], dtype=np.float32) for row in pending_items])
-            if self._dimension is None:
-                self._dimension = vectors[0].shape[-1]
+            new_k_vectors.append(vector)
+            new_k_ids.append(item_id)
+            self._deleted_ids.discard(item_id) # Remove from tombstones
 
-            item_int_ids = np.array([self._str_to_int_id[row["str_id"]] for row in pending_items], dtype=np.int64)
+            assert isinstance(self._dimension, int)
+            self._k_matrix = np.array(new_k_vectors).reshape(-1, self._dimension)
+            self._k_ids = new_k_ids
+            self._last_seen_log_id = new_log_id
 
-            # Reshape and validate dimensions for consistency.
-            if vectors.ndim == 1:
-                vectors = vectors.reshape(-1, self._dimension)
-            if vectors.shape[1] != self._dimension:
-                raise ValueError(f"Inconsistent vector dimensions in pending log for '{self._collection}'.")
-
-            # Rebuild the delta index from scratch with all current pending items.
-            self._delta_index = faiss.IndexIDMap(faiss.IndexFlatL2(self._dimension))
-            self._delta_index.add_with_ids(vectors, item_int_ids)
-        else:
-            # If there are no pending items, there's no delta index.
-            self._delta_index = None
-
-    def index(self, item_id: str, vector: np.ndarray, cursor: sqlite3.Cursor):
+    def _fast_path_delete(self, item_id: str, new_log_id: int):
         """
-        Logs a vector for future persistence and adds it to the in-memory delta index.
-        This method must be called within a transaction managed by CollectionManager.
+        Updates the *current process's* in-memory tombstones immediately
+        after a delete, avoiding a self-sync.
         """
-        # Enforce dimension consistency for the incoming vector.
-        self._infer_and_validate_dimension(vector)
-        # Get or create the persistent integer ID for this string ID.
-        int_id = self._get_or_create_int_id(item_id, cursor)
+        with self._thread_lock:
+            self._deleted_ids.add(item_id)
 
-        # Add the string ID to the log for other processes to sync.
-        cursor.execute(
-            "INSERT OR IGNORE INTO _beaver_ann_pending_log (collection_name, str_id) VALUES (?, ?)",
-            (self._collection, item_id),
-        )
-        # Create the delta index if this is the first item added.
-        if self._delta_index is None:
-            self._delta_index = faiss.IndexIDMap(faiss.IndexFlatL2(self._dimension))
+            # Also remove from delta if it was just added
+            if self._k_matrix is not None and item_id in self._k_ids:
+                new_k_vectors = list(self._k_matrix)
+                new_k_ids = list(self._k_ids)
 
-        # Add the vector to the live in-memory delta index for immediate searchability.
-        vector_2d = vector.reshape(1, -1).astype(np.float32)
-        item_id_arr = np.array([int_id], dtype=np.int64)
-        self._delta_index.add_with_ids(vector_2d, item_id_arr)
+                indices_to_remove = [i for i, id in enumerate(new_k_ids) if id == item_id]
+                for i in sorted(indices_to_remove, reverse=True):
+                    del new_k_vectors[i]
+                    del new_k_ids[i]
 
-    def drop(self, item_id: str, cursor: sqlite3.Cursor):
-        """
-        Logs a document ID for deletion ("tombstone"). This must be called
-        within a transaction managed by CollectionManager.
-        """
-        # Get the corresponding integer ID from our in-memory cache.
-        int_id = self._str_to_int_id.get(item_id)
-        if int_id is not None:
-            # Add the integer ID to the deletion log.
-            cursor.execute(
-                "INSERT INTO _beaver_ann_deletions_log (collection_name, int_id) VALUES (?, ?)",
-                (self._collection, int_id),
-            )
-            # Also add to the live in-memory deletion set.
-            self._deleted_int_ids.add(int_id)
+                if new_k_vectors:
+                    assert isinstance(self._dimension, int)
+                    self._k_matrix = np.array(new_k_vectors).reshape(-1, self._dimension)
+                    self._k_ids = new_k_ids
+                else:
+                    self._k_matrix = None
+                    self._k_ids = []
+
+            self._last_seen_log_id = new_log_id
 
     def search(self, vector: np.ndarray, top_k: int) -> List[Tuple[str, float]]:
         """
-        Performs a hybrid search and returns results with original string IDs.
+        Performs a hybrid O(N+k) linear search in-memory.
+        Returns the top_k closest vectors by L2 distance.
         """
-        # Validate the query vector and ensure our in-memory state is up-to-date.
         self._infer_and_validate_dimension(vector)
-        self._check_and_sync()
+        self._check_and_sync() # Ensures in-memory state is up-to-date
 
-        query_vector = vector.reshape(1, -1).astype(np.float32)
-        all_distances: List[float] = []
-        all_ids: List[int] = []
+        with self._thread_lock:
+            all_distances: List[float] = []
+            all_ids: List[str] = []
 
-        # Search the large, persistent base index if it exists.
-        if self._base_index and self._base_index.ntotal > 0:
-            distances, int_ids = self._base_index.search(query_vector, top_k)
-            all_distances.extend(distances[0])
-            all_ids.extend(int_ids[0])
+            query_vector = vector.astype(np.float32)
 
-        # Search the small, in-memory delta index if it exists.
-        if self._delta_index and self._delta_index.ntotal > 0:
-            distances, int_ids = self._delta_index.search(query_vector, top_k)
-            all_distances.extend(distances[0])
-            all_ids.extend(int_ids[0])
+            # Search Base Index (O(N))
+            if self._n_matrix is not None:
+                # Calculate L2 distance (squared)
+                distances = np.sum((self._n_matrix - query_vector)**2, axis=1)
+                all_distances.extend(distances)
+                all_ids.extend(self._n_ids)
 
-        if not all_ids:
-            return []
+            # Search Delta Index (O(k))
+            if self._k_matrix is not None:
+                distances = np.sum((self._k_matrix - query_vector)**2, axis=1)
+                all_distances.extend(distances)
+                all_ids.extend(self._k_ids)
 
-        # Combine results from both indexes and sort by distance.
-        results = sorted(zip(all_distances, all_ids), key=lambda x: x[0])
+            if not all_ids:
+                return []
 
-        # Filter the results to remove duplicates and deleted items.
-        final_results: List[Tuple[str, float]] = []
-        seen_ids = set()
-        for dist, int_id in results:
-            # Faiss uses -1 for invalid IDs.
-            if int_id != -1 and int_id not in self._deleted_int_ids and int_id not in seen_ids:
-                # Map the internal integer ID back to the user's string ID.
-                str_id = self._int_to_str_id.get(int_id)
-                if str_id:
-                    final_results.append((str_id, dist))
-                    seen_ids.add(int_id)
-                    # Stop once we have enough results.
-                    if len(final_results) == top_k:
-                        break
+            # Combine, filter, and sort
+            results: Dict[str, float] = {}
+            for id_str, dist in zip(all_ids, all_distances):
+                if id_str not in self._deleted_ids:
+                    # Keep only the best score for each ID (in case of re-indexing)
+                    if id_str not in results or dist < results[id_str]:
+                        results[id_str] = float(dist)
 
-        return final_results
+            # Sort by distance (ascending)
+            sorted_results = sorted(results.items(), key=lambda item: item[1])
 
-    def compact(self):
+            # Return top_k
+            return sorted_results[:top_k]
+
+    def compact(self, cursor: sqlite3.Cursor):
         """
-        (Background Task) Rebuilds the base index from the main collection,
-        incorporating all pending additions and permanently applying deletions.
+        Rebuilds the base index from the main collection table.
+        This method is called by CollectionManager and must be wrapped in
+        its *own* inter-process lock.
         """
-        # If the dimension is unknown, try to learn it from the logs before proceeding.
-        if self._dimension is None:
-            self._check_and_sync()
-            if self._dimension is None: return # Nothing to compact.
+        # Re-fetch versions inside the lock
+        db_base_version, _ = self._get_db_versions(cursor)
 
-        # Step 1: Take a snapshot of the logs. This defines the scope of this compaction run.
-        cursor = self._db.connection.cursor()
-        cursor.execute("SELECT str_id FROM _beaver_ann_pending_log WHERE collection_name = ?", (self._collection,))
-        pending_str_ids = {row["str_id"] for row in cursor.fetchall()}
-        cursor.execute("SELECT int_id FROM _beaver_ann_deletions_log WHERE collection_name = ?", (self._collection,))
-        deleted_int_ids_snapshot = {row["int_id"] for row in cursor.fetchall()}
+        # Delete all entries from the change log
+        cursor.execute(
+            "DELETE FROM _vector_change_log WHERE collection_name = ?",
+            (self._collection,)
+        )
 
-        deleted_str_ids_snapshot = {self._int_to_str_id[int_id] for int_id in deleted_int_ids_snapshot if int_id in self._int_to_str_id}
+        # Increment the base version
+        new_base_version = db_base_version + 1
+        cursor.execute(
+            "INSERT INTO beaver_collection_versions (collection_name, base_version) VALUES (?, ?) ON CONFLICT(collection_name) DO UPDATE SET base_version = excluded.base_version",
+            (self._collection, new_base_version),
+        )
 
-        # Step 2: Fetch all vectors from the main table that haven't been marked for deletion.
-        # This is the long-running part that happens "offline" in a background thread.
-        if not deleted_str_ids_snapshot:
-            cursor.execute("SELECT item_id, item_vector FROM beaver_collections WHERE collection = ?", (self._collection,))
-        else:
-            cursor.execute(
-                f"SELECT item_id, item_vector FROM beaver_collections WHERE collection = ? AND item_id NOT IN ({','.join('?' for _ in deleted_str_ids_snapshot)})",
-                (self._collection, *deleted_str_ids_snapshot)
-            )
-
-        all_valid_vectors = cursor.fetchall()
-
-        # Step 3: Build the new, clean base index in memory.
-        if not all_valid_vectors:
-            new_index = None
-        else:
-            int_ids = np.array([self._str_to_int_id[row["item_id"]] for row in all_valid_vectors], dtype=np.int64)
-            vectors = np.array([np.frombuffer(row["item_vector"], dtype=np.float32) for row in all_valid_vectors])
-            new_index = faiss.IndexIDMap(faiss.IndexFlatL2(self._dimension))
-            new_index.add_with_ids(vectors, int_ids)
-
-        # Step 4: Serialize the newly built index to a byte buffer.
-        index_data = None
-        if new_index:
-            buffer = io.BytesIO()
-            writer = faiss.PyCallbackIOWriter(buffer.write)
-            faiss.write_index(new_index, writer)
-            index_data = buffer.getvalue()
-
-        # Step 5: Perform the atomic swap in the database. This is a fast, transactional write.
-        with self._db.connection:
-            # Increment the overall collection version to signal a change.
-            self._db.connection.execute("INSERT INTO beaver_collection_versions (collection_name, version) VALUES (?, 1) ON CONFLICT(collection_name) DO UPDATE SET version = version + 1", (self._collection,))
-            new_version = self._get_db_version()
-
-            # Update the on-disk base index and its version number.
-            self._db.connection.execute("INSERT INTO _beaver_ann_indexes (collection_name, index_data, base_index_version) VALUES (?, ?, ?) ON CONFLICT(collection_name) DO UPDATE SET index_data = excluded.index_data, base_index_version = excluded.base_index_version", (self._collection, index_data, new_version))
-
-            # Atomically clear the log entries that were included in this compaction run.
-            if pending_str_ids:
-                self._db.connection.execute(f"DELETE FROM _beaver_ann_pending_log WHERE collection_name = ? AND str_id IN ({','.join('?' for _ in pending_str_ids)})", (self._collection, *pending_str_ids))
-            if deleted_int_ids_snapshot:
-                self._db.connection.execute(f"DELETE FROM _beaver_ann_deletions_log WHERE collection_name = ? AND int_id IN ({','.join('?' for _ in deleted_int_ids_snapshot)})", (self._collection, *deleted_int_ids_snapshot))
+        # Force this process to do a full reload on next search
+        self._is_initialized = False

@@ -85,10 +85,6 @@ class BeaverDB:
     def _create_all_tables(self):
         """Initializes all required tables in the database file."""
         with self.connection:
-            self._create_ann_deletions_log_table()
-            self._create_ann_id_mapping_table()
-            self._create_ann_indexes_table()
-            self._create_ann_pending_log_table()
             self._create_blobs_table()
             self._create_collections_table()
             self._create_dict_table()
@@ -101,6 +97,27 @@ class BeaverDB:
             self._create_trigrams_table()
             self._create_versions_table()
             self._create_locks_table()
+            self._create_vector_change_log_table()
+
+    def _create_vector_change_log_table(self):
+        """Creates the unified log for vector insertions and deletions."""
+        # operation_type: 1 = INSERT, 2 = DELETE
+        self.connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS _vector_change_log (
+                log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                collection_name TEXT NOT NULL,
+                item_id TEXT NOT NULL,
+                operation_type INTEGER NOT NULL
+            )
+            """
+        )
+        self.connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_vcl_lookup
+            ON _vector_change_log (collection_name, log_id)
+            """
+        )
 
     def _create_locks_table(self):  # <-- Add this new method
         """Creates the table for managing inter-process lock waiters."""
@@ -159,55 +176,6 @@ class BeaverDB:
                 data BLOB NOT NULL,
                 metadata TEXT,
                 PRIMARY KEY (store_name, key)
-            )
-            """
-        )
-
-    def _create_ann_indexes_table(self):
-        """Creates the table to store the serialized base ANN index."""
-        self.connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS beaver_ann_indexes (
-                collection_name TEXT PRIMARY KEY,
-                index_data BLOB,
-                base_index_version INTEGER NOT NULL DEFAULT 0
-            )
-            """
-        )
-
-    def _create_ann_pending_log_table(self):
-        """Creates the log for new vector additions."""
-        self.connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS beaver_ann_pending_log (
-                collection_name TEXT NOT NULL,
-                str_id TEXT NOT NULL,
-                PRIMARY KEY (collection_name, str_id)
-            )
-            """
-        )
-
-    def _create_ann_deletions_log_table(self):
-        """Creates the log for vector deletions (tombstones)."""
-        self.connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS beaver_ann_deletions_log (
-                collection_name TEXT NOT NULL,
-                int_id INTEGER NOT NULL,
-                PRIMARY KEY (collection_name, int_id)
-            )
-            """
-        )
-
-    def _create_ann_id_mapping_table(self):
-        """Creates the table to map string IDs to integer IDs for Faiss."""
-        self.connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS beaver_ann_id_mapping (
-                collection_name TEXT NOT NULL,
-                str_id TEXT NOT NULL,
-                int_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                UNIQUE(collection_name, str_id)
             )
             """
         )
@@ -345,7 +313,7 @@ class BeaverDB:
             """
             CREATE TABLE IF NOT EXISTS beaver_collection_versions (
                 collection_name TEXT PRIMARY KEY,
-                version INTEGER NOT NULL DEFAULT 0
+                base_version INTEGER NOT NULL DEFAULT 0
             )
         """
         )

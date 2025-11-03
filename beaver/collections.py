@@ -1,19 +1,14 @@
 from datetime import datetime, timezone
 import json
-import sqlite3
 import threading
 import uuid
 from enum import Enum
 from typing import IO, Any, Iterator, List, Literal, Tuple, Type, TypeVar, Optional
-from .types import Model, stub, IDatabase
+from .types import Model, IDatabase
 from .locks import LockManager
+from .vectors import NumpyVectorIndex as VectorIndex
 
-try:
-    import numpy as np
-    from .vectors import VectorIndex
-except ImportError:
-    np = stub("This feature requires to install beaver-db[vector]")()
-    VectorIndex = stub("This feature requires to install beaver-db[vector]")
+import numpy as np
 
 # --- Fuzzy Search Helper Functions ---
 
@@ -117,7 +112,7 @@ class Document(Model):
         return f"Document({metadata_str})"
 
     def model_dump_json(self, metadata_only=False) -> str:
-        metadata = self.to_dict(m)
+        metadata = self.to_dict(metadata_only=metadata_only)
         return json.dumps(metadata)
 
 
@@ -131,14 +126,13 @@ class CollectionManager[D: Document]:
         self._name = name
         self._db = db
         self._model = model or Document
+
         # All vector-related operations are now delegated to the VectorIndex class.
         self._vector_index = VectorIndex(name, db)
-        # A lock to ensure only one compaction thread runs at a time for this collection.
-        self._compaction_lock = threading.Lock()
-        self._compaction_thread: threading.Thread | None = None
 
-        lock_name = f"__lock__collection__{name}"
-        self._lock = LockManager(db, lock_name)
+        self._lock = LockManager(db, f"__lock__collection__{name}")
+        self._internal_lock = LockManager(db, f"__lock__internal__collection__{name}")
+        self._compact_lock = LockManager(db, f"__lock__internal__collection__{name}__compact", timeout=0)
 
     def _flatten_metadata(self, metadata: dict, prefix: str = "") -> dict[str, Any]:
         """Flattens a nested dictionary for indexing."""
@@ -151,58 +145,24 @@ class CollectionManager[D: Document]:
                 flat_dict[new_key] = value
         return flat_dict
 
-    def _needs_compaction(self, threshold: int = 1000) -> bool:
-        """Checks if the total number of pending vector operations exceeds the threshold."""
-        cursor = self._db.connection.cursor()
-        cursor.execute(
-            "SELECT COUNT(*) FROM _beaver_ann_pending_log WHERE collection_name = ?",
-            (self._name,),
-        )
-        pending_count = cursor.fetchone()[0]
-        cursor.execute(
-            "SELECT COUNT(*) FROM _beaver_ann_deletions_log WHERE collection_name = ?",
-            (self._name,),
-        )
-        deletion_count = cursor.fetchone()[0]
-        return (pending_count + deletion_count) >= threshold
+    def _needs_compactation(self):
+        return self._vector_index.delta_size > 100
 
-    def _run_compaction_and_release_lock(self):
+    def compact(self):
         """
-        A target function for the background thread that runs the compaction
-        and ensures the lock is always released, even if errors occur.
-        """
-        try:
-            self._vector_index.compact()
-        finally:
-            self._compaction_lock.release()
-
-    def compact(self, block: bool = False):
-        """
-        Triggers a non-blocking background compaction of the vector index.
+        Triggers a compaction of the vector index for all processes.
 
         If a compaction is already running for this collection, this method returns
         immediately without starting a new one.
-
-        Args:
-            block: If True, this method will wait for the compaction to complete
-                   before returning. Defaults to False (non-blocking).
         """
-        # Use a non-blocking lock acquire to check if a compaction is already running.
-        if self._compaction_lock.acquire(blocking=False):
-            try:
-                # If we get the lock, start a new background thread.
-                self._compaction_thread = threading.Thread(
-                    target=self._run_compaction_and_release_lock,
-                    daemon=True,  # Daemon threads don't block program exit.
-                )
-                self._compaction_thread.start()
-                if block:
-                    self._compaction_thread.join()
-            except Exception:
-                # If something goes wrong during thread creation, release the lock.
-                self._compaction_lock.release()
-                raise
-        # If acquire fails, it means another thread holds the lock, so we do nothing.
+        with self._internal_lock:
+            # Attempt to acquire compact lock, if this fails, someone is compacting
+            if self._compact_lock.acquire():
+                # Do compact
+                cursor = self._db.connection.cursor()
+                self._vector_index.compact(cursor)
+                # And release the lock
+                self._compact_lock.release()
 
     def index(self, document: D, *, fts: bool | list[str] = True, fuzzy: bool = False):
         """
@@ -212,113 +172,116 @@ class CollectionManager[D: Document]:
         if not isinstance(document, Document):
             raise TypeError("Item to index must be a Document object.")
 
-        with self._db.connection:
-            cursor = self._db.connection.cursor()
+        with self._internal_lock:
+            with self._db.connection:
+                cursor = self._db.connection.cursor()
 
-            # Step 1: Core Document and Vector Storage
-            cursor.execute(
-                "INSERT OR REPLACE INTO beaver_collections (collection, item_id, item_vector, metadata) VALUES (?, ?, ?, ?)",
-                (
-                    self._name,
-                    document.id,
+                # Step 1: Core Document and Vector Storage
+                cursor.execute(
+                    "INSERT OR REPLACE INTO beaver_collections (collection, item_id, item_vector, metadata) VALUES (?, ?, ?, ?)",
                     (
-                        document.embedding.tobytes()
-                        if document.embedding is not None
-                        else None
+                        self._name,
+                        document.id,
+                        (
+                            document.embedding.tobytes()
+                            if document.embedding is not None
+                            else None
+                        ),
+                        json.dumps(document.to_dict()),
                     ),
-                    json.dumps(document.to_dict()),
-                ),
-            )
-
-            # Step 2: Delegate to the VectorIndex if an embedding exists.
-            if document.embedding is not None:
-                self._vector_index.index(document.id, document.embedding, cursor)
-
-            # Step 3: FTS and Fuzzy Indexing
-            cursor.execute(
-                "DELETE FROM beaver_fts_index WHERE collection = ? AND item_id = ?",
-                (self._name, document.id),
-            )
-            cursor.execute(
-                "DELETE FROM beaver_trigrams WHERE collection = ? AND item_id = ?",
-                (self._name, document.id),
-            )
-
-            flat_metadata = self._flatten_metadata(document.to_dict())
-            fields_to_index: dict[str, str] = {}
-            if isinstance(fts, list):
-                fields_to_index = {
-                    k: v
-                    for k, v in flat_metadata.items()
-                    if k in fts and isinstance(v, str)
-                }
-            elif fts:
-                fields_to_index = {
-                    k: v for k, v in flat_metadata.items() if isinstance(v, str)
-                }
-
-            if fields_to_index:
-                fts_data = [
-                    (self._name, document.id, path, content)
-                    for path, content in fields_to_index.items()
-                ]
-                cursor.executemany(
-                    "INSERT INTO beaver_fts_index (collection, item_id, field_path, field_content) VALUES (?, ?, ?, ?)",
-                    fts_data,
                 )
-                if fuzzy:
-                    trigram_data = []
-                    for path, content in fields_to_index.items():
-                        for trigram in _get_trigrams(content.lower()):
-                            trigram_data.append(
-                                (self._name, document.id, path, trigram)
-                            )
-                    if trigram_data:
-                        cursor.executemany(
-                            "INSERT INTO beaver_trigrams (collection, item_id, field_path, trigram) VALUES (?, ?, ?, ?)",
-                            trigram_data,
-                        )
 
-            # Step 4: Update Collection Version to signal a change.
-            cursor.execute(
-                "INSERT INTO beaver_collection_versions (collection_name, version) VALUES (?, 1) ON CONFLICT(collection_name) DO UPDATE SET version = version + 1",
-                (self._name,),
-            )
+                # Step 2: Delegate to the VectorIndex if an embedding exists.
+                if document.embedding is not None:
+                    self._vector_index.index(document.embedding, document.id, cursor)
+
+                # Step 3: FTS and Fuzzy Indexing
+                cursor.execute(
+                    "DELETE FROM beaver_fts_index WHERE collection = ? AND item_id = ?",
+                    (self._name, document.id),
+                )
+                cursor.execute(
+                    "DELETE FROM beaver_trigrams WHERE collection = ? AND item_id = ?",
+                    (self._name, document.id),
+                )
+
+                flat_metadata = self._flatten_metadata(document.to_dict())
+                fields_to_index: dict[str, str] = {}
+                if isinstance(fts, list):
+                    fields_to_index = {
+                        k: v
+                        for k, v in flat_metadata.items()
+                        if k in fts and isinstance(v, str)
+                    }
+                elif fts:
+                    fields_to_index = {
+                        k: v for k, v in flat_metadata.items() if isinstance(v, str)
+                    }
+
+                if fields_to_index:
+                    fts_data = [
+                        (self._name, document.id, path, content)
+                        for path, content in fields_to_index.items()
+                    ]
+                    cursor.executemany(
+                        "INSERT INTO beaver_fts_index (collection, item_id, field_path, field_content) VALUES (?, ?, ?, ?)",
+                        fts_data,
+                    )
+                    if fuzzy:
+                        trigram_data = []
+                        for path, content in fields_to_index.items():
+                            for trigram in _get_trigrams(content.lower()):
+                                trigram_data.append(
+                                    (self._name, document.id, path, trigram)
+                                )
+                        if trigram_data:
+                            cursor.executemany(
+                                "INSERT INTO beaver_trigrams (collection, item_id, field_path, trigram) VALUES (?, ?, ?, ?)",
+                                trigram_data,
+                            )
+
+                # Step 4: Update Collection Version to signal a change.
+                cursor.execute(
+                    "INSERT INTO beaver_collection_versions (collection_name, version) VALUES (?, 1) ON CONFLICT(collection_name) DO UPDATE SET version = version + 1",
+                    (self._name,),
+                )
 
         # After the transaction commits, check if auto-compaction is needed.
-        if self._needs_compaction():
+        if self._needs_compactation():
             self.compact()
 
     def drop(self, document: Document):
         """Removes a document and all its associated data from the collection."""
         if not isinstance(document, Document):
             raise TypeError("Item to drop must be a Document object.")
-        with self._db.connection:
-            cursor = self._db.connection.cursor()
-            cursor.execute(
-                "DELETE FROM beaver_collections WHERE collection = ? AND item_id = ?",
-                (self._name, document.id),
-            )
-            cursor.execute(
-                "DELETE FROM beaver_fts_index WHERE collection = ? AND item_id = ?",
-                (self._name, document.id),
-            )
-            cursor.execute(
-                "DELETE FROM beaver_trigrams WHERE collection = ? AND item_id = ?",
-                (self._name, document.id),
-            )
-            cursor.execute(
-                "DELETE FROM beaver_edges WHERE collection = ? AND (source_item_id = ? OR target_item_id = ?)",
-                (self._name, document.id, document.id),
-            )
-            self._vector_index.drop(document.id, cursor)
-            cursor.execute(
-                "INSERT INTO beaver_collection_versions (collection_name, version) VALUES (?, 1) ON CONFLICT(collection_name) DO UPDATE SET version = version + 1",
-                (self._name,),
-            )
+
+        with self._internal_lock:
+            with self._db.connection:
+                cursor = self._db.connection.cursor()
+                cursor.execute(
+                    "DELETE FROM beaver_collections WHERE collection = ? AND item_id = ?",
+                    (self._name, document.id),
+                )
+                cursor.execute(
+                    "DELETE FROM beaver_fts_index WHERE collection = ? AND item_id = ?",
+                    (self._name, document.id),
+                )
+                cursor.execute(
+                    "DELETE FROM beaver_trigrams WHERE collection = ? AND item_id = ?",
+                    (self._name, document.id),
+                )
+                cursor.execute(
+                    "DELETE FROM beaver_edges WHERE collection = ? AND (source_item_id = ? OR target_item_id = ?)",
+                    (self._name, document.id, document.id),
+                )
+                self._vector_index.drop(document.id, cursor)
+                cursor.execute(
+                    "INSERT INTO beaver_collection_versions (collection_name, version) VALUES (?, 1) ON CONFLICT(collection_name) DO UPDATE SET version = version + 1",
+                    (self._name,),
+                )
 
         # Check for auto-compaction after a drop as well.
-        if self._needs_compaction():
+        if self._needs_compactation():
             self.compact()
 
     def __iter__(self) -> Iterator[D]:
@@ -340,7 +303,7 @@ class CollectionManager[D: Document]:
         cursor.close()
 
     def search(self, vector: list[float], top_k: int = 10) -> List[Tuple[D, float]]:
-        """Performs a fast, persistent approximate nearest neighbor search."""
+        """Performs a fast, in-memory nearest neighbor search."""
         if not isinstance(vector, list):
             raise TypeError("Search vector must be a list of floats.")
 

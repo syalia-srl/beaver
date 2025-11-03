@@ -106,16 +106,13 @@ class LockManager:
                 timeout: float|None = None,
                 lock_ttl: float |None = None,
                 poll_interval: float |None = None,
-        ) -> "LockManager":
+        ) -> bool:
         """
         Blocks until the lock is acquired or the timeout expires.
-
-        Raises:
-            TimeoutError: If the lock cannot be acquired within the specified timeout.
         """
         if self._acquired:
             # This instance already holds the lock
-            return self
+            return True
 
         current_timeout = timeout if timeout is not None else self._timeout
         current_lock_ttl = lock_ttl if lock_ttl is not None else self._lock_ttl
@@ -165,16 +162,14 @@ class LockManager:
                     if result and result["waiter_id"] == self._waiter_id:
                         # We are at the front. We own the lock.
                         self._acquired = True
-                        return self
+                        return True
 
                 # 5. Check for timeout
                 if current_timeout is not None:
                     if (time.time() - start_time) > current_timeout:
                         # We timed out. Remove ourselves from the queue and raise.
                         self._release_from_queue()
-                        raise TimeoutError(
-                            f"Failed to acquire lock '{self._lock_name}' within {current_timeout}s."
-                        )
+                        return False
 
                 # 6. Wait politely before polling again
                 # Add +/- 10% jitter to the poll interval to avoid thundering herd
@@ -218,7 +213,10 @@ class LockManager:
 
     def __enter__(self) -> "LockManager":
         """Acquires the lock when entering a 'with' statement."""
-        return self.acquire()
+        if self.acquire():
+            return self
+
+        raise TimeoutError("Cannot acquire lock.")
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Releases the lock when exiting a 'with' statement."""
