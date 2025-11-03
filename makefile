@@ -20,6 +20,7 @@ CURRENT_VERSION := $(shell grep 'version = ' pyproject.toml | cut -d '"' -f 2)
 
 .PHONY: release
 release:
+	@echo "Current version: ${CURRENT_VERSION}"
 	@if [ -z "$(NEW_VERSION)" ]; then \
 		echo "ERROR: NEW_VERSION environment variable is not set."; \
 		echo "Usage: NEW_VERSION=x.y.z make release"; \
