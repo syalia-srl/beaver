@@ -10,9 +10,9 @@ class Person(Model):
 
 # --- Test Cases ---
 
-def test_dict_set_and_get(db: BeaverDB):
+def test_dict_set_and_get(db_memory: BeaverDB):
     """Tests basic __setitem__ and __getitem__."""
-    config = db.dict("config")
+    config = db_memory.dict("config")
 
     config["theme"] = "dark"
     config["user_id"] = 123
@@ -22,9 +22,9 @@ def test_dict_set_and_get(db: BeaverDB):
     assert config["user_id"] == 123
     assert config["features"] == {"beta": True, "new_nav": False}
 
-def test_dict_get_with_default(db: BeaverDB):
+def test_dict_get_with_default(db_memory: BeaverDB):
     """Tests the .get() method with a default value."""
-    config = db.dict("config")
+    config = db_memory.dict("config")
 
     config["existing_key"] = "hello"
 
@@ -32,9 +32,9 @@ def test_dict_get_with_default(db: BeaverDB):
     assert config.get("missing_key", "default") == "default"
     assert config.get("missing_key") is None
 
-def test_dict_delete_item(db: BeaverDB):
+def test_dict_delete_item(db_memory: BeaverDB):
     """Tests __delitem__ and that it raises KeyError."""
-    config = db.dict("config")
+    config = db_memory.dict("config")
 
     config["key_to_delete"] = "some_value"
     assert config.get("key_to_delete") == "some_value"
@@ -46,16 +46,16 @@ def test_dict_delete_item(db: BeaverDB):
     with pytest.raises(KeyError):
         del config["non_existent_key"]
 
-def test_dict_get_missing_key(db: BeaverDB):
+def test_dict_get_missing_key(db_memory: BeaverDB):
     """Tests that __getitem__ raises KeyError for missing keys."""
-    config = db.dict("config")
+    config = db_memory.dict("config")
 
     with pytest.raises(KeyError):
         _ = config["non_existent_key"]
 
-def test_dict_len(db: BeaverDB):
+def test_dict_len(db_memory: BeaverDB):
     """Tests the __len__ method."""
-    config = db.dict("config")
+    config = db_memory.dict("config")
     assert len(config) == 0
 
     config["key1"] = 1
@@ -70,9 +70,9 @@ def test_dict_len(db: BeaverDB):
     del config["key1"]
     assert len(config) == 1
 
-def test_dict_ttl_expiry(db: BeaverDB):
+def test_dict_ttl_expiry(db_memory: BeaverDB):
     """Tests that keys set with a TTL expire correctly."""
-    cache = db.dict("cache")
+    cache = db_memory.dict("cache")
 
     # Set a key with a 1-second TTL
     cache.set("short_lived", "data", ttl_seconds=1)
@@ -90,17 +90,17 @@ def test_dict_ttl_expiry(db: BeaverDB):
     with pytest.raises(KeyError):
         _ = cache["short_lived"]
 
-def test_dict_ttl_value_error(db: BeaverDB):
+def test_dict_ttl_value_error(db_memory: BeaverDB):
     """Tests that invalid TTL values raise an error."""
-    cache = db.dict("cache")
+    cache = db_memory.dict("cache")
     with pytest.raises(ValueError):
         cache.set("key", "value", ttl_seconds=0)
     with pytest.raises(ValueError):
         cache.set("key", "value", ttl_seconds=-10)
 
-def test_dict_iterators(db: BeaverDB):
+def test_dict_iterators(db_memory: BeaverDB):
     """Tests keys(), values(), and items() iterators."""
-    config = db.dict("config")
+    config = db_memory.dict("config")
 
     config["a"] = 1
     config["b"] = 2
@@ -124,9 +124,9 @@ def test_dict_iterators(db: BeaverDB):
     iter_keys = list(config)
     assert sorted(iter_keys) == sorted(["a", "b"])
 
-def test_dict_pop(db: BeaverDB):
+def test_dict_pop(db_memory: BeaverDB):
     """Tests the .pop() method."""
-    config = db.dict("config")
+    config = db_memory.dict("config")
 
     config["a"] = 1
 
@@ -140,18 +140,18 @@ def test_dict_pop(db: BeaverDB):
     # Test pop on missing key (no default)
     assert config.pop("c") is None
 
-def test_dict_contains(db: BeaverDB):
+def test_dict_contains(db_memory: BeaverDB):
     """Tests the __contains__ (in) operator."""
-    config = db.dict("config")
+    config = db_memory.dict("config")
 
     config["a"] = 1
 
     assert "a" in config
     assert "b" not in config
 
-def test_dict_with_model_serialization(db: BeaverDB):
+def test_dict_with_model_serialization(db_memory: BeaverDB):
     """Tests that the DictManager correctly serializes/deserializes models."""
-    users = db.dict("users", model=Person)
+    users = db_memory.dict("users", model=Person)
 
     alice = Person(name="Alice", age=30)
     users["alice"] = alice
@@ -163,9 +163,9 @@ def test_dict_with_model_serialization(db: BeaverDB):
     assert retrieved_user.name == "Alice"
     assert retrieved_user.age == 30
 
-def test_dict_dump(db: BeaverDB):
+def test_dict_dump(db_memory: BeaverDB):
     """Tests the .dump() method."""
-    config = db.dict("dump_test")
+    config = db_memory.dict("dump_test")
     config["key1"] = "value1"
     config["key2"] = {"nested": True}
 

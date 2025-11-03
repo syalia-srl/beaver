@@ -1,4 +1,8 @@
-default: release
+default: test
+
+.PHONY: test
+test:
+	pytest --cov=beaver
 
 .PHONY: clean
 clean:
