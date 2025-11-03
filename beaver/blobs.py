@@ -2,7 +2,7 @@ import base64
 from datetime import datetime, timezone
 import json
 import sqlite3
-from typing import IO, Any, Dict, Iterator, NamedTuple, Optional, Type, TypeVar
+from typing import IO, Any, Dict, Iterator, NamedTuple, Optional, Type, TypeVar, overload
 from .types import JsonSerializable, IDatabase
 from .locks import LockManager
 
@@ -207,6 +207,14 @@ class BlobManager[M]:
             "metadata": metadata,
             "items": items_list
         }
+
+    @overload
+    def dump(self) -> dict:
+        pass
+
+    @overload
+    def dump(self, fp: IO[str]) -> None:
+        pass
 
     def dump(self, fp: IO[str] | None = None) -> dict | None:
         """

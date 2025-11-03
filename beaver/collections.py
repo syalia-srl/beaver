@@ -3,7 +3,7 @@ import json
 import threading
 import uuid
 from enum import Enum
-from typing import IO, Any, Iterator, List, Literal, Tuple, Type, TypeVar, Optional
+from typing import IO, Any, Iterator, List, Literal, Tuple, Type, TypeVar, Optional, overload
 from .types import Model, IDatabase
 from .locks import LockManager
 from .vectors import NumpyVectorIndex as VectorIndex
@@ -652,6 +652,14 @@ class CollectionManager[D: Document]:
             "metadata": metadata,
             "items": items_list
         }
+
+    @overload
+    def dump(self) -> dict:
+        pass
+
+    @overload
+    def dump(self, fp: IO[str]) -> None:
+        pass
 
     def dump(self, fp: IO[str] | None = None) -> dict | None:
         """

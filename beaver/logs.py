@@ -6,7 +6,7 @@ import threading
 import time
 from datetime import datetime, timedelta, timezone
 from queue import Empty, Queue
-from typing import IO, Any, AsyncIterator, Callable, Iterator, Type, TypeVar
+from typing import IO, Any, AsyncIterator, Callable, Iterator, Type, TypeVar, overload
 
 from .types import JsonSerializable, IDatabase
 
@@ -315,6 +315,14 @@ class LogManager[T]:
         }
 
         return {"metadata": metadata, "items": items_list}
+
+    @overload
+    def dump(self) -> dict:
+        pass
+
+    @overload
+    def dump(self, fp: IO[str]) -> None:
+        pass
 
     def dump(self, fp: IO[str] | None = None) -> dict | None:
         """

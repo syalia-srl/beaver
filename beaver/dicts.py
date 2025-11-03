@@ -2,9 +2,10 @@ from datetime import datetime, timezone
 import json
 import sqlite3
 import time
-from typing import IO, Any, Iterator, Tuple, Type, Optional
+from typing import IO, Any, Iterator, Tuple, Type, Optional, overload
 from .types import JsonSerializable, IDatabase
 from .locks import LockManager
+
 
 class DictManager[T]:
     """A wrapper providing a Pythonic interface to a dictionary in the database."""
@@ -35,13 +36,18 @@ class DictManager[T]:
             "type": "Dict",
             "name": self._name,
             "count": len(items),
-            "dump_date": datetime.now(timezone.utc).isoformat()
+            "dump_date": datetime.now(timezone.utc).isoformat(),
         }
 
-        return {
-            "metadata": metadata,
-            "items": items
-        }
+        return {"metadata": metadata, "items": items}
+
+    @overload
+    def dump(self) -> dict:
+        pass
+
+    @overload
+    def dump(self, fp: IO[str]) -> None:
+        pass
 
     def dump(self, fp: IO[str] | None = None) -> dict | None:
         """
@@ -212,9 +218,7 @@ class DictManager[T]:
         Parameters override the default settings of the underlying LockManager.
         """
         self._lock.acquire(
-            timeout=timeout,
-            lock_ttl=lock_ttl,
-            poll_interval=poll_interval
+            timeout=timeout, lock_ttl=lock_ttl, poll_interval=poll_interval
         )
         return self
 

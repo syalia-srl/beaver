@@ -1,6 +1,6 @@
 import json
 import sqlite3
-from typing import Any, Iterator, Type, Union, Optional, IO
+from typing import Any, Iterator, Type, Union, Optional, IO, overload
 from datetime import datetime, timezone
 from .types import JsonSerializable, IDatabase
 from .locks import LockManager
@@ -39,6 +39,14 @@ class ListManager[T]:
             "metadata": metadata,
             "items": items
         }
+
+    @overload
+    def dump(self) -> dict:
+        pass
+
+    @overload
+    def dump(self, fp: IO[str]) -> None:
+        pass
 
     def dump(self, fp: IO[str] | None = None) -> dict | None:
         """

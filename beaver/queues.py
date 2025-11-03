@@ -279,6 +279,14 @@ class QueueManager[T]:
             "items": items_list
         }
 
+    @overload
+    def dump(self) -> dict:
+        pass
+
+    @overload
+    def dump(self, fp: IO[str]) -> None:
+        pass
+
     def dump(self, fp: IO[str] | None = None) -> dict | None:
         """
         Dumps the entire contents of the queue to a JSON-compatible
