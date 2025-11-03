@@ -57,12 +57,10 @@ def test_queue_blocking_get(db: BeaverDB):
 
 # --- 2. ChannelManager (Pub/Sub) Tests ---
 
-def _subscriber_worker(channel: ChannelManager, result_queue: Queue, ready_event: threading.Event):
+def _subscriber_worker(channel: ChannelManager, result_queue: Queue):
     """A worker that subscribes and listens for one message."""
     try:
         with channel.subscribe() as listener:
-            # Signal to the main thread that we are subscribed and listening
-            ready_event.set()
             # Block and wait for a message
             for message in listener.listen(timeout=2.0):
                 result_queue.put(message)
@@ -74,16 +72,15 @@ def test_channel_subscribe_receive(db: BeaverDB):
     """Tests that a subscriber in a thread receives a published message."""
     channel = db.channel("test_pubsub_1", model=Event)
     result_queue = Queue()
-    ready_event = threading.Event()
 
     t = threading.Thread(
         target=_subscriber_worker,
-        args=(channel, result_queue, ready_event)
+        args=(channel, result_queue)
     )
     t.start()
 
-    # Wait for the subscriber thread to be ready
-    assert ready_event.wait(timeout=2.0), "Subscriber thread failed to start"
+    # Give the worker time to susbcribe
+    time.sleep(0.1)
 
     # Publish the event
     event = Event(type="click", value=123)
@@ -104,36 +101,24 @@ def test_channel_multi_subscribe_fanout(db: BeaverDB):
     channel = db.channel("test_pubsub_fanout")
 
     # Create two subscribers
-    q1, q2 = Queue(), Queue()
-    e1, e2 = threading.Event(), threading.Event()
+    qs = [Queue() for _ in range(10)]
+    ts = [threading.Thread(target=_subscriber_worker, args=(channel, q)) for q in qs]
 
-    t1 = threading.Thread(target=_subscriber_worker, args=(channel, q1, e1))
-    t2 = threading.Thread(target=_subscriber_worker, args=(channel, q2, e2))
+    for t in ts:
+        t.start()
 
-    t1.start()
-    t2.start()
-
-    # Wait for both to be ready
-    assert e1.wait(timeout=2.0), "Subscriber 1 failed to start"
-    assert e2.wait(timeout=2.0), "Subscriber 2 failed to start"
+    # Give the subscribers time to start
+    time.sleep(0.1)
 
     # Publish one message
     channel.publish("fanout_test")
 
-    t1.join(timeout=3.0)
-    t2.join(timeout=3.0)
-
-    # Check that both threads finished and received the message
-    assert not t1.is_alive()
-    assert not t2.is_alive()
-
-    result1 = q1.get()
-    result2 = q2.get()
-
-    assert not isinstance(result1, Exception)
-    assert not isinstance(result2, Exception)
-    assert result1 == "fanout_test"
-    assert result2 == "fanout_test"
+    for t,q in zip(ts, qs):
+        t.join(1)
+        assert not t.is_alive()
+        r = q.get()
+        assert not isinstance(r, Exception)
+        assert r == "fanout_test"
 
 # --- 3. LogManager (Live) Tests ---
 
