@@ -32,6 +32,9 @@ class BeaverDB:
         # This object will store a different connection for each thread.
         self._thread_local = threading.local()
 
+        self._in_memory = db_path == ":memory:"
+        self._main_thread = threading.current_thread().native_id
+
         self._channels: dict[str, ChannelManager] = {}
         self._channels_lock = threading.Lock()
         self._collections: dict[str, CollectionManager] = {}
@@ -69,6 +72,11 @@ class BeaverDB:
         The connection is created on the first access and then reused for
         all subsequent calls within the same thread.
         """
+        if self._in_memory:
+            current_thread = threading.current_thread().native_id
+            if current_thread != self._main_thread:
+                raise TypeError("Cannot use BeaverDB in multi-threaded context with :memory: path.")
+
         # Check if a connection is already stored for this thread
         conn = getattr(self._thread_local, "conn", None)
 
