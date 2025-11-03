@@ -107,7 +107,7 @@ class Document(Model):
 
     def __repr__(self):
         d = self.to_dict()
-        d.pop("embedding")
+        d.pop("embedding", None)
         metadata_str = ", ".join(f"{k}={v!r}" for k, v in self.to_dict().items())
         return f"Document({metadata_str})"
 
@@ -239,12 +239,6 @@ class CollectionManager[D: Document]:
                                 "INSERT INTO beaver_trigrams (collection, item_id, field_path, trigram) VALUES (?, ?, ?, ?)",
                                 trigram_data,
                             )
-
-                # Step 4: Update Collection Version to signal a change.
-                cursor.execute(
-                    "INSERT INTO beaver_collection_versions (collection_name, version) VALUES (?, 1) ON CONFLICT(collection_name) DO UPDATE SET version = version + 1",
-                    (self._name,),
-                )
 
         # After the transaction commits, check if auto-compaction is needed.
         if self._needs_compactation():

@@ -259,9 +259,9 @@ class NumpyVectorIndex:
         Updates the *current process's* in-memory delta index immediately
         after a write, avoiding a self-sync.
         """
-        with self._thread_lock:
-            self._infer_and_validate_dimension(vector)
+        self._infer_and_validate_dimension(vector)
 
+        with self._thread_lock:
             new_k_vectors = list(self._k_matrix) if self._k_matrix is not None else []
             new_k_ids = list(self._k_ids)
 
