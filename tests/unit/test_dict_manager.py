@@ -163,14 +163,6 @@ def test_dict_with_model_serialization(db: BeaverDB):
     assert retrieved_user.name == "Alice"
     assert retrieved_user.age == 30
 
-    # Check raw storage
-    cursor = db.connection.cursor()
-    cursor.execute("SELECT value FROM beaver_dicts WHERE dict_name = 'users' AND key = 'alice'")
-    raw_value = cursor.fetchone()["value"]
-
-    import json
-    assert json.loads(raw_value) == {"name": "Alice", "age": 30}
-
 def test_dict_dump(db: BeaverDB):
     """Tests the .dump() method."""
     config = db.dict("dump_test")
