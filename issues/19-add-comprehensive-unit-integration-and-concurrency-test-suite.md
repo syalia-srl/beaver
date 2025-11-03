@@ -56,15 +56,15 @@ Here is a checklist of test cases to be implemented.
     * [x] `test_dict_ttl`: `d.set("k", "v", ttl_seconds=1)`, `sleep(1.1)`, assert `d.get("k") is None`.
     * [x] `test_dict_len`: Assert `len(d)` is correct after adds/dels.
 * **`ListManager`:**
-    * [ ] `test_list_push_pop`: `l.push(1)`, `l.push(2)`, assert `l.pop() == 2`, assert `l.pop() == 1`.
-    * [ ] `test_list_prepend_deque`: `l.prepend(1)`, `l.prepend(2)`, assert `l.deque() == 2`, assert `l.deque() == 1`.
-    * [ ] `test_list_indexing`: `l[0] = "new"`, assert `l[0] == "new"`.
-    * [ ] `test_list_slicing`: `l.push(1)`, `l.push(2)`, `l.push(3)`, assert `l[0:2] == [1, 2]`.
-    * [ ] `test_list_del_index`: `del l[0]`, assert `l[0] == 2`.
+    * [x] `test_list_push_pop`: `l.push(1)`, `l.push(2)`, assert `l.pop() == 2`, assert `l.pop() == 1`.
+    * [x] `test_list_prepend_deque`: `l.prepend(1)`, `l.prepend(2)`, assert `l.deque() == 2`, assert `l.deque() == 1`.
+    * [x] `test_list_indexing`: `l[0] = "new"`, assert `l[0] == "new"`.
+    * [x] `test_list_slicing`: `l.push(1)`, `l.push(2)`, `l.push(3)`, assert `l[0:2] == [1, 2]`.
+    * [x] `test_list_del_index`: `del l[0]`, assert `l[0] == 2`.
 * **`QueueManager`:**
-    * [ ] `test_queue_priority`: `q.put(10, priority=10)`, `q.put(1, priority=1)`, assert `q.peek().data == 1`.
-    * [ ] `test_queue_fifo`: `q.put(1, priority=1)`, `q.put(2, priority=1)`, assert `q.get().data == 1`, assert `q.get().data == 2`.
-    * [ ] `test_queue_get_nonblocking_empty`: Assert `q.get(block=False)` raises `IndexError`.
+    * [x] `test_queue_priority`: `q.put(10, priority=10)`, `q.put(1, priority=1)`, assert `q.peek().data == 1`.
+    * [x] `test_queue_fifo`: `q.put(1, priority=1)`, `q.put(2, priority=1)`, assert `q.get().data == 1`, assert `q.get().data == 2`.
+    * [x] `test_queue_get_nonblocking_empty`: Assert `q.get(block=False)` raises `IndexError`.
 * **`BlobManager`:**
     * [ ] `test_blob_put_get_del`: `b.put("k", b"data")`, assert `b.get("k").data == b"data"`, `b.delete("k")`.
     * [ ] `test_blob_metadata`: `b.put("k", b"d", metadata={"m": 1})`, assert `b.get("k").metadata == {"m": 1}`.
@@ -78,12 +78,6 @@ Here is a checklist of test cases to be implemented.
     * [ ] `test_fuzzy_match`: Test `c.match("qury", fuzziness=1)` returns doc.
     * [ ] `test_graph_connect_neighbors`: `c.connect(d1, d2, "L")`, assert `d2 in c.neighbors(d1, "L")`.
     * [ ] `test_graph_walk`: Test `c.walk(d1, ["L"], depth=2)` returns correct multi-hop neighbors.
-* **`VectorIndex (NumpyVectorIndex)`:**
-    * [ ] `test_vector_index_add`: `v.index(vec1, "id1")`, assert `v.delta_size == 1`.
-    * [ ] `test_vector_drop`: `v.drop("id1")`, assert `"id1" in v._deleted_ids`.
-    * [ ] `test_vector_search_correctness`: `v.index(vec1, "id1")`, `v.index(vec2, "id2")`, assert `v.search(vec1, 1)[0][0] == "id1"`.
-
----
 
 #### Phase 2: Integration Tests (Multi-Step & Async)
 
@@ -102,8 +96,6 @@ Here is a checklist of test cases to be implemented.
     * [ ] `test_dump_format`: For every manager, call `.dump()`, assert the output JSON matches the documented structure (metadata, items).
 * **`NumpyVectorIndex` (Compaction):**
     * [ ] `test_vector_compaction`: `c.index(doc1)`, `c.drop(doc2)`, `c.compact()`, assert `v._local_base_version` increments and `v.delta_size == 0`.
-
----
 
 #### Phase 3: Concurrency & Multi-Process Tests
 
@@ -125,8 +117,6 @@ Here is a checklist of test cases to be implemented.
         * P1: `db.collection("c").search(...)` (initializes, `_local_base_version = 0`).
         * P2: `db.collection("c").compact()`.
         * P1: `db.collection("c").search(...)` **Assert:** P1's `_check_and_sync()` runs, sees `base_version = 1`, and triggers `_load_base_index()`.
-
----
 
 #### Phase 4: API & CLI Tests
 
