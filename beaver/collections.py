@@ -507,6 +507,7 @@ class CollectionManager[D: Document]:
         """Creates a directed edge between two documents."""
         if not isinstance(source, Document) or not isinstance(target, Document):
             raise TypeError("Source and target must be Document objects.")
+
         with self._db.connection:
             self._db.connection.execute(
                 "INSERT OR REPLACE INTO beaver_edges (collection, source_item_id, target_item_id, label, metadata) VALUES (?, ?, ?, ?, ?)",
@@ -521,7 +522,7 @@ class CollectionManager[D: Document]:
 
     def neighbors(self, doc: D, label: str | None = None) -> list[D]:
         """Retrieves the neighboring documents connected to a given document."""
-        sql = "SELECT t1.item_id, t1.item_vector, t1.metadata FROM beaver_collections AS t1 JOIN beaver_edges AS t2 ON t1.item_id = t2.target_item_id AND t1.collection = t2.collection WHERE t2.collection = ? AND t2.source_item_id = ?"
+        sql = "SELECT DISTINCT t1.item_id, t1.item_vector, t1.metadata FROM beaver_collections AS t1 JOIN beaver_edges AS t2 ON t1.item_id = t2.target_item_id AND t1.collection = t2.collection WHERE t2.collection = ? AND t2.source_item_id = ?"
         params = [self._name, doc.id]
         if label:
             sql += " AND t2.label = ?"
@@ -552,8 +553,9 @@ class CollectionManager[D: Document]:
         ] = WalkDirection.OUTGOING,
     ) -> List[D]:
         """Performs a graph traversal (BFS) from a starting document."""
-        if not isinstance(source, D):
+        if not isinstance(source, Document):
             raise TypeError("The starting point must be a Document object.")
+
         if depth <= 0:
             return []
 
