@@ -98,11 +98,11 @@ Here is a checklist of test cases to be implemented.
     * [ ] `test_async_dict_get`: `await db.dict("d").as_async().set(...)`, `await db.dict("d").as_async().get(...)`.
     * [ ] `test_async_collection_search`: `await db.collection("c").as_async().index(...)`, `await db.collection("c").as_async().search(...)`.
 * **Real-time Features (Pub/Sub & Log):**
-    * [ ] `test_queue_blocking_get`: Start `q.get(block=True)` in a thread, `q.put()` in main thread, assert `get()` receives item.
+    * [x] `test_queue_blocking_get`: Start `q.get(block=True)` in a thread, `q.put()` in main thread, assert `get()` receives item.
     * [x] `test_queue_blocking_timeout`: Assert `q.get(block=True, timeout=0.1)` raises `TimeoutError`.
-    * [ ] `test_channel_subscribe_receive`: Start `listener.listen()` in a thread, `c.publish()` in main thread, assert listener receives message.
-    * [ ] `test_channel_multi_subscribe`: Start 2 listeners, `c.publish()`, assert *both* receive the message.
-    * [ ] `test_log_live_receive`: Start `log.live()` in a thread, `log.log()` in main thread, assert `live()` yields aggregated data.
+    * [x] `test_channel_subscribe_receive`: Start `listener.listen()` in a thread, `c.publish()` in main thread, assert listener receives message.
+    * [x] `test_channel_multi_subscribe`: Start 2 listeners, `c.publish()`, assert *both* receive the message.
+    * [x] `test_log_live_receive`: Start `log.live()` in a thread, `log.log()` in main thread, assert `live()` yields aggregated data.
 * **Data Export (`.dump()`):**
     * [x] `test_dump_dict`: For `DictManager`, call `.dump()`, assert the output JSON matches the documented structure.
     * [x] `test_dump_list`: Repeat for `ListManager`.
