@@ -72,6 +72,8 @@ class NumpyVectorIndex:
 
         This must be called inside a transaction managed by CollectionManager.
         """
+        self._check_and_sync()
+
         # 1. Log the insertion to the database
         cursor.execute(
             "INSERT INTO _vector_change_log (collection_name, item_id, operation_type) VALUES (?, ?, ?)",
@@ -90,6 +92,8 @@ class NumpyVectorIndex:
 
         This must be called inside a transaction managed by CollectionManager.
         """
+        self._check_and_sync()
+
         # 1. Log the deletion to the database
         cursor.execute(
             "INSERT INTO _vector_change_log (collection_name, item_id, operation_type) VALUES (?, ?, ?)",
@@ -107,6 +111,7 @@ class NumpyVectorIndex:
         subsequent vectors against it.
         """
         dim = vector.shape[-1]
+
         with self._thread_lock:
             if self._dimension is None:
                 self._dimension = dim
@@ -261,6 +266,7 @@ class NumpyVectorIndex:
         """
         self._infer_and_validate_dimension(vector)
 
+
         with self._thread_lock:
             new_k_vectors = list(self._k_matrix) if self._k_matrix is not None else []
             new_k_ids = list(self._k_ids)
@@ -352,6 +358,7 @@ class NumpyVectorIndex:
         This method is called by CollectionManager and must be wrapped in
         its *own* inter-process lock.
         """
+
         # Re-fetch versions inside the lock
         db_base_version, _ = self._get_db_versions(cursor)
 
@@ -364,7 +371,7 @@ class NumpyVectorIndex:
         # Increment the base version
         new_base_version = db_base_version + 1
         cursor.execute(
-            "INSERT INTO beaver_collection_versions (collection_name, base_version) VALUES (?, ?) ON CONFLICT(collection_name) DO UPDATE SET base_version = excluded.base_version",
+            "INSERT OR REPLACE INTO beaver_collection_versions (collection_name, base_version) VALUES (?, ?)",
             (self._collection, new_base_version),
         )
 

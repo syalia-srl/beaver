@@ -38,6 +38,7 @@ def stress_test():
     # Store a mapping of ID to the original vector for later verification
     indexed_data = {}
 
+    print("Indexing vectors...")
     for i in range(NUM_VECTORS):
         doc_id = f"doc_{i}"
         vector = vectors[i]

@@ -146,7 +146,7 @@ class CollectionManager[D: Document]:
         return flat_dict
 
     def _needs_compactation(self):
-        return self._vector_index.delta_size > 100
+        return self._vector_index.delta_size >= 100
 
     def compact(self):
         """
@@ -269,10 +269,6 @@ class CollectionManager[D: Document]:
                     (self._name, document.id, document.id),
                 )
                 self._vector_index.drop(document.id, cursor)
-                cursor.execute(
-                    "INSERT INTO beaver_collection_versions (collection_name, version) VALUES (?, 1) ON CONFLICT(collection_name) DO UPDATE SET version = version + 1",
-                    (self._name,),
-                )
 
         # Check for auto-compaction after a drop as well.
         if self._needs_compactation():
