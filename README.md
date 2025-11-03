@@ -11,6 +11,8 @@
 ![PyPi - Downloads (Monthly)](https://img.shields.io/pypi/dm/beaver-db)
 ![Github - Commits](https://img.shields.io/github/commit-activity/m/apiad/beaver)
 
+-----
+
 > A fast, single-file, multi-modal database for Python, built with the standard `sqlite3` library.
 
 `beaver` is the **B**ackend for **E**mbedded, **A**ll-in-one **V**ector, **E**ntity, and **R**elationship storage. It's a simple, local, and embedded database designed to manage complex, modern data types without requiring a database server, built on top of SQLite.
@@ -21,30 +23,30 @@
 
 `beaver` is built with a minimalistic philosophy for small, local use cases where a full-blown database server would be overkill.
 
-- **Minimalistic**: The core library has zero external dependencies. Vector search, the REST server, and the CLI, which require external libraries, are available as optional features.
-- **Schemaless**: Flexible data storage without rigid schemas across all modalities.
-- **Synchronous, Multi-Process, and Thread-Safe**: Designed for simplicity and safety in multi-threaded and multi-process environments.
-- **Built for Local Applications**: Perfect for local AI tools, RAG prototypes, chatbots, and desktop utilities that need persistent, structured data without network overhead.
-- **Fast by Default**: It's built on SQLite, which is famously fast and reliable for local applications. Vector search is an optional feature accelerated with a high-performance, persistent `faiss` index.
-- **Standard Relational Interface**: While `beaver` provides high-level features, you can always use the same SQLite file for normal relational tasks with standard SQL.
+  - **Minimalistic**: The core library has minimal dependencies (`numpy`, `rich`, `typer`). The REST server and client are available as an optional feature.
+  - **Schemaless**: Flexible data storage without rigid schemas across all modalities.
+  - **Synchronous, Multi-Process, and Thread-Safe**: Designed for simplicity and safety in multi-threaded and multi-process environments.
+  - **Built for Local Applications**: Perfect for local AI tools, RAG prototypes, chatbots, and desktop utilities that need persistent, structured data without network overhead.
+  - **Fast by Default**: It's built on SQLite, which is famously fast and reliable for local applications. Vector search is a built-in feature accelerated by a multi-process-safe, in-memory `numpy` index.
+  - **Standard Relational Interface**: While `beaver` provides high-level features, you can always use the same SQLite file for normal relational tasks with standard SQL.
 
 ## Core Features
 
-- **Sync/Async High-Efficiency Pub/Sub**: A powerful, thread and process-safe publish-subscribe system for real-time messaging with a fan-out architecture. Sync by default, but with an `as_async` wrapper for async applications.
-- **Namespaced Key-Value Dictionaries**: A Pythonic, dictionary-like interface for storing any JSON-serializable object within separate namespaces with optional TTL for cache implementations.
-- **Pythonic List Management**: A fluent, Redis-like interface for managing persistent, ordered lists.
-- **Persistent Priority Queue**: A high-performance, persistent priority queue perfect for task orchestration across multiple processes. Also with optional async support.
-- **Inter-Process Locking**: A robust, deadlock-proof, and fair (FIFO) distributed lock (`db.lock()`) to coordinate multiple processes and prevent race conditions.
-- **Time-Indexed Log for Monitoring**: A specialized data structure for structured, time-series logs. Query historical data by time range or create a live, aggregated view of the most recent events for real-time dashboards.
-- **Simple Blob Storage**: A dictionary-like interface for storing medium-sized binary files (like PDFs or images) directly in the database, ensuring transactional integrity with your other data.
-- **High-Performance Vector Storage & Search (Optional)**: Store vector embeddings and perform fast approximate nearest neighbor searches using a `faiss`-based hybrid index.
-- **Full-Text and Fuzzy Search**: Automatically index and search through document metadata using SQLite's powerful FTS5 engine, enhanced with optional fuzzy search for typo-tolerant matching.
-- **Knowledge Graph**: Create relationships between documents and traverse the graph to find neighbors or perform multi-hop walks.
-- **Single-File & Portable**: All data is stored in a single SQLite file, making it incredibly easy to move, back up, or embed in your application.
-- **Built-in REST API Server (Optional)**: Instantly serve your database over a RESTful API with automatic OpenAPI documentation using FastAPI.
-- **Full-Featured CLI Client (Optional)**: Interact with your database directly from the command line for administrative tasks and data exploration.
-- **Optional Type-Safety:** Although the database is schemaless, you can use a minimalistic typing system for automatic serialization and deserialization that is Pydantic-compatible out of the box.
-- **Data Export & Backups:** Dump any dictionary, list, collection, queue, blob, or log structure to a portable JSON file with a single `.dump()` command.
+  - **Sync/Async High-Efficiency Pub/Sub**: A powerful, thread and process-safe publish-subscribe system for real-time messaging with a fan-out architecture. Sync by default, but with an `as_async` wrapper for async applications.
+  - **Namespaced Key-Value Dictionaries**: A Pythonic, dictionary-like interface for storing any JSON-serializable object within separate namespaces with optional TTL for cache implementations.
+  - **Pythonic List Management**: A fluent, Redis-like interface for managing persistent, ordered lists.
+  - **Persistent Priority Queue**: A high-performance, persistent priority queue perfect for task orchestration across multiple processes. Also with optional async support.
+  - **Inter-Process Locking**: A robust, deadlock-proof, and fair (FIFO) distributed lock (`db.lock()`) to coordinate multiple processes and prevent race conditions.
+  - **Time-Indexed Log for Monitoring**: A specialized data structure for structured, time-series logs. Query historical data by time range or create a live, aggregated view of the most recent events for real-time dashboards.
+  - **Simple Blob Storage**: A dictionary-like interface for storing medium-sized binary files (like PDFs or images) directly in the database, ensuring transactional integrity with your other data.
+  - **High-Performance Vector Storage & Search**: Store vector embeddings and perform fast, multi-process-safe linear searches using an in-memory `numpy`-based index.
+  - **Full-Text and Fuzzy Search**: Automatically index and search through document metadata using SQLite's powerful FTS5 engine, enhanced with optional fuzzy search for typo-tolerant matching.
+  - **Knowledge Graph**: Create relationships between documents and traverse the graph to find neighbors or perform multi-hop walks.
+  - **Single-File & Portable**: All data is stored in a single SQLite file, making it incredibly easy to move, back up, or embed in your application.
+  - **Built-in REST API Server (Optional)**: Instantly serve your database over a RESTful API with automatic OpenAPI documentation using FastAPI.
+  - **Full-Featured CLI Client**: Interact with your database directly from the command line for administrative tasks and data exploration.
+  - **Optional Type-Safety:** Although the database is schemaless, you can use a minimalistic typing system for automatic serialization and deserialization that is Pydantic-compatible out of the box.
+  - **Data Export & Backups:** Dump any dictionary, list, collection, queue, blob, or log structure to a portable JSON file with a single `.dump()` command.
 
 ## How Beaver is Implemented
 
@@ -52,32 +54,32 @@ BeaverDB is architected as a set of targeted wrappers around a standard SQLite d
 
 When you call a method like `db.dict("my_dict")` or `db.collection("my_docs")`, you get back a specialized manager object (`DictManager`, `CollectionManager`, etc.) that provides a clean, Pythonic API for that specific data modality. These managers translate the simple method calls (e.g., `my_dict["key"] = "value"`) into the appropriate SQL queries, handling all the complexity of data serialization, indexing, and transaction management behind the scenes. This design provides a minimal and intuitive API surface while leveraging the power and reliability of SQLite.
 
-The vector store in BeaverDB is designed for high performance and reliability, using a hybrid faiss-based index that is both fast and durable. Here's a look at the core ideas behind its implementation:
+The vector store in BeaverDB is designed for simplicity and multi-process safety, using an in-memory `numpy` index with a log-based synchronization mechanism. Here's a look at the core ideas behind its implementation:
 
-- **Hybrid Index System**: The vector store uses a two-tiered system to balance fast writes with efficient long-term storage:
-- **Base Index**: A large, optimized faiss index that contains the majority of the vectors. This index is serialized and stored as a BLOB inside a dedicated SQLite table, ensuring it remains part of the single database file.
-- **Delta Index**: A small, in-memory faiss index that holds all newly added vectors. This allows for near-instant write performance without having to rebuild the entire index for every new addition.
-- **Crash-Safe Logging**: To ensure durability, all new vector additions and deletions are first recorded in a dedicated log table in the SQLite database. This means that even if the application crashes, no data is lost.
-- **Automatic Compaction**: When the number of changes in the log reaches a certain threshold, a background process is automatically triggered to "compact" the index. This process rebuilds the base index, incorporating all the recent changes from the delta index, and then clears the log. This ensures that the index remains optimized for fast search performance over time.
+  - **In-Memory Delta-Index System**: Each process maintains its own in-memory `numpy` index. This index is split into two-tiers to balance fast writes with read efficiency:
+  - **Base Index (`N-matrix`):** A `numpy` array holding the compacted, main set of vectors. This is loaded from disk once.
+  - **Delta Index (`k-matrix`):** A small, in-memory `numpy` array holding all new vectors that have been added since the last compaction.
+  - **Tombstones:** A set of deleted vector IDs that are filtered out at search time.
+  - **Fast, Log-Based Sync**: All vector additions (`index()`) and deletions (`drop()`) are O(1) writes to a central SQLite log table (`_vector_change_log`). When another process performs a search, it first checks this log and performs a fast O(k) "delta-sync" to update its in-memory `k-matrix` and tombstones, rather than re-loading the entire N-matrix.
+  - **Automatic Compaction**: When the delta index (`k-matrix`) grows too large, a compaction process is triggered to rebuild the main `N-matrix` from the database and clear the log. This ensures search performance remains fast over time.
 
-This hybrid approach allows BeaverDB to provide a vector search experience that is both fast and durable, without sacrificing the single-file, embedded philosophy of the library.
+This delta-index approach allows BeaverDB to provide a vector search experience that has extremely fast O(1) writes and O(k) cross-process synchronization, sacrificing O(log N) search time for a simpler, dependency-free O(N+k) linear scan. This aligns with the "simplicity-first" philosophy of the library.
 
 ## Installation
 
-Install the core, dependency-free library:
+Install the core library:
 
 ```bash
 pip install beaver-db
 ```
 
+This includes `numpy` (for vector search) and `rich`/`typer` (for the CLI).
+
 To include optional features, you can install them as extras:
 
 ```bash
-# For vector search capabilities
-pip install "beaver-db[vector]"
-
-# For the REST API server
-pip install "beaver-db[server]"
+# For the REST API server and client
+pip install "beaver-db[remote]"
 
 # To install all optional features at once
 pip install "beaver-db[full]"
@@ -283,7 +285,7 @@ for message in chat_history:
 
 ### 4. Build a RAG (Retrieval-Augmented Generation) System
 
-Combine **vector search** and **full-text search** to build a powerful RAG pipeline for your local documents. The vector search uses a high-performance, persistent `faiss` index that supports incremental additions without downtime.
+Combine **vector search** and **full-text search** to build a powerful RAG pipeline for your local documents. The vector search uses a multi-process-safe, in-memory `numpy` index that supports incremental additions without downtime.
 
 ```python
 # Get context for a user query like "fast python web frameworks"
@@ -406,9 +408,8 @@ For enhanced data integrity and a better developer experience, BeaverDB supports
 
 This feature is designed to be flexible and works seamlessly with two kinds of models:
 
-- **Pydantic Models**: If you're already using Pydantic, your `BaseModel` classes will work out of the box.
-- **Lightweight `beaver.Model`**: For a zero-dependency solution, you can inherit from the built-in `beaver.Model` class, which is a standard Python class with serialization methods automatically included.
-
+  - **Pydantic Models**: If you're already using Pydantic, your `BaseModel` classes will work out of the box.
+  - **Lightweight `beaver.Model`**: For a zero-dependency solution, you can inherit from the built-in `beaver.Model` class, which is a standard Python class with serialization methods automatically included.
 
 Here’s a quick example of how to use it:
 
