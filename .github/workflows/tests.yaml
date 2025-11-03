@@ -1,6 +1,5 @@
 name: Run Tests
 
-# Trigger the workflow on push and pull request events
 on:
   push:
     branches: [ main ]
@@ -18,21 +17,16 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          # Use the python version from your .python-version file
           python-version: "3.13"
 
       - name: Install uv
         run: curl -LsSf https://astral.sh/uv/install.sh | sh
 
       - name: Install dependencies
-        run: |
-          # Install the project in editable mode with all dev dependencies
-          uv pip install --system -e .[dev]
+        run: uv pip install --system -e .[dev]
 
       - name: Run tests with coverage
-        run: |
-          # Run the test suite and generate coverage reports
-          pytest --cov=beaver --cov-report=xml --cov-report=term
+        run: python -m pytest --cov=beaver --cov-report=xml --cov-report=term
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
