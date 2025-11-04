@@ -3,6 +3,8 @@ import threading
 import warnings
 from typing import List, Type
 
+from beaver.cache import DummyCache, ICache, LocalCache
+
 from .types import JsonSerializable
 from .blobs import BlobManager
 from .channels import ChannelManager
@@ -20,7 +22,7 @@ class BeaverDB:
     This class manages thread-safe database connections and table schemas.
     """
 
-    def __init__(self, db_path: str, timeout: float = 30.0):
+    def __init__(self, db_path: str, timeout: float = 30.0, enable_cache: bool = True):
         """
         Initializes the database connection and creates all necessary tables.
 
@@ -29,6 +31,8 @@ class BeaverDB:
         """
         self._db_path = db_path
         self._timeout = timeout
+        self._enable_cache = enable_cache
+
         # This object will store a different connection for each thread.
         self._thread_local = threading.local()
 
@@ -75,20 +79,35 @@ class BeaverDB:
         if self._in_memory:
             current_thread = threading.current_thread().native_id
             if current_thread != self._main_thread:
-                raise TypeError("Cannot use BeaverDB in multi-threaded context with :memory: path.")
+                raise TypeError(
+                    "Cannot use BeaverDB in multi-threaded context with :memory: path."
+                )
 
         # Check if a connection is already stored for this thread
         conn = getattr(self._thread_local, "conn", None)
 
         if conn is None:
             # No connection for this thread yet, so create one.
-            # We no longer need check_same_thread=False, restoring thread safety.
             conn = sqlite3.connect(self._db_path, timeout=self._timeout)
             conn.execute("PRAGMA journal_mode=WAL;")
             conn.row_factory = sqlite3.Row
             self._thread_local.conn = conn
 
         return conn
+
+    @property
+    def cache(self) -> ICache:
+        """Returns a thread-local cache that is always valid."""
+        if not self._enable_cache:
+            return DummyCache.singleton()
+
+        cache = getattr(self._thread_local, "cache", None)
+
+        if cache is None:
+            cache = LocalCache(f"{self._db_path}-wal")
+            self._thread_local.cache = cache
+
+        return cache
 
     def _create_all_tables(self):
         """Initializes all required tables in the database file."""
