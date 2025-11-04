@@ -356,7 +356,7 @@ class BeaverDB:
 
     # --- Factory and Passthrough Methods ---
 
-    def dict[T](self, name: str, model: type[T] | None = None) -> DictManager[T]:
+    def dict[T: JsonSerializable](self, name: str, model: type[T] | None = None) -> DictManager[T]:
         """
         Returns a wrapper object for interacting with a named dictionary.
         If model is defined, it should be a type used for automatic (de)serialization.
@@ -369,7 +369,7 @@ class BeaverDB:
 
         return DictManager(name, self, model)
 
-    def list[T](self, name: str, model: type[T] | None = None) -> ListManager[T]:
+    def list[T: JsonSerializable](self, name: str, model: type[T] | None = None) -> ListManager[T]:
         """
         Returns a wrapper object for interacting with a named list.
         If model is defined, it should be a type used for automatic (de)serialization.
@@ -382,7 +382,7 @@ class BeaverDB:
 
         return ListManager(name, self, model)
 
-    def queue[T](self, name: str, model: type[T] | None = None) -> QueueManager[T]:
+    def queue[T: JsonSerializable](self, name: str, model: type[T] | None = None) -> QueueManager[T]:
         """
         Returns a wrapper object for interacting with a persistent priority queue.
         If model is defined, it should be a type used for automatic (de)serialization.
@@ -414,7 +414,7 @@ class BeaverDB:
 
             return self._collections[name]
 
-    def channel[T](self, name: str, model: type[T] | None = None) -> ChannelManager[T]:
+    def channel[T: JsonSerializable](self, name: str, model: type[T] | None = None) -> ChannelManager[T]:
         """
         Returns a singleton Channel instance for high-efficiency pub/sub.
         """
@@ -434,7 +434,7 @@ class BeaverDB:
 
         return BlobManager(name, self, model)
 
-    def log[T](self, name: str, model: type[T] | None = None) -> LogManager[T]:
+    def log[T: JsonSerializable](self, name: str, model: type[T] | None = None) -> LogManager[T]:
         """
         Returns a wrapper for interacting with a named, time-indexed log.
         If model is defined, it should be a type used for automatic (de)serialization.

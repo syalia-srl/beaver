@@ -2,6 +2,8 @@ import json
 import sqlite3
 from typing import Protocol, Type, runtime_checkable, Self
 
+from beaver.cache import ICache
+
 
 @runtime_checkable
 class JsonSerializable[T](Protocol):
@@ -71,5 +73,6 @@ def stub(msg: str):
 
 class IDatabase(Protocol):
     @property
-    def connection(self) -> sqlite3.Connection:
-        ...
+    def connection(self) -> sqlite3.Connection: ...
+    @property
+    def cache(self) -> ICache: ...

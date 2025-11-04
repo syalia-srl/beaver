@@ -7,7 +7,7 @@ from .types import JsonSerializable, IDatabase
 from .locks import LockManager
 
 
-class DictManager[T]:
+class DictManager[T: JsonSerializable]:
     """A wrapper providing a Pythonic interface to a dictionary in the database."""
 
     def __init__(self, name: str, db: IDatabase, model: Type[T] | None = None):
@@ -92,9 +92,11 @@ class DictManager[T]:
     def __setitem__(self, key: str, value: T, ttl_seconds: float | None = None):
         """Sets a value for a key (e.g., `my_dict[key] = value`)."""
         expires_at = None
+
         if ttl_seconds is not None:
             if not isinstance(ttl_seconds, (int, float)) or ttl_seconds <= 0:
                 raise ValueError("ttl_seconds must be a positive integer or float.")
+
             expires_at = time.time() + ttl_seconds
 
         with self._db.connection:
@@ -102,6 +104,8 @@ class DictManager[T]:
                 "INSERT OR REPLACE INTO beaver_dicts (dict_name, key, value, expires_at) VALUES (?, ?, ?, ?)",
                 (self._name, key, self._serialize(value), expires_at),
             )
+
+        self._db.cache.set(f"dict:{self._name}.{key}", (value, expires_at))
 
     def get(self, key: str, default: Any = None) -> T | Any:
         """Gets a value for a key, with a default if it doesn't exist or is expired."""
@@ -112,6 +116,21 @@ class DictManager[T]:
 
     def __getitem__(self, key: str) -> T:
         """Retrieves a value for a given key, raising KeyError if expired."""
+        cache = self._db.cache
+
+        # Cache HIT
+        if (cached := cache.get(f"dict:{self._name}.{key}")) is not None:
+            value, expires_at = cached
+
+            if expires_at is None or time.time() < expires_at:
+                return value
+            else:
+                cache.pop(f"dict:{self._name}.{key}")
+                raise KeyError(
+                    f"Key '{key}' not found in dictionary '{self._name}' (expired)"
+                )
+
+        # Cache MISS
         cursor = self._db.connection.cursor()
         cursor.execute(
             "SELECT value, expires_at FROM beaver_dicts WHERE dict_name = ? AND key = ?",
@@ -133,12 +152,20 @@ class DictManager[T]:
                     (self._name, key),
                 )
             cursor.close()
+
+            # Evict from cache if it was there
+            self._db.cache.pop(f"dict:{self._name}.{key}")
+
             raise KeyError(
                 f"Key '{key}' not found in dictionary '{self._name}' (expired)"
             )
 
         cursor.close()
-        return self._deserialize(value)
+        result = self._deserialize(value)
+
+        # Update cache
+        cache.set(f"dict:{self._name}.{key}", (result, expires_at))
+        return result
 
     def pop(self, key: str, default: Any = None) -> T | Any:
         """Deletes an item if it exists and returns its value."""
@@ -157,6 +184,10 @@ class DictManager[T]:
                 "DELETE FROM beaver_dicts WHERE dict_name = ? AND key = ?",
                 (self._name, key),
             )
+
+            # Evict from cache
+            self._db.cache.pop(f"dict:{self._name}.{key}")
+
             if cursor.rowcount == 0:
                 raise KeyError(f"Key '{key}' not found in dictionary '{self._name}'")
 
