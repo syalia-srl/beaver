@@ -75,6 +75,7 @@ class DummyCache:
 
         return cls.__instance
 
+
 class LocalCache:
     """A thread-local cache that self-invalidates by checking WAL mtime."""
 
@@ -82,6 +83,7 @@ class LocalCache:
         self._wal_path = wal_path
         self._data: dict[str, Any] = {}
         self._last_known_wal_mtime: float = self._get_wal_mtime()
+
         # Statistics
         self._hits = 0
         self._misses = 0

@@ -95,17 +95,16 @@ class BeaverDB:
 
         return conn
 
-    @property
-    def cache(self) -> ICache:
+    def cache(self, key:str="global") -> ICache:
         """Returns a thread-local cache that is always valid."""
         if not self._enable_cache:
             return DummyCache.singleton()
 
-        cache = getattr(self._thread_local, "cache", None)
+        cache = getattr(self._thread_local, f"cache_{key}", None)
 
         if cache is None:
             cache = LocalCache(f"{self._db_path}-wal")
-            self._thread_local.cache = cache
+            setattr(self._thread_local, f"cache_{key}", cache)
 
         return cache
 

@@ -3,6 +3,8 @@ import json
 import sqlite3
 import time
 from typing import IO, Any, Iterator, Tuple, Type, Optional, overload
+
+from beaver.cache import ICache
 from .types import JsonSerializable, IDatabase
 from .locks import LockManager
 
@@ -16,6 +18,11 @@ class DictManager[T: JsonSerializable]:
         self._model = model
         lock_name = f"__lock__dict__{name}"
         self._lock = LockManager(db, lock_name)
+        self._cache_key = f"dict:{self._name}"
+
+    @property
+    def cache(self) -> ICache:
+        return self._db.cache(self._cache_key)
 
     def _get_dump_object(self) -> dict:
         """Builds the JSON-compatible dump object."""
@@ -105,7 +112,7 @@ class DictManager[T: JsonSerializable]:
                 (self._name, key, self._serialize(value), expires_at),
             )
 
-        self._db.cache.set(f"dict:{self._name}.{key}", (value, expires_at))
+        self.cache.set(key, (value, expires_at))
 
     def get(self, key: str, default: Any = None) -> T | Any:
         """Gets a value for a key, with a default if it doesn't exist or is expired."""
@@ -116,10 +123,10 @@ class DictManager[T: JsonSerializable]:
 
     def __getitem__(self, key: str) -> T:
         """Retrieves a value for a given key, raising KeyError if expired."""
-        cache = self._db.cache
+        cache = self.cache
 
         # Cache HIT
-        if (cached := cache.get(f"dict:{self._name}.{key}")) is not None:
+        if (cached := cache.get(key)) is not None:
             value, expires_at = cached
 
             if expires_at is None or time.time() < expires_at:
@@ -154,7 +161,7 @@ class DictManager[T: JsonSerializable]:
             cursor.close()
 
             # Evict from cache if it was there
-            self._db.cache.pop(f"dict:{self._name}.{key}")
+            cache.pop(f"dict:{self._name}.{key}")
 
             raise KeyError(
                 f"Key '{key}' not found in dictionary '{self._name}' (expired)"
@@ -164,7 +171,7 @@ class DictManager[T: JsonSerializable]:
         result = self._deserialize(value)
 
         # Update cache
-        cache.set(f"dict:{self._name}.{key}", (result, expires_at))
+        cache.set(key, (result, expires_at))
         return result
 
     def pop(self, key: str, default: Any = None) -> T | Any:
@@ -186,7 +193,7 @@ class DictManager[T: JsonSerializable]:
             )
 
             # Evict from cache
-            self._db.cache.pop(f"dict:{self._name}.{key}")
+            self.cache.pop(key)
 
             if cursor.rowcount == 0:
                 raise KeyError(f"Key '{key}' not found in dictionary '{self._name}'")
