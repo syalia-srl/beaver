@@ -132,7 +132,7 @@ class DictManager[T: JsonSerializable]:
             if expires_at is None or time.time() < expires_at:
                 return value
             else:
-                cache.pop(f"dict:{self._name}.{key}")
+                cache.pop(key)
                 raise KeyError(
                     f"Key '{key}' not found in dictionary '{self._name}' (expired)"
                 )
