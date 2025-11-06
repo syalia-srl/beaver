@@ -608,16 +608,18 @@ class CollectionManager[D: Document]:
         timeout: Optional[float] = None,
         lock_ttl: Optional[float] = None,
         poll_interval: Optional[float] = None,
+        block: bool = True,
     ) -> "CollectionManager[D]":
         """
-        Acquires an inter-process lock on this collection, blocking until acquired.
-        This guarantees exclusive access for multi-step atomic operations
-        (e.g., index + connect).
+        Acquires an inter-process lock on this blob store.
 
-        Parameters override the default settings of the underlying LockManager.
+        Parameters and behavior the same as `LockManager.acquire()`.
         """
         self._lock.acquire(
-            timeout=timeout, lock_ttl=lock_ttl, poll_interval=poll_interval
+            timeout=timeout,
+            lock_ttl=lock_ttl,
+            poll_interval=poll_interval,
+            block=block,
         )
         return self
 

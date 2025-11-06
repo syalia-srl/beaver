@@ -258,13 +258,18 @@ class DictManager[T: JsonSerializable]:
         timeout: Optional[float] = None,
         lock_ttl: Optional[float] = None,
         poll_interval: Optional[float] = None,
+        block: bool = True,
     ) -> "DictManager[T]":
         """
-        Acquires an inter-process lock on this dictionary, blocking until acquired.
-        Parameters override the default settings of the underlying LockManager.
+        Acquires an inter-process lock on this blob store.
+
+        Parameters and behavior the same as `LockManager.acquire()`.
         """
         self._lock.acquire(
-            timeout=timeout, lock_ttl=lock_ttl, poll_interval=poll_interval
+            timeout=timeout,
+            lock_ttl=lock_ttl,
+            poll_interval=poll_interval,
+            block=block,
         )
         return self
 
