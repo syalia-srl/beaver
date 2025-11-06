@@ -9,14 +9,16 @@ class ListManager[T: JsonSerializable]:
     """
     A wrapper providing a Pythonic, full-featured interface to a list in the database.
 
-    All methods that modify or access the list automatically acquire
-    an inter-process lock to ensure thread-safety and process-safety.
-
     The list supports standard Python list operations such as indexing, slicing,
     iteration, length retrieval, item assignment, and deletion.
 
     The `dump` method allows exporting the entire list contents to a JSON-compatible
     Python object or writing it to a file-like object.
+
+    All methods that modify or access the list automatically acquire
+    an inter-process lock to ensure thread-safety and process-safety,
+    except for `dump` and `__iter__`, which are not thread-safe.
+    Use `list.acquire()` to lock the list during those operations if needed.
     """
 
     def __init__(self, name: str, db: IDatabase, model: Type[T] | None = None):
