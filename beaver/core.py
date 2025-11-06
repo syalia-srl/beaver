@@ -36,6 +36,7 @@ class BeaverDB:
 
         # This object will store a different connection for each thread.
         self._thread_local = threading.local()
+        self._closed = threading.Event()  # Flag to indicate if DB is closed
 
         self._in_memory = db_path == ":memory:"
         self._main_thread = threading.current_thread().native_id
@@ -51,7 +52,7 @@ class BeaverDB:
         # check current version against the version stored
         self._check_version()
 
-    def singleton[T: JsonSerializable, M](
+    def singleton[T: JsonSerializable, M: ManagerBase](
         self, cls: Type[M], name: str, model: Type[T] | None = None, **kwargs
     ) -> M:
         """
@@ -73,6 +74,9 @@ class BeaverDB:
 
         # Use the db's lock for thread-safe cache access
         with self._manager_cache_lock:
+            if self._closed.is_set():
+                raise ConnectionError("BeaverDB instance is closed.")
+
             instance = self._manager_cache.get(cache_key)
 
             if instance is None:
@@ -108,6 +112,9 @@ class BeaverDB:
         The connection is created on the first access and then reused for
         all subsequent calls within the same thread.
         """
+        if self._closed.is_set():
+            raise ConnectionError("BeaverDB instance is closed.")
+
         if self._in_memory:
             current_thread = threading.current_thread().native_id
             if current_thread != self._main_thread:
@@ -119,6 +126,8 @@ class BeaverDB:
         conn = getattr(self._thread_local, "conn", None)
 
         if conn is None:
+            if self._closed.is_set():
+                raise ConnectionError("BeaverDB instance is closed.")
             # No connection for this thread yet, so create one.
             conn = sqlite3.connect(self._db_path, timeout=self._timeout)
             conn.execute("PRAGMA journal_mode=WAL;")
@@ -129,6 +138,9 @@ class BeaverDB:
 
     def cache(self, key: str = "global") -> ICache:
         """Returns a thread-local cache that is always valid."""
+        if self._closed.is_set():
+            raise ConnectionError("BeaverDB instance is closed.")
+
         if not self._enable_cache:
             return DummyCache.singleton()
 
@@ -377,8 +389,40 @@ class BeaverDB:
         )
 
     def close(self):
-        """Closes the database connection."""
-        warnings.warn("This is currently a No-Op!")
+        """
+        Closes the database connection for the current thread and shuts down
+        all background polling threads (e.g., for pub/sub channels).
+
+        Once closed, any attempt to access the connection will raise an error.
+        """
+        if self._closed.is_set():
+            return  # Already closed
+
+        self._closed.set()
+
+        # Shut down all background services (like Channel pollers)
+        # We must lock the cache to safely iterate over it
+        with self._manager_cache_lock:
+            for (cls, name), instance in self._manager_cache.items():
+                # Check if the instance has a 'close' method and call it
+                if hasattr(instance, "close") and callable(instance.close):
+                    try:
+                        instance.close()
+                    except Exception:
+                        # Best-effort cleanup.
+                        # In a real app, you might want to log this.
+                        pass
+            self._manager_cache.clear()
+
+        # Close the connection for the *current* thread
+        conn = getattr(self._thread_local, "conn", None)
+        if conn is not None:
+            try:
+                conn.close()
+                del self._thread_local.conn
+            except Exception:
+                # Best-effort cleanup
+                pass
 
     # --- Factory and Passthrough Methods ---
 
@@ -458,6 +502,8 @@ class BeaverDB:
             poll_interval: Seconds to wait between polls. Shorter intervals
                         are more responsive but create more DB I/O.
         """
+        if self._closed.is_set():
+            raise ConnectionError("BeaverDB instance is closed.")
         return LockManager(self, name, timeout, lock_ttl, poll_interval)
 
     # --- New Properties for Name Discovery ---
