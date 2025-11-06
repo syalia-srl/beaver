@@ -83,7 +83,7 @@ class LockManager:
             cursor = self._db.connection.cursor()
             cursor.execute(
                 "UPDATE beaver_lock_waiters SET expires_at = ? WHERE lock_name = ? AND waiter_id = ?",
-                (new_expires_at, self._lock_name, self._waiter_id)
+                (new_expires_at, self._lock_name, self._waiter_id),
             )
             return cursor.rowcount > 0
 
@@ -97,18 +97,30 @@ class LockManager:
         with self._db.connection:
             result = self._db.connection.execute(
                 "DELETE FROM beaver_lock_waiters WHERE lock_name = ?",
-                (self._lock_name,)
+                (self._lock_name,),
             )
-        self._acquired = False # We no longer hold the lock
+        self._acquired = False  # We no longer hold the lock
         return result.rowcount > 0
 
-    def acquire(self,
-                timeout: float|None = None,
-                lock_ttl: float |None = None,
-                poll_interval: float |None = None,
-        ) -> bool:
+    def acquire(
+        self,
+        timeout: float | None = None,
+        lock_ttl: float | None = None,
+        poll_interval: float | None = None,
+        block: bool = True,
+    ) -> bool:
         """
-        Blocks until the lock is acquired or the timeout expires.
+        Attempts to acquire the lock.
+
+        If `block` is False, this method will return immediately
+        with True/False indicating success. If `block` is True, it will
+        wait until the lock is acquired or the timeout expires.
+
+        The `timeout`, `lock_ttl`, and `poll_interval` parameters
+        override the default settings of the underlying LockManager.
+
+        If `block` is True and `timeout` is None, this method will
+        wait indefinitely until the lock is acquired.
         """
         if self._acquired:
             # This instance already holds the lock
@@ -116,7 +128,9 @@ class LockManager:
 
         current_timeout = timeout if timeout is not None else self._timeout
         current_lock_ttl = lock_ttl if lock_ttl is not None else self._lock_ttl
-        current_poll_interval = poll_interval if poll_interval is not None else self._poll_interval
+        current_poll_interval = (
+            poll_interval if poll_interval is not None else self._poll_interval
+        )
 
         start_time = time.time()
         requested_at = time.time()
@@ -167,9 +181,13 @@ class LockManager:
                 # 5. Check for timeout
                 if current_timeout is not None:
                     if (time.time() - start_time) > current_timeout:
-                        # We timed out. Remove ourselves from the queue and raise.
+                        # We timed out. Remove ourselves from the queue and return.
                         self._release_from_queue()
                         return False
+                elif not block:
+                    # Non-blocking mode: return immediately
+                    self._release_from_queue()
+                    return False
 
                 # 6. Wait politely before polling again
                 # Add +/- 10% jitter to the poll interval to avoid thundering herd
