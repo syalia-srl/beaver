@@ -6,6 +6,8 @@ import time
 from typing import IO, Any, Iterator, Literal, NamedTuple, Type, overload, Optional
 from .types import JsonSerializable, IDatabase
 from .locks import LockManager
+from .manager import ManagerBase
+
 
 class QueueItem[T](NamedTuple):
     """A data class representing a single item retrieved from the queue."""
@@ -15,7 +17,7 @@ class QueueItem[T](NamedTuple):
     data: T
 
 
-class AsyncQueueManager[T]:
+class AsyncQueueManager[T: JsonSerializable]:
     """An async wrapper for the producer-consumer priority queue."""
 
     def __init__(self, queue: "QueueManager[T]"):
@@ -44,32 +46,11 @@ class AsyncQueueManager[T]:
         return await asyncio.to_thread(self._queue.get, block=block, timeout=timeout)
 
 
-class QueueManager[T]:
+class QueueManager[T: JsonSerializable](ManagerBase[T]):
     """
     A wrapper providing a Pythonic interface to a persistent, multi-process
     producer-consumer priority queue.
     """
-
-    def __init__(self, name: str, db: IDatabase, model: Type[T] | None = None):
-        self._name = name
-        self._db = db
-        self._model = model
-        lock_name = f"__lock__queue__{name}"
-        self._lock = LockManager(db, lock_name)
-
-    def _serialize(self, value: T) -> str:
-        """Serializes the given value to a JSON string."""
-        if isinstance(value, JsonSerializable):
-            return value.model_dump_json()
-
-        return json.dumps(value)
-
-    def _deserialize(self, value: str) -> T:
-        """Deserializes a JSON string into the specified model or a generic object."""
-        if self._model is not None:
-            return self._model.model_validate_json(value) # type: ignore
-
-        return json.loads(value)
 
     def put(self, data: T, priority: float):
         """
@@ -186,39 +167,6 @@ class QueueManager[T]:
 
     def __repr__(self) -> str:
         return f"QueueManager(name='{self._name}')"
-
-    def acquire(
-        self,
-        timeout: Optional[float] = None,
-        lock_ttl: Optional[float] = None,
-        poll_interval: Optional[float] = None,
-        block: bool = True,
-    ) -> bool:
-        """
-        Acquires an inter-process lock on this blob store.
-
-        Parameters and behavior the same as `LockManager.acquire()`.
-        """
-        return self._lock.acquire(
-            timeout=timeout,
-            lock_ttl=lock_ttl,
-            poll_interval=poll_interval,
-            block=block,
-        )
-
-    def release(self):
-        """
-        Releases the inter-process lock on this queue.
-        """
-        self._lock.release()
-
-    def __enter__(self) -> "QueueManager[T]":
-        """Acquires the lock upon entering a 'with' statement."""
-        return self.acquire()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Releases the lock when exiting a 'with' statement."""
-        self.release()
 
     def __iter__(self) -> Iterator[QueueItem[T]]:
         """

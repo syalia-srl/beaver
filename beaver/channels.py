@@ -7,6 +7,7 @@ from queue import Empty, Queue
 from typing import Any, AsyncIterator, Generic, Iterator, Set, Type, TypeVar
 
 from .types import JsonSerializable, IDatabase
+from .manager import ManagerBase
 
 # A special message object used to signal the listener to gracefully shut down.
 _SHUTDOWN_SENTINEL = object()
@@ -108,7 +109,7 @@ class AsyncChannelManager[T]:
         return self._channel.subscribe().as_async()
 
 
-class ChannelManager[T]:
+class ChannelManager[T: JsonSerializable](ManagerBase[T]):
     """
     The central hub for a named pub/sub channel.
 
@@ -132,20 +133,6 @@ class ChannelManager[T]:
         self._lock = threading.Lock()
         self._polling_thread: threading.Thread | None = None
         self._stop_event = threading.Event()
-
-    def _serialize(self, value: T) -> str:
-        """Serializes the given value to a JSON string."""
-        if isinstance(value, JsonSerializable):
-            return value.model_dump_json()
-
-        return json.dumps(value)
-
-    def _deserialize(self, value: str) -> T:
-        """Deserializes a JSON string into the specified model or a generic object."""
-        if self._model:
-            return self._model.model_validate_json(value)
-
-        return json.loads(value)
 
     def _register(self, queue: Queue):
         """Adds a listener's queue and starts the poller if it's the first one."""

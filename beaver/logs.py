@@ -9,7 +9,7 @@ from queue import Empty, Queue
 from typing import IO, Any, AsyncIterator, Callable, Iterator, Type, TypeVar, overload
 
 from .types import JsonSerializable, IDatabase
-
+from .manager import ManagerBase
 
 # A special message object used to signal the iterator to gracefully shut down.
 _SHUTDOWN_SENTINEL = object()
@@ -166,35 +166,11 @@ class AsyncLogManager[T]:
         return AsyncLiveIterator(sync_iterator)
 
 
-class LogManager[T]:
+class LogManager[T: JsonSerializable](ManagerBase[T]):
     """
     A wrapper for interacting with a named, time-indexed log, providing
     type-safe and async-compatible methods.
     """
-
-    def __init__(
-        self,
-        name: str,
-        db,
-        model: Type[T] | None = None,
-    ):
-        self._name = name
-        self._db = db
-        self._model = model
-
-    def _serialize(self, value: T) -> str:
-        """Serializes the given value to a JSON string."""
-        if isinstance(value, JsonSerializable):
-            return value.model_dump_json()
-
-        return json.dumps(value)
-
-    def _deserialize(self, value: str) -> T:
-        """Deserializes a JSON string into the specified model or a generic object."""
-        if self._model:
-            return self._model.model_validate_json(value)
-
-        return json.loads(value)
 
     def log(self, data: T, timestamp: datetime | None = None) -> None:
         """

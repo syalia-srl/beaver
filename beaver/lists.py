@@ -2,10 +2,13 @@ import json
 import sqlite3
 from typing import Any, Iterator, Type, Union, Optional, IO, overload
 from datetime import datetime, timezone
+
+from .manager import ManagerBase
 from .types import JsonSerializable, IDatabase
 from .locks import LockManager
 
-class ListManager[T: JsonSerializable]:
+
+class ListManager[T: JsonSerializable](ManagerBase[T]):
     """
     A wrapper providing a Pythonic, full-featured interface to a list in the database.
 
@@ -20,13 +23,6 @@ class ListManager[T: JsonSerializable]:
     except for `dump` and `__iter__`, which are not thread-safe.
     Use `list.acquire()` to lock the list during those operations if needed.
     """
-
-    def __init__(self, name: str, db: IDatabase, model: Type[T] | None = None):
-        self._name = name
-        self._db = db
-        self._model = model
-        lock_name = f"__lock__list__{name}"
-        self._lock = LockManager(db, lock_name)
 
     def _get_dump_object(self) -> dict:
         """Builds the JSON-compatible dump object."""
@@ -45,13 +41,10 @@ class ListManager[T: JsonSerializable]:
             "type": "List",
             "name": self._name,
             "count": len(items),
-            "dump_date": datetime.now(timezone.utc).isoformat()
+            "dump_date": datetime.now(timezone.utc).isoformat(),
         }
 
-        return {
-            "metadata": metadata,
-            "items": items
-        }
+        return {"metadata": metadata, "items": items}
 
     @overload
     def dump(self) -> dict:
@@ -86,18 +79,6 @@ class ListManager[T: JsonSerializable]:
 
         return dump_object
 
-    def _serialize(self, value: T) -> str:
-        """Serializes the given value to a JSON string."""
-        if isinstance(value, JsonSerializable):
-            return value.model_dump_json()
-        return json.dumps(value)
-
-    def _deserialize(self, value: str) -> T:
-        """Deserializes a JSON string into the specified model or a generic object."""
-        if self._model:
-            return self._model.model_validate_json(value)
-        return json.loads(value)
-
     def __len__(self) -> int:
         """Returns the number of items in the list (e.g., `len(my_list)`)."""
         with self:
@@ -129,7 +110,10 @@ class ListManager[T: JsonSerializable]:
                         "SELECT item_value FROM beaver_lists WHERE list_name = ? ORDER BY item_order ASC LIMIT ? OFFSET ?",
                         (self._name, limit, start),
                     )
-                    results = [self._deserialize(row["item_value"]) for row in cursor.fetchall()]
+                    results = [
+                        self._deserialize(row["item_value"])
+                        for row in cursor.fetchall()
+                    ]
                     cursor.close()
                     return results
 
@@ -171,17 +155,17 @@ class ListManager[T: JsonSerializable]:
                 # Find the rowid of the item to update
                 cursor.execute(
                     "SELECT rowid FROM beaver_lists WHERE list_name = ? ORDER BY item_order ASC LIMIT 1 OFFSET ?",
-                    (self._name, offset)
+                    (self._name, offset),
                 )
                 result = cursor.fetchone()
                 if not result:
                     raise IndexError("List index out of range during update.")
 
-                rowid_to_update = result['rowid']
+                rowid_to_update = result["rowid"]
                 # Update the value for that specific row
                 cursor.execute(
                     "UPDATE beaver_lists SET item_value = ? WHERE rowid = ?",
-                    (self._serialize(value), rowid_to_update)
+                    (self._serialize(value), rowid_to_update),
                 )
 
     def __delitem__(self, key: int):
@@ -201,25 +185,27 @@ class ListManager[T: JsonSerializable]:
                 # Find the rowid of the item to delete
                 cursor.execute(
                     "SELECT rowid FROM beaver_lists WHERE list_name = ? ORDER BY item_order ASC LIMIT 1 OFFSET ?",
-                    (self._name, offset)
+                    (self._name, offset),
                 )
                 result = cursor.fetchone()
                 if not result:
                     raise IndexError("List index out of range during delete.")
 
-                rowid_to_delete = result['rowid']
+                rowid_to_delete = result["rowid"]
                 # Delete that specific row
-                cursor.execute("DELETE FROM beaver_lists WHERE rowid = ?", (rowid_to_delete,))
+                cursor.execute(
+                    "DELETE FROM beaver_lists WHERE rowid = ?", (rowid_to_delete,)
+                )
 
     def __iter__(self) -> Iterator[T]:
         """Returns an iterator for the list."""
         cursor = self._db.connection.cursor()
         cursor.execute(
             "SELECT item_value FROM beaver_lists WHERE list_name = ? ORDER BY item_order ASC",
-            (self._name,)
+            (self._name,),
         )
         for row in cursor:
-            yield self._deserialize(row['item_value'])
+            yield self._deserialize(row["item_value"])
         cursor.close()
 
     def __contains__(self, value: T) -> bool:
@@ -228,7 +214,7 @@ class ListManager[T: JsonSerializable]:
             cursor = self._db.connection.cursor()
             cursor.execute(
                 "SELECT 1 FROM beaver_lists WHERE list_name = ? AND item_value = ? LIMIT 1",
-                (self._name, self._serialize(value))
+                (self._name, self._serialize(value)),
             )
             result = cursor.fetchone()
             cursor.close()
@@ -346,39 +332,6 @@ class ListManager[T: JsonSerializable]:
                     "DELETE FROM beaver_lists WHERE rowid = ?", (rowid_to_delete,)
                 )
                 return self._deserialize(value_to_return)
-
-    def acquire(
-        self,
-        timeout: Optional[float] = None,
-        lock_ttl: Optional[float] = None,
-        poll_interval: Optional[float] = None,
-        block: bool = True,
-    ) -> bool:
-        """
-        Acquires an inter-process lock on this blob store.
-
-        Parameters and behavior the same as `LockManager.acquire()`.
-        """
-        return self._lock.acquire(
-            timeout=timeout,
-            lock_ttl=lock_ttl,
-            poll_interval=poll_interval,
-            block=block,
-        )
-
-    def release(self):
-        """
-        Releases the inter-process lock on this list, allowing the next waiting process access.
-        """
-        self._lock.release()
-
-    def __enter__(self) -> "ListManager[T]":
-        """Acquires the lock upon entering a 'with' statement."""
-        return self.acquire()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Releases the lock when exiting a 'with' statement."""
-        self.release()
 
     def clear(self):
         """

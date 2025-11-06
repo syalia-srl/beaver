@@ -7,6 +7,7 @@ from typing import IO, Any, Iterator, List, Literal, Tuple, Type, TypeVar, Optio
 from .types import Model, IDatabase
 from .locks import LockManager
 from .vectors import NumpyVectorIndex as VectorIndex
+from .manager import ManagerBase
 
 import numpy as np
 
@@ -116,22 +117,18 @@ class Document(Model):
         return json.dumps(metadata)
 
 
-class CollectionManager[D: Document]:
+class CollectionManager[D: Document](ManagerBase[D]):
     """
     A wrapper for multi-modal collection operations, including document storage,
     FTS, fuzzy search, graph traversal, and persistent vector search.
     """
 
     def __init__(self, name: str, db: IDatabase, model: Type[D] | None = None):
-        self._name = name
-        self._db = db
-        self._model = model or Document
+        super().__init__(name, db, model or Document)
 
         # All vector-related operations are now delegated to the VectorIndex class.
         self._vector_index = VectorIndex(name, db)
 
-        self._lock = LockManager(db, f"__lock__collection__{name}")
-        self._internal_lock = LockManager(db, f"__lock__internal__collection__{name}")
         self._compact_lock = LockManager(db, f"__lock__internal__collection__{name}__compact", timeout=0)
 
     def _flatten_metadata(self, metadata: dict, prefix: str = "") -> dict[str, Any]:
@@ -602,39 +599,6 @@ class CollectionManager[D: Document]:
         count = cursor.fetchone()[0]
         cursor.close()
         return count
-
-    def acquire(
-        self,
-        timeout: Optional[float] = None,
-        lock_ttl: Optional[float] = None,
-        poll_interval: Optional[float] = None,
-        block: bool = True,
-    ) -> bool:
-        """
-        Acquires an inter-process lock on this blob store.
-
-        Parameters and behavior the same as `LockManager.acquire()`.
-        """
-        return self._lock.acquire(
-            timeout=timeout,
-            lock_ttl=lock_ttl,
-            poll_interval=poll_interval,
-            block=block,
-        )
-
-    def release(self):
-        """
-        Releases the inter-process lock on this collection.
-        """
-        self._lock.release()
-
-    def __enter__(self) -> "CollectionManager[D]":
-        """Acquires the lock upon entering a 'with' statement."""
-        return self.acquire()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Releases the lock when exiting a 'with' statement."""
-        self.release()
 
     def _get_dump_object(self) -> dict:
         """Builds the JSON-compatible dump object."""

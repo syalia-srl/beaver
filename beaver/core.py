@@ -4,6 +4,7 @@ import warnings
 from typing import List, Type
 
 from beaver.cache import DummyCache, ICache, LocalCache
+from beaver.manager import ManagerBase
 
 from .types import JsonSerializable
 from .blobs import BlobManager
@@ -39,10 +40,9 @@ class BeaverDB:
         self._in_memory = db_path == ":memory:"
         self._main_thread = threading.current_thread().native_id
 
-        self._channels: dict[str, ChannelManager] = {}
-        self._channels_lock = threading.Lock()
-        self._collections: dict[str, CollectionManager] = {}
-        self._collections_lock = threading.Lock()
+        # Lock and data structure for managing singleton instances
+        self._manager_cache = {}
+        self._manager_cache_lock = threading.Lock()
 
         # Initialize the schemas. This will implicitly create the first
         # connection for the main thread via the `connection` property.
@@ -50,6 +50,38 @@ class BeaverDB:
 
         # check current version against the version stored
         self._check_version()
+
+    def singleton[T: JsonSerializable, M](
+        self, cls: Type[M], name: str, model: Type[T] | None = None, **kwargs
+    ) -> M:
+        """
+        Factory method to get a process-level singleton for a manager.
+
+        Caches the instance on this db object to ensure that, e.g.,
+        db.dict("foo") always returns the same object.
+        """
+        cache_key = (cls, name)
+
+        if not issubclass(cls, ManagerBase):
+            raise TypeError("cls must be a subclass of ManagerBase.")
+
+        if not name:
+            raise ValueError("name must be a non-empty string.")
+
+        if model is not None and not isinstance(model, JsonSerializable):
+            raise TypeError("model must be a JsonSerializable class.")
+
+        # Use the db's lock for thread-safe cache access
+        with self._manager_cache_lock:
+            instance = self._manager_cache.get(cache_key)
+
+            if instance is None:
+                # Create the instance, passing 'self' as the 'db' argument,
+                # plus all other args.
+                instance = cls(name=name, db=self, model=model, **kwargs)
+                self._manager_cache[cache_key] = instance
+
+            return instance
 
     def _check_version(self):
         from beaver import __version__
@@ -95,7 +127,7 @@ class BeaverDB:
 
         return conn
 
-    def cache(self, key:str="global") -> ICache:
+    def cache(self, key: str = "global") -> ICache:
         """Returns a thread-local cache that is always valid."""
         if not self._enable_cache:
             return DummyCache.singleton()
@@ -346,53 +378,36 @@ class BeaverDB:
 
     def close(self):
         """Closes the database connection."""
-        if self.connection:
-            # Cleanly shut down any active polling threads before closing
-            with self._channels_lock:
-                for channel in self._channels.values():
-                    channel.close()
-            self.connection.close()
+        warnings.warn("This is currently a No-Op!")
 
     # --- Factory and Passthrough Methods ---
 
-    def dict[T: JsonSerializable](self, name: str, model: type[T] | None = None) -> DictManager[T]:
+    def dict[T: JsonSerializable](
+        self, name: str, model: type[T] | None = None
+    ) -> DictManager[T]:
         """
         Returns a wrapper object for interacting with a named dictionary.
         If model is defined, it should be a type used for automatic (de)serialization.
         """
-        if not isinstance(name, str) or not name:
-            raise TypeError("Dictionary name must be a non-empty string.")
+        return self.singleton(DictManager, name, model)
 
-        if model and not isinstance(model, JsonSerializable):
-            raise TypeError("The model parameter must be a JsonSerializable class.")
-
-        return DictManager(name, self, model)
-
-    def list[T: JsonSerializable](self, name: str, model: type[T] | None = None) -> ListManager[T]:
+    def list[T: JsonSerializable](
+        self, name: str, model: type[T] | None = None
+    ) -> ListManager[T]:
         """
         Returns a wrapper object for interacting with a named list.
         If model is defined, it should be a type used for automatic (de)serialization.
         """
-        if not isinstance(name, str) or not name:
-            raise TypeError("List name must be a non-empty string.")
+        return self.singleton(ListManager, name, model)
 
-        if model and not isinstance(model, JsonSerializable):
-            raise TypeError("The model parameter must be a JsonSerializable class.")
-
-        return ListManager(name, self, model)
-
-    def queue[T: JsonSerializable](self, name: str, model: type[T] | None = None) -> QueueManager[T]:
+    def queue[T: JsonSerializable](
+        self, name: str, model: type[T] | None = None
+    ) -> QueueManager[T]:
         """
         Returns a wrapper object for interacting with a persistent priority queue.
         If model is defined, it should be a type used for automatic (de)serialization.
         """
-        if not isinstance(name, str) or not name:
-            raise TypeError("Queue name must be a non-empty string.")
-
-        if model and not isinstance(model, JsonSerializable):
-            raise TypeError("The model parameter must be a JsonSerializable class.")
-
-        return QueueManager(name, self, model)
+        return self.singleton(QueueManager, name, model)
 
     def collection[D: Document](
         self, name: str, model: Type[D] | None = None
@@ -401,50 +416,28 @@ class BeaverDB:
         Returns a singleton CollectionManager instance for interacting with a
         document collection.
         """
-        if not isinstance(name, str) or not name:
-            raise TypeError("Collection name must be a non-empty string.")
+        return self.singleton(CollectionManager, name, model)
 
-        # Use a thread-safe lock to ensure only one CollectionManager object is
-        # created per name. This is crucial for managing the in-memory state
-        # of the vector index consistently.
-        with self._collections_lock:
-            if name not in self._collections:
-                self._collections[name] = CollectionManager(name, self, model=model)
-
-            return self._collections[name]
-
-    def channel[T: JsonSerializable](self, name: str, model: type[T] | None = None) -> ChannelManager[T]:
+    def channel[T: JsonSerializable](
+        self, name: str, model: type[T] | None = None
+    ) -> ChannelManager[T]:
         """
         Returns a singleton Channel instance for high-efficiency pub/sub.
         """
-        if not isinstance(name, str) or not name:
-            raise ValueError("Channel name must be a non-empty string.")
-
-        # Use a thread-safe lock to ensure only one Channel object is created per name.
-        with self._channels_lock:
-            if name not in self._channels:
-                self._channels[name] = ChannelManager(name, self, model=model)
-            return self._channels[name]
+        return self.singleton(ChannelManager, name, model)
 
     def blob[M](self, name: str, model: type[M] | None = None) -> BlobManager[M]:
         """Returns a wrapper object for interacting with a named blob store."""
-        if not isinstance(name, str) or not name:
-            raise TypeError("Blob store name must be a non-empty string.")
+        return self.singleton(BlobManager, name, model)
 
-        return BlobManager(name, self, model)
-
-    def log[T: JsonSerializable](self, name: str, model: type[T] | None = None) -> LogManager[T]:
+    def log[T: JsonSerializable](
+        self, name: str, model: type[T] | None = None
+    ) -> LogManager[T]:
         """
         Returns a wrapper for interacting with a named, time-indexed log.
         If model is defined, it should be a type used for automatic (de)serialization.
         """
-        if not isinstance(name, str) or not name:
-            raise TypeError("Log name must be a non-empty string.")
-
-        if model and not isinstance(model, JsonSerializable):
-            raise TypeError("The model parameter must be a JsonSerializable class.")
-
-        return LogManager(name, self, model)
+        return self.singleton(LogManager, name, model)
 
     def lock(
         self,
@@ -457,7 +450,7 @@ class BeaverDB:
         Returns an inter-process lock manager for a given lock name.
 
         Args:
-            name: The unique name of the lock (e.g., "run_compaction").
+            name: The unique name of the lock.
             timeout: Max seconds to wait to acquire the lock.
                     If None, it will wait forever.
             lock_ttl: Max seconds the lock can be held. If the process crashes,

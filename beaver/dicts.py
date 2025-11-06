@@ -7,22 +7,10 @@ from typing import IO, Any, Iterator, Tuple, Type, Optional, overload
 from beaver.cache import ICache
 from .types import JsonSerializable, IDatabase
 from .locks import LockManager
+from .manager import ManagerBase
 
-
-class DictManager[T: JsonSerializable]:
+class DictManager[T: JsonSerializable](ManagerBase[T]):
     """A wrapper providing a Pythonic interface to a dictionary in the database."""
-
-    def __init__(self, name: str, db: IDatabase, model: Type[T] | None = None):
-        self._name = name
-        self._db = db
-        self._model = model
-        lock_name = f"__lock__dict__{name}"
-        self._lock = LockManager(db, lock_name)
-        self._cache_key = f"dict:{self._name}"
-
-    @property
-    def cache(self) -> ICache:
-        return self._db.cache(self._cache_key)
 
     def _get_dump_object(self) -> dict:
         """Builds the JSON-compatible dump object."""
@@ -77,20 +65,6 @@ class DictManager[T: JsonSerializable]:
             return None
 
         return dump_object
-
-    def _serialize(self, value: T) -> str:
-        """Serializes the given value to a JSON string."""
-        if isinstance(value, JsonSerializable):
-            return value.model_dump_json()
-
-        return json.dumps(value)
-
-    def _deserialize(self, value: str) -> T:
-        """Deserializes a JSON string into the specified model or a generic object."""
-        if self._model:
-            return self._model.model_validate_json(value)
-
-        return json.loads(value)
 
     def set(self, key: str, value: T, ttl_seconds: float | None = None):
         """Sets a value for a key, with an optional TTL."""
@@ -252,40 +226,6 @@ class DictManager[T: JsonSerializable]:
             return True
         except KeyError:
             return False
-
-    def acquire(
-        self,
-        timeout: Optional[float] = None,
-        lock_ttl: Optional[float] = None,
-        poll_interval: Optional[float] = None,
-        block: bool = True,
-    ) -> bool:
-        """
-        Acquires an inter-process lock on this blob store.
-
-        Parameters and behavior the same as `LockManager.acquire()`.
-        """
-        return self._lock.acquire(
-            timeout=timeout,
-            lock_ttl=lock_ttl,
-            poll_interval=poll_interval,
-            block=block,
-        )
-
-    def release(self):
-        """
-        Releases the inter-process lock on this dictionary.
-        """
-        self._lock.release()
-
-    def __enter__(self) -> "DictManager[T]":
-        """Acquires the lock upon entering a 'with' statement."""
-        self.acquire()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Releases the lock when exiting a 'with' statement."""
-        self.release()
 
     def clear(self):
         """
