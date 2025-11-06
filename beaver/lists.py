@@ -352,16 +352,18 @@ class ListManager[T: JsonSerializable]:
         timeout: Optional[float] = None,
         lock_ttl: Optional[float] = None,
         poll_interval: Optional[float] = None,
+        block: bool = True,
     ) -> "ListManager[T]":
         """
-        Acquires an inter-process lock on this list, blocking until acquired.
+        Acquires an inter-process lock on this blob store.
 
-        Parameters override the default settings of the underlying LockManager.
+        Parameters and behavior the same as `LockManager.acquire()`.
         """
         self._lock.acquire(
             timeout=timeout,
             lock_ttl=lock_ttl,
-            poll_interval=poll_interval
+            poll_interval=poll_interval,
+            block=block,
         )
         return self
 
