@@ -245,6 +245,14 @@ class DictManager[T: JsonSerializable]:
     def __repr__(self) -> str:
         return f"DictManager(name='{self._name}')"
 
+    def __contains__(self, key: str) -> bool:
+        """Checks if a key exists in the dictionary."""
+        try:
+            _ = self[key]
+            return True
+        except KeyError:
+            return False
+
     def acquire(
         self,
         timeout: Optional[float] = None,
