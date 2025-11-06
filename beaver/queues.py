@@ -193,19 +193,18 @@ class QueueManager[T]:
         lock_ttl: Optional[float] = None,
         poll_interval: Optional[float] = None,
         block: bool = True,
-    ) -> "QueueManager[T]":
+    ) -> bool:
         """
         Acquires an inter-process lock on this blob store.
 
         Parameters and behavior the same as `LockManager.acquire()`.
         """
-        self._lock.acquire(
+        return self._lock.acquire(
             timeout=timeout,
             lock_ttl=lock_ttl,
             poll_interval=poll_interval,
             block=block,
         )
-        return self
 
     def release(self):
         """
