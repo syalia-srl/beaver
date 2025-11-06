@@ -238,3 +238,14 @@ class BlobManager[M]:
             return None
 
         return dump_object
+
+    def clear(self):
+        """
+        Atomically removes all blobs from this store.
+        """
+        with self:  # Acquires self._lock
+            with self._db.connection:
+                self._db.connection.execute(
+                    "DELETE FROM beaver_blobs WHERE store_name = ?",
+                    (self._name,),
+                )

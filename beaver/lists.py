@@ -379,3 +379,14 @@ class ListManager[T: JsonSerializable]:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Releases the lock when exiting a 'with' statement."""
         self.release()
+
+    def clear(self):
+        """
+        Atomically removes all items from this list.
+        """
+        with self:  # Acquires self._lock
+            with self._db.connection:
+                self._db.connection.execute(
+                    "DELETE FROM beaver_lists WHERE list_name = ?",
+                    (self._name,),
+                )

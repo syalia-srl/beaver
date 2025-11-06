@@ -188,7 +188,7 @@ class ChannelManager[T]:
 
         self._listeners.clear()
 
-    def prune(self):
+    def clear(self):
         """
         Cleans the log history for the channel effectively
         deleting all previous logs.

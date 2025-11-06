@@ -307,3 +307,14 @@ class QueueManager[T]:
             return None
 
         return dump_object
+
+    def clear(self):
+        """
+        Atomically removes all items from this queue.
+        """
+        with self:  # Acquires self._lock
+            with self._db.connection:
+                self._db.connection.execute(
+                    "DELETE FROM beaver_priority_queues WHERE queue_name = ?",
+                    (self._name,),
+                )

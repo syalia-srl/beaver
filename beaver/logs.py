@@ -345,3 +345,13 @@ class LogManager[T]:
             return None
 
         return dump_object
+
+    def clear(self):
+        """
+        Atomically removes all entries from this log.
+        """
+        with self._db.connection:
+            self._db.connection.execute(
+                "DELETE FROM beaver_logs WHERE log_name = ?",
+                (self._name,),
+            )

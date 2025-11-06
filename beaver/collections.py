@@ -686,6 +686,47 @@ class CollectionManager[D: Document]:
 
         return dump_object
 
+    def clear(self):
+        """
+        Atomically removes all documents and associated data (vectors,
+        FTS indexes, graph edges) from this collection.
+
+        This operation is protected by the manager's inter-process lock
+        and will reset the vector index.
+        """
+        with self:  # Acquires self._lock
+            with self._db.connection:
+                cursor = self._db.connection.cursor()
+
+                # 1. Delete from all related tables
+                tables_to_clear = [
+                    "beaver_collections",
+                    "beaver_fts_index",
+                    "beaver_trigrams",
+                    "beaver_edges",
+                ]
+                for table in tables_to_clear:
+                    cursor.execute(
+                        f"DELETE FROM {table} WHERE collection = ?",
+                        (self._name,)
+                    )
+
+                # 2. Clear vector-specific tables
+                cursor.execute(
+                    "DELETE FROM _vector_change_log WHERE collection_name = ?",
+                    (self._name,)
+                )
+                cursor.execute(
+                    "DELETE FROM beaver_collection_versions WHERE collection_name = ?",
+                    (self._name,)
+                )
+
+            # 3. Reset the in-memory vector index
+            # Re-initializing the VectorIndex is the cleanest way
+            # to reset its internal state.
+            self._vector_index = VectorIndex(self._name, self._db)
+
+
 def rerank[D: Document](
     *results: list[D], weights: list[float] | None = None, k: int = 60
 ) -> list[D]:

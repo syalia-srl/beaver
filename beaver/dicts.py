@@ -280,8 +280,20 @@ class DictManager[T: JsonSerializable]:
 
     def __enter__(self) -> "DictManager[T]":
         """Acquires the lock upon entering a 'with' statement."""
-        return self.acquire()
+        self.acquire()
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Releases the lock when exiting a 'with' statement."""
         self.release()
+
+    def clear(self):
+        """
+        Atomically removes all key-value pairs from this dictionary.
+        """
+        with self:  # Acquires self._lock
+            with self._db.connection:
+                self._db.connection.execute(
+                    "DELETE FROM beaver_dicts WHERE dict_name = ?",
+                    (self._name,),
+                )
