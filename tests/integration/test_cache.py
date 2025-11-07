@@ -1,7 +1,9 @@
 import pytest
+
 pytest.mark.integration
 
 from beaver import BeaverDB
+
 
 def test_dict_cache(db: BeaverDB):
     d = db.dict("test")

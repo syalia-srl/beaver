@@ -11,12 +11,15 @@ from beaver.channels import ChannelManager
 # Mark all tests in this file as 'integration'
 pytestmark = pytest.mark.integration
 
+
 # --- Test Model for Serialization ---
 class Event(Model):
     type: str
     value: int
 
+
 # --- 1. QueueManager Tests ---
+
 
 def test_queue_blocking_get(db: BeaverDB):
     """
@@ -24,7 +27,7 @@ def test_queue_blocking_get(db: BeaverDB):
     published from another thread.
     """
     queue = db.queue("test_blocking_get")
-    result_queue = Queue() # Thread-safe queue to get results back
+    result_queue = Queue()  # Thread-safe queue to get results back
 
     def _worker():
         try:
@@ -55,7 +58,9 @@ def test_queue_blocking_get(db: BeaverDB):
     assert not isinstance(result, Exception)
     assert result.data == "task-1"
 
+
 # --- 2. ChannelManager (Pub/Sub) Tests ---
+
 
 def _subscriber_worker(channel: ChannelManager, result_queue: Queue):
     """A worker that subscribes and listens for one message."""
@@ -64,19 +69,17 @@ def _subscriber_worker(channel: ChannelManager, result_queue: Queue):
             # Block and wait for a message
             for message in listener.listen(timeout=2.0):
                 result_queue.put(message)
-                break # Exit after one message
+                break  # Exit after one message
     except Exception as e:
         result_queue.put(e)
+
 
 def test_channel_subscribe_receive(db: BeaverDB):
     """Tests that a subscriber in a thread receives a published message."""
     channel = db.channel("test_pubsub_1", model=Event)
     result_queue = Queue()
 
-    t = threading.Thread(
-        target=_subscriber_worker,
-        args=(channel, result_queue)
-    )
+    t = threading.Thread(target=_subscriber_worker, args=(channel, result_queue))
     t.start()
 
     # Give the worker time to susbcribe
@@ -96,6 +99,7 @@ def test_channel_subscribe_receive(db: BeaverDB):
     assert result.type == "click"
     assert result.value == 123
 
+
 def test_channel_multi_subscribe_fanout(db: BeaverDB):
     """Tests that multiple subscribers (fan-out) all receive the same message."""
     channel = db.channel("test_pubsub_fanout")
@@ -113,14 +117,16 @@ def test_channel_multi_subscribe_fanout(db: BeaverDB):
     # Publish one message
     channel.publish("fanout_test")
 
-    for t,q in zip(ts, qs):
+    for t, q in zip(ts, qs):
         t.join(1)
         assert not t.is_alive()
         r = q.get()
         assert not isinstance(r, Exception)
         assert r == "fanout_test"
 
+
 # --- 3. LogManager (Live) Tests ---
+
 
 def _aggregator(window: list) -> dict:
     """A test aggregator for the log.live() method."""
@@ -128,6 +134,7 @@ def _aggregator(window: list) -> dict:
         return {"count": 0, "sum": 0}
     values = [item.get("value", 0) for item in window]
     return {"count": len(values), "sum": sum(values)}
+
 
 def test_log_live_receive(db: BeaverDB):
     """Tests that the log.live() iterator yields new aggregations."""
@@ -141,7 +148,7 @@ def test_log_live_receive(db: BeaverDB):
             live_stream = logs.live(
                 window=timedelta(seconds=1),
                 period=timedelta(seconds=0.1),
-                aggregator=_aggregator
+                aggregator=_aggregator,
             )
 
             iterator = iter(live_stream)
