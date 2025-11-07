@@ -55,4 +55,7 @@ release:
 	git push
 	git push --tags
 
+	@echo "Creating Github release..."
+	gh release create "v$(NEW_VERSION)" --title "v$(NEW_VERSION)" --notes "Release version $(NEW_VERSION)"
+
 	@echo "✅ Version $(NEW_VERSION) successfully released."
