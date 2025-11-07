@@ -1,7 +1,7 @@
 ---
 number: 16
 title: "Add `clear` method for all data structures"
-state: open
+state: clear
 labels:
 - enhancement
 - good first issue
