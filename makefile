@@ -7,6 +7,10 @@ test-unit:
 test-all:
 	pytest --cov=beaver
 
+.PHONY: docker-build
+docker-build:
+	docker build -t beaver-db:latest -f dockerfile .
+
 .PHONY: clean
 clean:
 	rm -rf dist
