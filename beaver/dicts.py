@@ -7,7 +7,7 @@ from typing import IO, Any, Iterator, Tuple, Type, Optional, overload
 from beaver.cache import ICache
 from .types import JsonSerializable, IDatabase
 from .locks import LockManager
-from .manager import ManagerBase
+from .manager import ManagerBase, synced
 
 class DictManager[T: JsonSerializable](ManagerBase[T]):
     """A wrapper providing a Pythonic interface to a dictionary in the database."""
@@ -70,6 +70,7 @@ class DictManager[T: JsonSerializable](ManagerBase[T]):
         """Sets a value for a key, with an optional TTL."""
         self.__setitem__(key, value, ttl_seconds=ttl_seconds)
 
+    @synced
     def __setitem__(self, key: str, value: T, ttl_seconds: float | None = None):
         """Sets a value for a key (e.g., `my_dict[key] = value`)."""
         expires_at = None
@@ -80,11 +81,10 @@ class DictManager[T: JsonSerializable](ManagerBase[T]):
 
             expires_at = time.time() + ttl_seconds
 
-        with self._db.connection:
-            self._db.connection.execute(
-                "INSERT OR REPLACE INTO beaver_dicts (dict_name, key, value, expires_at) VALUES (?, ?, ?, ?)",
-                (self._name, key, self._serialize(value), expires_at),
-            )
+        self.connection.execute(
+            "INSERT OR REPLACE INTO beaver_dicts (dict_name, key, value, expires_at) VALUES (?, ?, ?, ?)",
+            (self._name, key, self._serialize(value), expires_at),
+        )
 
         self.cache.set(key, (value, expires_at))
 
@@ -95,6 +95,7 @@ class DictManager[T: JsonSerializable](ManagerBase[T]):
         except KeyError:
             return default
 
+    @synced
     def __getitem__(self, key: str) -> T:
         """Retrieves a value for a given key, raising KeyError if expired."""
         cache = self.cache
@@ -112,7 +113,7 @@ class DictManager[T: JsonSerializable](ManagerBase[T]):
                 )
 
         # Cache MISS
-        cursor = self._db.connection.cursor()
+        cursor = self.connection.cursor()
         cursor.execute(
             "SELECT value, expires_at FROM beaver_dicts WHERE dict_name = ? AND key = ?",
             (self._name, key),
@@ -127,7 +128,7 @@ class DictManager[T: JsonSerializable](ManagerBase[T]):
 
         if expires_at is not None and time.time() > expires_at:
             # Expired: delete the key and raise KeyError
-            with self._db.connection:
+            with self.connection:
                 cursor.execute(
                     "DELETE FROM beaver_dicts WHERE dict_name = ? AND key = ?",
                     (self._name, key),
@@ -157,24 +158,24 @@ class DictManager[T: JsonSerializable](ManagerBase[T]):
         except KeyError:
             return default
 
+    @synced
     def __delitem__(self, key: str):
         """Deletes a key-value pair (e.g., `del my_dict[key]`)."""
-        with self._db.connection:
-            cursor = self._db.connection.cursor()
-            cursor.execute(
-                "DELETE FROM beaver_dicts WHERE dict_name = ? AND key = ?",
-                (self._name, key),
-            )
+        cursor = self.connection.cursor()
+        cursor.execute(
+            "DELETE FROM beaver_dicts WHERE dict_name = ? AND key = ?",
+            (self._name, key),
+        )
 
-            # Evict from cache
-            self.cache.pop(key)
+        # Evict from cache
+        self.cache.pop(key)
 
-            if cursor.rowcount == 0:
-                raise KeyError(f"Key '{key}' not found in dictionary '{self._name}'")
+        if cursor.rowcount == 0:
+            raise KeyError(f"Key '{key}' not found in dictionary '{self._name}'")
 
     def __len__(self) -> int:
         """Returns the number of items in the dictionary."""
-        cursor = self._db.connection.cursor()
+        cursor = self.connection.cursor()
         cursor.execute(
             "SELECT COUNT(*) FROM beaver_dicts WHERE dict_name = ?", (self._name,)
         )
@@ -188,7 +189,7 @@ class DictManager[T: JsonSerializable](ManagerBase[T]):
 
     def keys(self) -> Iterator[str]:
         """Returns an iterator over the dictionary's keys."""
-        cursor = self._db.connection.cursor()
+        cursor = self.connection.cursor()
         cursor.execute(
             "SELECT key FROM beaver_dicts WHERE dict_name = ?", (self._name,)
         )
@@ -198,7 +199,7 @@ class DictManager[T: JsonSerializable](ManagerBase[T]):
 
     def values(self) -> Iterator[T]:
         """Returns an iterator over the dictionary's values."""
-        cursor = self._db.connection.cursor()
+        cursor = self.connection.cursor()
         cursor.execute(
             "SELECT value FROM beaver_dicts WHERE dict_name = ?", (self._name,)
         )
@@ -208,7 +209,7 @@ class DictManager[T: JsonSerializable](ManagerBase[T]):
 
     def items(self) -> Iterator[Tuple[str, T]]:
         """Returns an iterator over the dictionary's items (key-value pairs)."""
-        cursor = self._db.connection.cursor()
+        cursor = self.connection.cursor()
         cursor.execute(
             "SELECT key, value FROM beaver_dicts WHERE dict_name = ?", (self._name,)
         )
@@ -227,13 +228,12 @@ class DictManager[T: JsonSerializable](ManagerBase[T]):
         except KeyError:
             return False
 
+    @synced
     def clear(self):
         """
         Atomically removes all key-value pairs from this dictionary.
         """
-        with self:  # Acquires self._lock
-            with self._db.connection:
-                self._db.connection.execute(
-                    "DELETE FROM beaver_dicts WHERE dict_name = ?",
-                    (self._name,),
-                )
+        self.connection.execute(
+            "DELETE FROM beaver_dicts WHERE dict_name = ?",
+            (self._name,),
+        )

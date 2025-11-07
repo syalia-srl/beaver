@@ -9,7 +9,7 @@ from queue import Empty, Queue
 from typing import IO, Any, AsyncIterator, Callable, Iterator, Type, TypeVar, overload
 
 from .types import JsonSerializable, IDatabase
-from .manager import ManagerBase
+from .manager import ManagerBase, synced
 
 # A special message object used to signal the iterator to gracefully shut down.
 _SHUTDOWN_SENTINEL = object()
@@ -43,7 +43,7 @@ class LiveIterator[T, R]:
     def _polling_loop(self):
         """The main loop for the background thread that queries and aggregates data."""
         # Each thread needs its own database connection.
-        thread_conn = self._db.connection
+        thread_conn = self.connection
         window_deque: collections.deque[tuple[float, T]] = collections.deque()
         last_seen_timestamp = 0.0
 
@@ -172,6 +172,7 @@ class LogManager[T: JsonSerializable](ManagerBase[T]):
     type-safe and async-compatible methods.
     """
 
+    @synced
     def log(self, data: T, timestamp: datetime | None = None) -> None:
         """
         Adds a new entry to the log.
@@ -185,11 +186,10 @@ class LogManager[T: JsonSerializable](ManagerBase[T]):
         ts = timestamp or datetime.now(timezone.utc)
         ts_float = ts.timestamp()
 
-        with self._db.connection:
-            self._db.connection.execute(
-                "INSERT INTO beaver_logs (log_name, timestamp, data) VALUES (?, ?, ?)",
-                (self._name, ts_float, self._serialize(data)),
-            )
+        self.connection.execute(
+            "INSERT INTO beaver_logs (log_name, timestamp, data) VALUES (?, ?, ?)",
+            (self._name, ts_float, self._serialize(data)),
+        )
 
     def range(self, start: datetime, end: datetime) -> list[T]:
         """
@@ -205,7 +205,7 @@ class LogManager[T: JsonSerializable](ManagerBase[T]):
         start_ts = start.timestamp()
         end_ts = end.timestamp()
 
-        cursor = self._db.connection.cursor()
+        cursor = self.connection.cursor()
         cursor.execute(
             "SELECT data FROM beaver_logs WHERE log_name = ? AND timestamp BETWEEN ? AND ? ORDER BY timestamp ASC",
             (self._name, start_ts, end_ts),
@@ -254,7 +254,7 @@ class LogManager[T: JsonSerializable](ManagerBase[T]):
             A dictionary for each log entry with keys "timestamp" and "data".
             The "data" is deserialized.
         """
-        cursor = self._db.connection.cursor()
+        cursor = self.connection.cursor()
         cursor.execute(
             "SELECT timestamp, data FROM beaver_logs WHERE log_name = ? ORDER BY timestamp ASC",
             (self._name,),
@@ -322,12 +322,12 @@ class LogManager[T: JsonSerializable](ManagerBase[T]):
 
         return dump_object
 
+    @synced
     def clear(self):
         """
         Atomically removes all entries from this log.
         """
-        with self._db.connection:
-            self._db.connection.execute(
-                "DELETE FROM beaver_logs WHERE log_name = ?",
-                (self._name,),
-            )
+        self.connection.execute(
+            "DELETE FROM beaver_logs WHERE log_name = ?",
+            (self._name,),
+        )

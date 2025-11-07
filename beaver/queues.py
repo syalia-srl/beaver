@@ -6,7 +6,7 @@ import time
 from typing import IO, Any, Iterator, Literal, NamedTuple, Type, overload, Optional
 from .types import JsonSerializable, IDatabase
 from .locks import LockManager
-from .manager import ManagerBase
+from .manager import ManagerBase, synced
 
 
 class QueueItem[T](NamedTuple):
@@ -34,11 +34,15 @@ class AsyncQueueManager[T: JsonSerializable]:
         return await asyncio.to_thread(self._queue.peek)
 
     @overload
-    async def get(self, block: Literal[True] = True, timeout: float | None = None) -> QueueItem[T]: ...
+    async def get(
+        self, block: Literal[True] = True, timeout: float | None = None
+    ) -> QueueItem[T]: ...
     @overload
     async def get(self, block: Literal[False]) -> QueueItem[T]: ...
 
-    async def get(self, block: bool = True, timeout: float | None = None) -> QueueItem[T]:
+    async def get(
+        self, block: bool = True, timeout: float | None = None
+    ) -> QueueItem[T]:
         """
         Asynchronously and atomically retrieves the highest-priority item.
         This method will run the synchronous blocking logic in a separate thread.
@@ -52,6 +56,7 @@ class QueueManager[T: JsonSerializable](ManagerBase[T]):
     producer-consumer priority queue.
     """
 
+    @synced
     def put(self, data: T, priority: float):
         """
         Adds an item to the queue with a specific priority.
@@ -60,19 +65,19 @@ class QueueManager[T: JsonSerializable](ManagerBase[T]):
             data: The JSON-serializable data to store.
             priority: The priority of the item (lower numbers are higher priority).
         """
-        with self._db.connection:
-            self._db.connection.execute(
-                "INSERT INTO beaver_priority_queues (queue_name, priority, timestamp, data) VALUES (?, ?, ?, ?)",
-                (self._name, priority, time.time(), self._serialize(data)),
-            )
+        self.connection.execute(
+            "INSERT INTO beaver_priority_queues (queue_name, priority, timestamp, data) VALUES (?, ?, ?, ?)",
+            (self._name, priority, time.time(), self._serialize(data)),
+        )
 
-    def _get_item_atomically(self, pop:bool=True) -> QueueItem[T] | None:
+    @synced
+    def _get_item_atomically(self, pop: bool = True) -> QueueItem[T] | None:
         """
         Performs a single, atomic attempt to retrieve and remove the
         highest-priority item from the queue. Returns None if the queue is empty.
         """
-        with self._db.connection:
-            cursor = self._db.connection.cursor()
+        with self.connection:
+            cursor = self.connection.cursor()
             cursor.execute(
                 """
                 SELECT rowid, priority, timestamp, data
@@ -91,7 +96,9 @@ class QueueManager[T: JsonSerializable](ManagerBase[T]):
             rowid, priority, timestamp, data = result
 
             if pop:
-                self._db.connection.execute("DELETE FROM beaver_priority_queues WHERE rowid = ?", (rowid,))
+                self.connection.execute(
+                    "DELETE FROM beaver_priority_queues WHERE rowid = ?", (rowid,)
+                )
 
         return QueueItem(
             priority=priority, timestamp=timestamp, data=self._deserialize(data)
@@ -105,7 +112,9 @@ class QueueManager[T: JsonSerializable](ManagerBase[T]):
         return self._get_item_atomically(pop=False)
 
     @overload
-    def get(self, block: Literal[True] = True, timeout: float | None = None) -> QueueItem[T]: ...
+    def get(
+        self, block: Literal[True] = True, timeout: float | None = None
+    ) -> QueueItem[T]: ...
     @overload
     def get(self, block: Literal[False]) -> QueueItem[T]: ...
 
@@ -152,7 +161,7 @@ class QueueManager[T: JsonSerializable](ManagerBase[T]):
 
     def __len__(self) -> int:
         """Returns the current number of items in the queue."""
-        cursor = self._db.connection.cursor()
+        cursor = self.connection.cursor()
         cursor.execute(
             "SELECT COUNT(*) FROM beaver_priority_queues WHERE queue_name = ?",
             (self._name,),
@@ -176,7 +185,7 @@ class QueueManager[T: JsonSerializable](ManagerBase[T]):
         Yields:
             QueueItem: The next item in the queue (priority, timestamp, data).
         """
-        cursor = self._db.connection.cursor()
+        cursor = self.connection.cursor()
         cursor.execute(
             """
             SELECT priority, timestamp, data
@@ -191,7 +200,7 @@ class QueueManager[T: JsonSerializable](ManagerBase[T]):
                 yield QueueItem(
                     priority=row["priority"],
                     timestamp=row["timestamp"],
-                    data=self._deserialize(row["data"])
+                    data=self._deserialize(row["data"]),
                 )
         finally:
             cursor.close()
@@ -208,23 +217,18 @@ class QueueManager[T: JsonSerializable](ManagerBase[T]):
             if self._model and isinstance(data, JsonSerializable):
                 data = json.loads(data.model_dump_json())
 
-            items_list.append({
-                "priority": item.priority,
-                "timestamp": item.timestamp,
-                "data": data
-            })
+            items_list.append(
+                {"priority": item.priority, "timestamp": item.timestamp, "data": data}
+            )
 
         metadata = {
             "type": "Queue",
             "name": self._name,
             "count": len(items_list),
-            "dump_date": datetime.now(timezone.utc).isoformat()
+            "dump_date": datetime.now(timezone.utc).isoformat(),
         }
 
-        return {
-            "metadata": metadata,
-            "items": items_list
-        }
+        return {"metadata": metadata, "items": items_list}
 
     @overload
     def dump(self) -> dict:
@@ -256,13 +260,12 @@ class QueueManager[T: JsonSerializable](ManagerBase[T]):
 
         return dump_object
 
+    @synced
     def clear(self):
         """
         Atomically removes all items from this queue.
         """
-        with self:  # Acquires self._lock
-            with self._db.connection:
-                self._db.connection.execute(
-                    "DELETE FROM beaver_priority_queues WHERE queue_name = ?",
-                    (self._name,),
-                )
+        self.connection.execute(
+            "DELETE FROM beaver_priority_queues WHERE queue_name = ?",
+            (self._name,),
+        )
