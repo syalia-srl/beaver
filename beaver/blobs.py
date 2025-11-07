@@ -17,36 +17,15 @@ class Blob[M](NamedTuple):
 class BlobManager[M: JsonSerializable](ManagerBase[M]):
     """A wrapper providing a Pythonic interface to a blob store in the database."""
 
-    def put(self, key: str, data: bytes, metadata: Optional[M] = None):
-        """
-        Stores or replaces a blob in the store.
-
-        Args:
-            key: The unique string identifier for the blob.
-            data: The binary data to store.
-            metadata: Optional JSON-serializable dictionary for metadata.
-        """
-        if not isinstance(data, bytes):
-            raise TypeError("Blob data must be of type bytes.")
-
-        metadata_json = self._serialize(metadata) if metadata else None
-
-        with self.connection:
-            self.connection.execute(
-                "INSERT OR REPLACE INTO beaver_blobs (store_name, key, data, metadata) VALUES (?, ?, ?, ?)",
-                (self._name, key, data, metadata_json),
-            )
-
+    @synced
     def get(self, key: str) -> Optional[Blob[M]]:
-        """
-        Retrieves a blob from the store.
+        """Retrieves a blob from the store."""
+        # --- 1. Check cache first ---
+        cached_blob = self.cache.get(key)
+        if cached_blob is not None:
+            return cached_blob  # Cache HIT
 
-        Args:
-            key: The unique string identifier for the blob.
-
-        Returns:
-            A Blob object containing the data and metadata, or None if the key is not found.
-        """
+        # --- 2. Cache MISS ---
         cursor = self.connection.cursor()
         cursor.execute(
             "SELECT data, metadata FROM beaver_blobs WHERE store_name = ? AND key = ?",
@@ -61,23 +40,44 @@ class BlobManager[M: JsonSerializable](ManagerBase[M]):
         data, metadata_json = result
         metadata = self._deserialize(metadata_json) if metadata_json else None
 
-        return Blob(key=key, data=data, metadata=metadata)
+        # --- 3. Create object and populate cache ---
+        blob_obj = Blob(key=key, data=data, metadata=metadata)
+        self.cache.set(key, blob_obj)
 
-    def delete(self, key: str):
-        """
-        Deletes a blob from the store.
+        return blob_obj
 
-        Raises:
-            KeyError: If the key does not exist in the store.
-        """
+    @synced
+    def put(self, key: str, data: bytes, metadata: Optional[M] = None):
+        """Stores or replaces a blob in the store."""
+        if not isinstance(data, bytes):
+            raise TypeError("Blob data must be of type bytes.")
+
+        metadata_json = self._serialize(metadata) if metadata else None
+
         with self.connection:
-            cursor = self.connection.cursor()
-            cursor.execute(
-                "DELETE FROM beaver_blobs WHERE store_name = ? AND key = ?",
-                (self._name, key),
+            self.connection.execute(
+                "INSERT OR REPLACE INTO beaver_blobs (store_name, key, data, metadata) VALUES (?, ?, ?, ?)",
+                (self._name, key, data, metadata_json),
             )
-            if cursor.rowcount == 0:
-                raise KeyError(f"Key '{key}' not found in blob store '{self._name}'")
+
+        # --- 1. Write-through to cache ---
+        # Create the object we know we just stored
+        blob_obj = Blob(key=key, data=data, metadata=metadata)
+        self.cache.set(key, blob_obj)
+
+    @synced
+    def delete(self, key: str):
+        """Deletes a blob from the store."""
+        # --- 1. Evict from cache ---
+        self.cache.pop(key)
+
+        cursor = self.connection.cursor()
+        cursor.execute(
+            "DELETE FROM beaver_blobs WHERE store_name = ? AND key = ?",
+            (self._name, key),
+        )
+        if cursor.rowcount == 0:
+            raise KeyError(f"Key '{key}' not found in blob store '{self._name}'")
 
     def __contains__(self, key: str) -> bool:
         """
@@ -183,10 +183,10 @@ class BlobManager[M: JsonSerializable](ManagerBase[M]):
 
     @synced
     def clear(self):
-        """
-        Atomically removes all blobs from this store.
-        """
+        """Atomically removes all blobs from this store."""
         self.connection.execute(
             "DELETE FROM beaver_blobs WHERE store_name = ?",
             (self._name,),
         )
+        # --- 1. Clear the cache ---
+        self.cache.clear()
