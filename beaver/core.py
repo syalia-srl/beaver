@@ -516,122 +516,88 @@ class BeaverDB(IDatabase):
 
         return LockManager(self, name, timeout, lock_ttl, poll_interval)
 
+    # --- Properties for Name Discovery ---
+
+    def _get_distinct_names(
+        self,
+        table_name: str,
+        column_name: str,
+    ) -> List[str]:
+        """
+        A parameterized helper to get a distinct list of user-defined names
+        from a table, excluding internal names (those starting with '__').
+        """
+        cursor = self.connection.cursor()
+
+        # Build the query
+        sql = f"""
+        SELECT DISTINCT {column_name}
+        FROM {table_name}
+        WHERE {column_name} NOT LIKE '__%'
+        ORDER BY {column_name} ASC
+        """
+
+        cursor.execute(sql)
+
+        names = [row[column_name] for row in cursor.fetchall()]
+        cursor.close()
+        return names
+
     # --- New Properties for Name Discovery ---
 
     @property
     def dicts(self) -> List[str]:
         """Returns a list of all existing user-defined dictionary names."""
-        cursor = self.connection.cursor()
-        cursor.execute(
-            """
-            SELECT DISTINCT dict_name FROM beaver_dicts
-            WHERE dict_name NOT LIKE '__%'
-            ORDER BY dict_name
-            """
+        return self._get_distinct_names(
+            table_name="beaver_dicts", column_name="dict_name"
         )
-        names = [row["dict_name"] for row in cursor.fetchall()]
-        cursor.close()
-        return names
 
     @property
     def lists(self) -> List[str]:
         """Returns a list of all existing user-defined list names."""
-        cursor = self.connection.cursor()
-        cursor.execute(
-            """
-            SELECT DISTINCT list_name FROM beaver_lists
-            WHERE list_name NOT LIKE '__%'
-            ORDER BY list_name
-            """
+        return self._get_distinct_names(
+            table_name="beaver_lists", column_name="list_name"
         )
-        names = [row["list_name"] for row in cursor.fetchall()]
-        cursor.close()
-        return names
 
     @property
     def queues(self) -> List[str]:
         """Returns a list of all existing user-defined queue names."""
-        cursor = self.connection.cursor()
-        cursor.execute(
-            """
-            SELECT DISTINCT queue_name FROM beaver_priority_queues
-            WHERE queue_name NOT LIKE '__%'
-            ORDER BY queue_name
-            """
+        return self._get_distinct_names(
+            table_name="beaver_priority_queues", column_name="queue_name"
         )
-        names = [row["queue_name"] for row in cursor.fetchall()]
-        cursor.close()
-        return names
 
     @property
     def collections(self) -> List[str]:
         """Returns a list of all existing user-defined collection names."""
-        cursor = self.connection.cursor()
-        cursor.execute(
-            """
-            SELECT DISTINCT collection FROM beaver_collections
-            WHERE collection NOT LIKE '__%'
-            ORDER BY collection
-            """
+        return self._get_distinct_names(
+            table_name="beaver_collections", column_name="collection"
         )
-        names = [row["collection"] for row in cursor.fetchall()]
-        cursor.close()
-        return names
 
     @property
     def channels(self) -> List[str]:
-        """Returns a list of all existing channel names that have messages."""
-        cursor = self.connection.cursor()
-        cursor.execute(
-            """
-            SELECT DISTINCT channel_name FROM beaver_pubsub_log
-            ORDER BY channel_name
-            """
+        """Returns a list of all existing user-defined channel names."""
+        return self._get_distinct_names(
+            table_name="beaver_pubsub_log",
+            column_name="channel_name",
         )
-        names = [row["channel_name"] for row in cursor.fetchall()]
-        cursor.close()
-        return names
 
     @property
     def blobs(self) -> List[str]:
         """Returns a list of all existing user-defined blob store names."""
-        cursor = self.connection.cursor()
-        cursor.execute(
-            """
-            SELECT DISTINCT store_name FROM beaver_blobs
-            WHERE store_name NOT LIKE '__%'
-            ORDER BY store_name
-            """
+        return self._get_distinct_names(
+            table_name="beaver_blobs", column_name="store_name"
         )
-        names = [row["store_name"] for row in cursor.fetchall()]
-        cursor.close()
-        return names
 
     @property
     def logs(self) -> List[str]:
-        """Returns a list of all existing log names."""
-        cursor = self.connection.cursor()
-        cursor.execute(
-            """
-            SELECT DISTINCT log_name FROM beaver_logs
-            ORDER BY log_name
-            """
+        """Returns a list of all existing user-defined log names."""
+        return self._get_distinct_names(
+            table_name="beaver_logs", column_name="log_name"
         )
-        names = [row["log_name"] for row in cursor.fetchall()]
-        cursor.close()
-        return names
 
     @property
     def locks(self) -> List[str]:
         """Returns a list of all active, user-defined lock names."""
-        cursor = self.connection.cursor()
-        cursor.execute(
-            """
-            SELECT DISTINCT lock_name FROM beaver_lock_waiters
-            WHERE lock_name NOT LIKE '__%'
-            ORDER BY lock_name
-            """
+        return self._get_distinct_names(
+            table_name="beaver_lock_waiters", column_name="lock_name"
         )
-        names = [row["lock_name"] for row in cursor.fetchall()]
-        cursor.close()
-        return names
