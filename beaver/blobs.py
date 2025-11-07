@@ -60,17 +60,13 @@ class BlobManager[M: JsonSerializable](ManagerBase[M]):
                 (self._name, key, data, metadata_json),
             )
 
-        # --- 1. Write-through to cache ---
-        # Create the object we know we just stored
+        # Write-through to cache
         blob_obj = Blob(key=key, data=data, metadata=metadata)
         self.cache.set(key, blob_obj)
 
     @synced
     def delete(self, key: str):
         """Deletes a blob from the store."""
-        # --- 1. Evict from cache ---
-        self.cache.pop(key)
-
         cursor = self.connection.cursor()
         cursor.execute(
             "DELETE FROM beaver_blobs WHERE store_name = ? AND key = ?",
@@ -78,6 +74,9 @@ class BlobManager[M: JsonSerializable](ManagerBase[M]):
         )
         if cursor.rowcount == 0:
             raise KeyError(f"Key '{key}' not found in blob store '{self._name}'")
+
+        # evict from cache
+        self.cache.pop(key)
 
     def __contains__(self, key: str) -> bool:
         """
@@ -188,5 +187,3 @@ class BlobManager[M: JsonSerializable](ManagerBase[M]):
             "DELETE FROM beaver_blobs WHERE store_name = ?",
             (self._name,),
         )
-        # --- 1. Clear the cache ---
-        self.cache.clear()
