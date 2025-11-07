@@ -543,8 +543,6 @@ class BeaverDB(IDatabase):
         cursor.close()
         return names
 
-    # --- New Properties for Name Discovery ---
-
     @property
     def dicts(self) -> List[str]:
         """Returns a list of all existing user-defined dictionary names."""
