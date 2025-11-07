@@ -1,7 +1,7 @@
 ---
 number: 17
 title: "Replace atomic operations with custom beaver lock"
-state: open
+state: closed
 labels:
 - bug
 ---
