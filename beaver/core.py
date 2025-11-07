@@ -6,7 +6,7 @@ from typing import List, Type
 from beaver.cache import DummyCache, ICache, LocalCache
 from beaver.manager import ManagerBase
 
-from .types import JsonSerializable
+from .types import IDatabase, JsonSerializable
 from .blobs import BlobManager
 from .channels import ChannelManager
 from .collections import CollectionManager, Document
@@ -17,7 +17,7 @@ from .logs import LogManager
 from .queues import QueueManager
 
 
-class BeaverDB:
+class BeaverDB(IDatabase):
     """
     An embedded, multi-modal database in a single SQLite file.
     This class manages thread-safe database connections and table schemas.
@@ -42,7 +42,7 @@ class BeaverDB:
         self._main_thread = threading.current_thread().native_id
 
         # Lock and data structure for managing singleton instances
-        self._manager_cache = {}
+        self._manager_cache: dict[tuple[type, str], ManagerBase] = {}
         self._manager_cache_lock = threading.Lock()
 
         # Initialize the schemas. This will implicitly create the first
@@ -77,7 +77,7 @@ class BeaverDB:
             if self._closed.is_set():
                 raise ConnectionError("BeaverDB instance is closed.")
 
-            instance = self._manager_cache.get(cache_key)
+            instance: ManagerBase[T] | None = self._manager_cache.get(cache_key)
 
             if instance is None:
                 # Create the instance, passing 'self' as the 'db' argument,
@@ -115,8 +115,10 @@ class BeaverDB:
         if self._closed.is_set():
             raise ConnectionError("BeaverDB instance is closed.")
 
+        # Disallow multi-threaded use of in-memory DBs
         if self._in_memory:
             current_thread = threading.current_thread().native_id
+
             if current_thread != self._main_thread:
                 raise TypeError(
                     "Cannot use BeaverDB in multi-threaded context with :memory: path."
@@ -128,6 +130,7 @@ class BeaverDB:
         if conn is None:
             if self._closed.is_set():
                 raise ConnectionError("BeaverDB instance is closed.")
+
             # No connection for this thread yet, so create one.
             conn = sqlite3.connect(self._db_path, timeout=self._timeout)
             conn.execute("PRAGMA journal_mode=WAL;")
@@ -403,15 +406,17 @@ class BeaverDB:
         # Shut down all background services (like Channel pollers)
         # We must lock the cache to safely iterate over it
         with self._manager_cache_lock:
-            for (cls, name), instance in self._manager_cache.items():
+            for instance in self._manager_cache.values():
                 # Check if the instance has a 'close' method and call it
                 if hasattr(instance, "close") and callable(instance.close):
                     try:
                         instance.close()
-                    except Exception:
-                        # Best-effort cleanup.
-                        # In a real app, you might want to log this.
-                        pass
+                    except Exception as e:
+                        warnings.warn(
+                            f"Error closing manager instance {instance}. Exception ignored: {str(e)}.",
+                            stacklevel=2,
+                        )
+
             self._manager_cache.clear()
 
         # Close the connection for the *current* thread
@@ -420,9 +425,11 @@ class BeaverDB:
             try:
                 conn.close()
                 del self._thread_local.conn
-            except Exception:
-                # Best-effort cleanup
-                pass
+            except Exception as e:
+                warnings.warn(
+                    f"Error closing connection. Exception ignored: {str(e)}.",
+                    stacklevel=2,
+                )
 
     # --- Factory and Passthrough Methods ---
 
@@ -470,7 +477,9 @@ class BeaverDB:
         """
         return self.singleton(ChannelManager, name, model)
 
-    def blob[M](self, name: str, model: type[M] | None = None) -> BlobManager[M]:
+    def blob[M: JsonSerializable](
+        self, name: str, model: type[M] | None = None
+    ) -> BlobManager[M]:
         """Returns a wrapper object for interacting with a named blob store."""
         return self.singleton(BlobManager, name, model)
 
@@ -504,6 +513,7 @@ class BeaverDB:
         """
         if self._closed.is_set():
             raise ConnectionError("BeaverDB instance is closed.")
+
         return LockManager(self, name, timeout, lock_ttl, poll_interval)
 
     # --- New Properties for Name Discovery ---
