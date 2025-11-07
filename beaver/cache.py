@@ -1,8 +1,8 @@
 import os
+import functools
 from typing import Optional, Any, Protocol, NamedTuple
 
 
-# 1. Define the Statistics Data Structure
 class CacheStats(NamedTuple):
     """Holds performance metrics for a cache instance."""
 
@@ -144,3 +144,39 @@ class LocalCache:
             pops=self._pops,
             clears=self._clears,
         )
+
+
+def cached(key):
+    """
+    Decorator for read methods.
+    - Generates a cache key using key on the arguments.
+    - If key is None, bypasses cache.
+    - If key is in cache, returns cached value.
+    - If key is not in cache, runs the decorated function,
+      stores the result, and returns it.
+    """
+    from .manager import ManagerBase
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(self: ManagerBase, *args, **kwargs):
+            cache = self.cache
+            cache_key = key(self, *args, **kwargs)
+
+            if cache_key is None:
+                return func(self, *args, **kwargs)
+
+            cached_value = cache.get(cache_key)
+
+            if cached_value is not None:
+                return cached_value  # HIT
+
+            try:
+                result = func(self, *args, **kwargs)
+                cache.set(cache_key, result)
+            except Exception:
+                raise
+
+            return result
+        return wrapper
+    return decorator

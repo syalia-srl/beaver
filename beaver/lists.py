@@ -1,11 +1,10 @@
 import json
-import sqlite3
-from typing import Any, Iterator, Type, Union, Optional, IO, overload
+from typing import Iterator, Union, IO, overload
 from datetime import datetime, timezone
 
+from .cache import cached
 from .manager import ManagerBase, synced
-from .types import JsonSerializable, IDatabase
-from .locks import LockManager
+from .types import JsonSerializable
 
 
 class ListManager[T: JsonSerializable](ManagerBase[T]):
@@ -79,17 +78,18 @@ class ListManager[T: JsonSerializable](ManagerBase[T]):
 
         return dump_object
 
+    @cached(key=lambda k: "__len__")
     def __len__(self) -> int:
         """Returns the number of items in the list (e.g., `len(my_list)`)."""
-        with self:
-            cursor = self.connection.cursor()
-            cursor.execute(
-                "SELECT COUNT(*) FROM beaver_lists WHERE list_name = ?", (self._name,)
-            )
-            count = cursor.fetchone()[0]
-            cursor.close()
-            return count
+        cursor = self.connection.cursor()
+        cursor.execute(
+            "SELECT COUNT(*) FROM beaver_lists WHERE list_name = ?", (self._name,)
+        )
+        count = cursor.fetchone()[0]
+        cursor.close()
+        return count
 
+    @cached(key=lambda k: k if isinstance(k, int) else None)
     @synced
     def __getitem__(self, key: Union[int, slice]) -> T | list[T]:
         """

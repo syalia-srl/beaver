@@ -4,6 +4,8 @@ import json
 import sqlite3
 import time
 from typing import IO, Any, Iterator, Literal, NamedTuple, Type, overload, Optional
+
+from beaver.cache import cached
 from .types import JsonSerializable, IDatabase
 from .locks import LockManager
 from .manager import ManagerBase, synced
@@ -104,6 +106,7 @@ class QueueManager[T: JsonSerializable](ManagerBase[T]):
             priority=priority, timestamp=timestamp, data=self._deserialize(data)
         )
 
+    @cached(key=lambda k: "__peek__")
     def peek(self) -> QueueItem[T] | None:
         """
         Retrieves the first item of the queue.
@@ -159,6 +162,7 @@ class QueueManager[T: JsonSerializable](ManagerBase[T]):
         """Returns an async version of the queue manager."""
         return AsyncQueueManager(self)
 
+    @cached(key=lambda k: "__len__")
     def __len__(self) -> int:
         """Returns the current number of items in the queue."""
         cursor = self.connection.cursor()
