@@ -23,16 +23,18 @@ class BeaverDB(IDatabase):
     This class manages thread-safe database connections and table schemas.
     """
 
-    def __init__(self, db_path: str, timeout: float = 30.0, enable_cache: bool = True):
+    def __init__(self, db_path: str, connection_timeout: float = 30.0, cache_timeout: float = 0.0):
         """
         Initializes the database connection and creates all necessary tables.
 
         Args:
             db_path: The path to the SQLite database file.
+            connection_timeout: The timeout in seconds for SQLite connections.
+            cache_timeout: The timeout in seconds for local caches (defaults to 0.0 to disable caching).
         """
         self._db_path = db_path
-        self._timeout = timeout
-        self._enable_cache = enable_cache
+        self._timeout = connection_timeout
+        self._cache_timeout = cache_timeout
 
         # This object will store a different connection for each thread.
         self._thread_local = threading.local()
@@ -144,13 +146,13 @@ class BeaverDB(IDatabase):
         if self._closed.is_set():
             raise ConnectionError("BeaverDB instance is closed.")
 
-        if not self._enable_cache:
+        if not self._cache_timeout:
             return DummyCache.singleton()
 
         cache = getattr(self._thread_local, f"cache_{key}", None)
 
         if cache is None:
-            cache = LocalCache(f"{self._db_path}-wal")
+            cache = LocalCache(self, cache_namespace=key, check_interval=self._cache_timeout)
             setattr(self._thread_local, f"cache_{key}", cache)
 
         return cache
@@ -171,6 +173,18 @@ class BeaverDB(IDatabase):
             self._create_versions_table()
             self._create_locks_table()
             self._create_vector_change_log_table()
+            self._create_cache_table()
+
+    def _create_cache_table(self):
+        """Creates a table to track the version of each data manager for caching."""
+        self.connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS beaver_manager_versions (
+                namespace TEXT PRIMARY KEY,
+                version INTEGER NOT NULL DEFAULT 0
+            )
+        """
+        )
 
     def _create_vector_change_log_table(self):
         """Creates the unified log for vector insertions and deletions."""

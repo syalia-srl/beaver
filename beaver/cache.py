@@ -1,5 +1,7 @@
 import os
 import functools
+import threading
+import time
 from typing import Optional, Any, Protocol, NamedTuple
 
 
@@ -11,7 +13,6 @@ class CacheStats(NamedTuple):
     invalidations: int
     sets: int
     pops: int
-    clears: int
 
     @property
     def reads(self) -> int:
@@ -44,14 +45,15 @@ class ICache(Protocol):
     def get(self, key: str) -> Optional[Any]: ...
     def set(self, key: Any, value: Any): ...
     def pop(self, key: str): ...
-    def clear(self): ...
+    def invalidate(self): ...
     def stats(self) -> CacheStats: ...
+    def touch(self): ...
 
 
 class DummyCache:
     """A cache object that does nothing. Used when caching is disabled."""
 
-    _stats = CacheStats(hits=0, misses=0, invalidations=0, sets=0, pops=0, clears=0)
+    _stats = CacheStats(hits=0, misses=0, invalidations=0, sets=0, pops=0)
 
     def get(self, key: str) -> Optional[Any]:
         return None
@@ -62,7 +64,7 @@ class DummyCache:
     def pop(self, key: str):
         pass
 
-    def clear(self):
+    def invalidate(self):
         pass
 
     def stats(self) -> CacheStats:
@@ -75,14 +77,30 @@ class DummyCache:
 
         return cls.__instance
 
+    def touch(self):
+        pass
 
 class LocalCache:
-    """A thread-local cache that self-invalidates by checking WAL mtime."""
+    """
+    A thread-local cache that invalidates based on a central,
+    database-backed version number, checking only once per interval.
+    """
+    def __init__(
+        self,
+        db,
+        cache_namespace: str,
+        check_interval: float
+    ):
+        from .types import IDatabase
 
-    def __init__(self, wal_path: str):
-        self._wal_path = wal_path
+        self._db: IDatabase = db
         self._data: dict[str, Any] = {}
-        self._last_known_wal_mtime: float = self._get_wal_mtime()
+        self._lock = threading.Lock()
+
+        self._version_key: str = cache_namespace # e.g., "list:tasks"
+        self._local_version: int = -1
+        self._last_check_time: float = 0.0
+        self._min_check_interval: float = check_interval
 
         # Statistics
         self._hits = 0
@@ -92,48 +110,103 @@ class LocalCache:
         self._pops = 0
         self._clears = 0
 
-    def _get_wal_mtime(self) -> float:
-        try:
-            return os.stat(self._wal_path).st_mtime
-        except FileNotFoundError:
-            return 0.0
+    def _get_global_version(self) -> int:
+        """Reads the 'source of truth' version from the DB."""
+        # This is a raw, direct DB call to avoid circular dependencies
+        cursor = self._db.connection.cursor()
+        cursor.execute(
+            "SELECT version FROM beaver_manager_versions WHERE namespace = ?",
+            (self._version_key,)
+        )
+        result = cursor.fetchone()
+        return int(result[0]) if result else 0
 
     def _check_and_invalidate(self):
-        current_wal_mtime = self._get_wal_mtime()
+        """
+        Checks if the cache is stale, but only hits the DB
+        once per check_interval.
+        """
+        now = time.time()
 
-        if current_wal_mtime > self._last_known_wal_mtime:
-            self._data.clear()
-            self._last_known_wal_mtime = current_wal_mtime
-            self._invalidations += 1
+        # --- 1. The Hot Path (Pure In-Memory Check) ---
+        if (now - self._last_check_time) < self._min_check_interval:
+            return
 
-    def _update_mtime_after_write(self):
-        self._last_known_wal_mtime = self._get_wal_mtime()
+        # --- 2. The "Coalesced" DB Check ---
+        with self._lock:
+            # Double-check inside lock in case another thread just ran this
+            if (time.time() - self._last_check_time) < self._min_check_interval:
+                return
+
+            global_version = self._get_global_version()
+            self._last_check_time = time.time() # Reset timer
+
+            if global_version != self._local_version:
+                self._data.clear()
+                self._local_version = global_version
+                self._invalidations += 1
 
     def get(self, key: str) -> Optional[Any]:
+        # This check is now extremely fast
         self._check_and_invalidate()
-        value = self._data.get(key)
 
-        if value is not None:
-            self._hits += 1
-            return value
+        with self._lock:
+            value = self._data.get(key)
 
-        self._misses += 1
+            if value is not None:
+                self._hits += 1
+                return value
+
+            self._misses += 1
+
         return None
 
     def set(self, key: str, value: Any):
-        self._data[key] = value
-        self._update_mtime_after_write()
-        self._sets += 1
+        with self._lock:
+            self._data[key] = value
+            self._sets += 1
 
     def pop(self, key: str):
-        self._data.pop(key, None)
-        self._update_mtime_after_write()
-        self._pops += 1
+        with self._lock:
+            self._data.pop(key, None)
+            self._pops += 1
 
-    def clear(self):
-        self._data.clear()
-        self._update_mtime_after_write()
-        self._clears += 1
+    def invalidate(self):
+        with self._lock:
+            self._data.clear()
+            self._local_version = 0 # Must force re-check
+            self._invalidations += 1
+            self._last_check_time = 0.0
+
+    def touch(self):
+        """
+        Atomically increments the cache version in the native SQL table
+        and syncs the cache's local version to avoid self-invalidation.
+
+        Only call this when you make a change that should invalidate
+        other caches of the same namespace in other processes,
+        but keep this cache valid.
+        """
+        with self._lock:
+            new_version = 0
+
+            with self._db.connection:
+                # This is a single, atomic, native SQL operation.
+                cursor = self._db.connection.execute(
+                    """
+                    INSERT INTO beaver_manager_versions (namespace, version)
+                    VALUES (?, 1)
+                    ON CONFLICT(namespace) DO UPDATE SET
+                        version = version + 1
+                    RETURNING version;
+                    """,
+                    (self._version_key,)
+                )
+                new_version = cursor.fetchone()[0]
+
+            # Keep the cache in sync to avoid self-invalidation
+            self._last_check_time = time.time()
+            self._local_version = new_version
 
     def stats(self) -> CacheStats:
         return CacheStats(
@@ -142,8 +215,10 @@ class LocalCache:
             invalidations=self._invalidations,
             sets=self._sets,
             pops=self._pops,
-            clears=self._clears,
         )
+
+    def __repr__(self) -> str:
+        return f"<LocalCache namespace='{self._version_key}', version={self._local_version}>"
 
 
 def cached(key):
@@ -193,7 +268,7 @@ def invalidates_cache(func):
         try:
             result = func(self, *args, **kwargs)
         finally:
-            self.cache.clear()
+            self.cache.invalidate()
 
         return result
 

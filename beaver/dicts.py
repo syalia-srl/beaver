@@ -87,6 +87,7 @@ class DictManager[T: JsonSerializable](ManagerBase[T]):
         )
 
         self.cache.set(key, (value, expires_at))
+        self.cache.touch()
 
     def get(self, key: str, default: Any = None) -> T | Any:
         """Gets a value for a key, with a default if it doesn't exist or is expired."""
@@ -149,6 +150,7 @@ class DictManager[T: JsonSerializable](ManagerBase[T]):
         cache.set(key, (result, expires_at))
         return result
 
+    @synced
     def pop(self, key: str, default: Any = None) -> T | Any:
         """Deletes an item if it exists and returns its value."""
         try:
@@ -169,6 +171,7 @@ class DictManager[T: JsonSerializable](ManagerBase[T]):
 
         # Evict from cache
         self.cache.pop(key)
+        self.cache.touch()
 
         if cursor.rowcount == 0:
             raise KeyError(f"Key '{key}' not found in dictionary '{self._name}'")

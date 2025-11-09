@@ -37,6 +37,23 @@ def db(db_path):
 
 
 @pytest.fixture
+def db_cached(db_path):
+    """
+    A fixture that provides an initialized BeaverDB instance
+    using the temporary db_path. It ensures the database
+    is properly closed after the test.
+    """
+    # Setup: Initialize the database
+    db_instance = BeaverDB(db_path, cache_timeout=0.1)
+
+    # Yield the instance to the test
+    yield db_instance
+
+    # Teardown: Close the database connection
+    db_instance.close()
+
+
+@pytest.fixture
 def db_memory(db_path):
     """
     A fixture that provides an initialized BeaverDB instance

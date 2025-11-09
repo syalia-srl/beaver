@@ -5,8 +5,8 @@ pytest.mark.integration
 from beaver import BeaverDB
 
 
-def test_dict_cache(db: BeaverDB):
-    d = db.dict("test")
+def test_dict_cache(db_cached: BeaverDB):
+    d = db_cached.dict("test")
 
     # Add an item and verify it hits the cache
     d["k"] = 5
