@@ -43,7 +43,7 @@ class LiveIterator[T, R]:
     def _polling_loop(self):
         """The main loop for the background thread that queries and aggregates data."""
         # Each thread needs its own database connection.
-        thread_conn = self.connection
+        thread_conn = self._db.connection
         window_deque: collections.deque[tuple[float, T]] = collections.deque()
         last_seen_timestamp = 0.0
 

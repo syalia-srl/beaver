@@ -140,54 +140,40 @@ def test_log_live_receive(db: BeaverDB):
     """Tests that the log.live() iterator yields new aggregations."""
     logs = db.log("test_live_log")
     result_queue = Queue()
-    ready_event = threading.Event()
 
     def _log_watcher():
         try:
             # Use a short window and period for fast testing
             live_stream = logs.live(
-                window=timedelta(seconds=1),
+                window=timedelta(seconds=10),
                 period=timedelta(seconds=0.1),
                 aggregator=_aggregator,
             )
 
             iterator = iter(live_stream)
 
-            # Get the initial result (likely empty)
-            initial_result = next(iterator)
-            result_queue.put(initial_result)
+            result = next(iterator)
+            result_queue.put(result)
 
-            # Signal that we are ready
-            ready_event.set()
-
-            # Block and wait for the *next* aggregated result
-            # This will only happen after a log is added
-            next_result = next(iterator)
-            result_queue.put(next_result)
         except Exception as e:
             result_queue.put(e)
 
+    # Log a new entry
+    logs.log({"value": 1})
+    logs.log({"value": 2})
+    logs.log({"value": 3})
+    logs.log({"value": 4})
+    logs.log({"value": 5})
+
     t = threading.Thread(target=_log_watcher)
     t.start()
-
-    assert ready_event.wait(timeout=2.0), "Log watcher thread failed to start"
-
-    # Log a new entry
-    logs.log({"value": 10})
 
     t.join(timeout=3.0)
     assert not t.is_alive()
 
     # We expect two results: initial and updated
-    initial = result_queue.get()
-    updated = result_queue.get()
+    results = result_queue.get()
+    assert not isinstance(results, Exception)
 
-    assert not isinstance(initial, Exception)
-    assert not isinstance(updated, Exception)
-
-    # Initial result should be empty or contain the new item (timing-dependent)
-    assert initial["count"] in [0, 1]
-
-    # Updated result must contain the new item
-    assert updated["count"] >= 1
-    assert updated["sum"] >= 10
+    assert results["count"] == 5
+    assert results["sum"] == sum([1, 2, 3, 4, 5])
