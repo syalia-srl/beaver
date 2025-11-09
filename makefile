@@ -39,27 +39,27 @@ release: test-all
 	fi
 	@echo "Bumping version from $(CURRENT_VERSION) to $(NEW_VERSION)..."
 
-	# Replace version in pyproject.toml
-	sed -i.bak "s/version = \"$(CURRENT_VERSION)\"/version = \"$(NEW_VERSION)\"/" pyproject.toml
+	@echo Replace version in pyproject.toml
+	@sed -i.bak "s/version = \"$(CURRENT_VERSION)\"/version = \"$(NEW_VERSION)\"/" pyproject.toml
 
-	# Replace version in beaver/__init__.py
-	sed -i.bak "s/__version__ = \"$(CURRENT_VERSION)\"/__version__ = \"$(NEW_VERSION)\"/" beaver/__init__.py
+	@echo Replace version in beaver/__init__.py
+	@sed -i.bak "s/__version__ = \"$(CURRENT_VERSION)\"/__version__ = \"$(NEW_VERSION)\"/" beaver/__init__.py
 
-	# Remove backup files
-	rm pyproject.toml.bak beaver/__init__.py.bak
+	@echo Remove backup files
+	@rm pyproject.toml.bak beaver/__init__.py.bak
 
 	@echo "Committing version bump..."
-	git add pyproject.toml beaver/__init__.py
-	git commit -m "Bump version to $(NEW_VERSION)"
+	@git add pyproject.toml beaver/__init__.py
+	@echo git commit -m "Bump version to $(NEW_VERSION)"
 
 	@echo "Tagging new version..."
-	git tag "v$(NEW_VERSION)"
+	@git tag "v$(NEW_VERSION)"
 
 	@echo "Pushing commit and tags..."
-	git push
-	git push --tags
+	@git push
+	@git push --tags
 
 	@echo "Creating Github release..."
-	gh release create "v$(NEW_VERSION)" --title "v$(NEW_VERSION)" --notes "Release version $(NEW_VERSION)"
+	@gh release create "v$(NEW_VERSION)" --title "v$(NEW_VERSION)" --notes "Release version $(NEW_VERSION)"
 
 	@echo "✅ Version $(NEW_VERSION) successfully released."
