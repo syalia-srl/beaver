@@ -11,18 +11,24 @@ def text_docs():
     return [
         Document(
             id="py",
-            content="Python is a great programming language.",
-            author="Guido"
+            body=dict(
+                content="Python is a great programming language.",
+                author="Guido"
+            )
         ),
         Document(
             id="sql",
-            content="SQLite is a powerful database.",
-            author="Richard"
+            body=dict(
+                content="SQLite is a powerful database.",
+                author="Richard"
+            )
         ),
         Document(
             id="js",
-            content="JavaScript is a language for web programming.",
-            author="Brendan"
+            body=dict(
+                content="JavaScript is a language for web programming.",
+                author="Brendan"
+            )
         )
     ]
 
@@ -33,17 +39,17 @@ def vector_docs():
         Document(
             id="cat",
             embedding=[0.1, 0.1, 0.9], # Vector for "cat"
-            content="A small feline."
+            body="A small feline."
         ),
         Document(
             id="dog",
             embedding=[0.9, 0.1, 0.1], # Vector for "dog"
-            content="A loyal canine."
+            body="A loyal canine."
         ),
         Document(
             id="person",
             embedding=[0.1, 0.9, 0.1], # Vector for "person"
-            content="A human being."
+            body="A human being."
         )
     ]
 
@@ -56,7 +62,7 @@ def test_collection_index_and_len(db_memory: BeaverDB):
     coll = db_memory.collection("test_index_len")
     assert len(coll) == 0
 
-    doc1 = Document(id="d1", content="doc one")
+    doc1 = Document(id="d1", body="doc one")
     coll.index(doc1)
 
     assert len(coll) == 1
@@ -65,12 +71,12 @@ def test_collection_index_upsert_and_iter(db_memory: BeaverDB):
     """Tests that indexing with an existing ID overwrites (upserts) the document."""
     coll = db_memory.collection("test_upsert_iter")
 
-    doc_v1 = Document(id="d1", content="version 1", status="old")
+    doc_v1 = Document(id="d1", body=dict(content="version 1", status="old"))
     coll.index(doc_v1)
     assert len(coll) == 1
 
     # Re-index with the same ID
-    doc_v2 = Document(id="d1", content="version 2", status="new")
+    doc_v2 = Document(id="d1", body=dict(content="version 2", status="new"))
     coll.index(doc_v2)
 
     # Length should remain 1
@@ -80,15 +86,15 @@ def test_collection_index_upsert_and_iter(db_memory: BeaverDB):
     items = list(coll)
     assert len(items) == 1
     assert items[0].id == "d1"
-    assert items[0].content == "version 2"
-    assert items[0].status == "new" # Verify new metadata is present
+    assert items[0].body['content'] == "version 2"
+    assert items[0].body['status'] == "new" # Verify new metadata is present
 
 def test_collection_drop(db_memory: BeaverDB):
     """Tests that dropping a document removes it from the collection."""
     coll = db_memory.collection("test_drop")
 
-    doc1 = Document(id="d1", content="doc one")
-    doc2 = Document(id="d2", content="doc two")
+    doc1 = Document(id="d1", body="doc one")
+    doc2 = Document(id="d2", body="doc two")
     coll.index(doc1)
     coll.index(doc2)
     assert len(coll) == 2
@@ -160,7 +166,7 @@ def test_fts_match_on_field(db_memory: BeaverDB, text_docs):
 
     # "Guido" only exists in the 'author' field of doc 'py'
     # We also add another doc that has "Guido" in the 'content'
-    coll.index(Document(id="bio", content="A bio about Guido"), fts=True)
+    coll.index(Document(id="bio", body="A bio about Guido"), fts=True)
 
     # Search for "Guido" only on the 'author' field
     results = coll.match("Guido", on=["author"])
@@ -208,10 +214,10 @@ def graph_docs(db_memory: BeaverDB):
     coll = db_memory.collection("test_graph")
 
     docs = {
-        "alice": Document(id="alice", name="Alice"),
-        "bob": Document(id="bob", name="Bob"),
-        "charlie": Document(id="charlie", name="Charlie"),
-        "diana": Document(id="diana", name="Diana"),
+        "alice": Document(id="alice", body="Alice"),
+        "bob": Document(id="bob", body="Bob"),
+        "charlie": Document(id="charlie", body="Charlie"),
+        "diana": Document(id="diana", body="Diana"),
     }
 
     for doc in docs.values():
@@ -274,7 +280,7 @@ def test_graph_walk_outgoing(graph_docs):
         source=docs["alice"],
         labels=["FOLLOWS"],
         depth=2,
-        direction=WalkDirection.OUTGOING
+        direction="outgoing",
     )
 
     assert len(foaf) == 3
@@ -291,7 +297,7 @@ def test_graph_walk_incoming(graph_docs):
         source=docs["bob"],
         labels=["FOLLOWS"],
         depth=1,
-        direction=WalkDirection.INCOMING
+        direction="incoming",
     )
 
     assert len(followers) == 2
@@ -307,7 +313,7 @@ def test_graph_walk_multi_label(graph_docs):
         source=docs["alice"],
         labels=["FOLLOWS", "COLLABORATES_WITH"],
         depth=1,
-        direction=WalkDirection.OUTGOING
+        direction="outgoing",
     )
 
     # Should find Bob (twice, but walk returns distinct) and Charlie

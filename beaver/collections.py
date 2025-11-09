@@ -81,12 +81,56 @@ def _sliding_window_levenshtein(query: str, content: str, fuzziness: int) -> int
     return int(min_dist)
 
 
-class Document[B: BaseModel](BaseModel):
+class Document[B](BaseModel):
     """A data class representing a single item in a collection."""
 
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     embedding: list[float] | None = None
     body: B | None = None
+
+    def serialize_embedding(self) -> bytes | None:
+        """Serializes the embedding to bytes for storage."""
+        if self.embedding is None:
+            return None
+
+        array = np.array(self.embedding, dtype=np.float32)
+        return array.tobytes()
+
+    @classmethod
+    def deserialize_embedding(cls, data: bytes | None):
+        """Deserializes bytes back into the embedding list."""
+        if data is None:
+            return None
+
+        array = np.frombuffer(data, dtype=np.float32)
+        return array.tolist()
+
+    def _flatten_metadata(self, metadata: dict, prefix: str = "") -> dict[str, Any]:
+        """Flattens a nested dictionary for indexing."""
+        flat_dict = {}
+        for key, value in metadata.items():
+            new_key = f"{prefix}.{key}" if prefix else key
+            if isinstance(value, dict):
+                flat_dict.update(self._flatten_metadata(value, new_key))
+            else:
+                flat_dict[new_key] = value
+        return flat_dict
+
+    def serialize_body(self) -> dict:
+        """Serializes the body to a dictionary for storage."""
+        if self.body is None:
+            return {}
+
+        if isinstance(self.body, dict):
+            return self.body
+        elif isinstance(self.body, BaseModel):
+            return self.body.model_dump(mode="json")
+        else:
+            return {"value": self.body}
+
+    def flattened_body(self) -> dict[str, Any]:
+        """Returns the flattened body metadata."""
+        return self._flatten_metadata(self.serialize_body())
 
 
 class CollectionManager[B: BaseModel](ManagerBase[B]):
@@ -104,17 +148,6 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
         self._compact_lock = LockManager(
             db, f"__lock__internal__collection__{name}__compact", timeout=0
         )
-
-    def _flatten_metadata(self, metadata: dict, prefix: str = "") -> dict[str, Any]:
-        """Flattens a nested dictionary for indexing."""
-        flat_dict = {}
-        for key, value in metadata.items():
-            new_key = f"{prefix}.{key}" if prefix else key
-            if isinstance(value, dict):
-                flat_dict.update(self._flatten_metadata(value, new_key))
-            else:
-                flat_dict[new_key] = value
-        return flat_dict
 
     def _needs_compactation(self):
         return self._vector_index.delta_size >= 100
@@ -158,12 +191,8 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
             (
                 self._name,
                 document.id,
-                (
-                    document.embedding.tobytes()
-                    if document.embedding is not None
-                    else None
-                ),
-                json.dumps(document.to_dict()),
+                document.serialize_embedding(),
+                json.dumps(document.serialize_body()),
             ),
         )
 
@@ -181,7 +210,7 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
             (self._name, document.id),
         )
 
-        flat_metadata = self._flatten_metadata(document.to_dict())
+        flat_metadata = document.flattened_body()
         fields_to_index: dict[str, str] = {}
         if isinstance(fts, list):
             fields_to_index = {
@@ -221,7 +250,7 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
     @synced
     def drop(self, document: Document[B]):
         """Removes a document and all its associated data from the collection."""
-        if not isinstance(document, Document[B]):
+        if not isinstance(document, Document):
             raise TypeError("Item to drop must be a Document object.")
 
         cursor = self._db.connection.cursor()
@@ -260,8 +289,10 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
                 if row["item_vector"]
                 else None
             )
-            yield self._model(
-                id=row["item_id"], embedding=embedding, **json.loads(row["metadata"])
+            yield Document(
+                id=row["item_id"],
+                embedding=embedding,
+                body=self._deserialize(row["metadata"]),
             )
         cursor.close()
 
@@ -272,9 +303,7 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
         if not isinstance(vector, list):
             raise TypeError("Search vector must be a list of floats.")
 
-        search_results = self._vector_index.search(
-            np.array(vector, dtype=np.float32), top_k=top_k
-        )
+        search_results = self._vector_index.search(vector, top_k=top_k)
         if not search_results:
             return []
 
@@ -288,14 +317,10 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
         rows = cursor.execute(sql, (self._name, *result_ids)).fetchall()
 
         doc_map = {
-            row["item_id"]: self._model(
+            row["item_id"]: Document(
                 id=row["item_id"],
-                embedding=(
-                    np.frombuffer(row["item_vector"], dtype=np.float32).tolist()
-                    if row["item_vector"]
-                    else None
-                ),
-                **json.loads(row["metadata"]),
+                embedding=Document.deserialize_embedding(row["item_vector"]),
+                body=self._deserialize(row["metadata"]),
             )
             for row in rows
         }
@@ -354,13 +379,10 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
         ).fetchall()
         results = []
         for row in rows:
-            embedding = (
-                np.frombuffer(row["item_vector"], dtype=np.float32).tolist()
-                if row["item_vector"]
-                else None
-            )
-            doc = self._model(
-                id=row["item_id"], embedding=embedding, **json.loads(row["metadata"])
+            doc = Document(
+                id=row["item_id"],
+                embedding=Document.deserialize_embedding(row["item_vector"]),
+                body=self._deserialize(row["metadata"]),
             )
             results.append((doc, row["rank"]))
         return results
@@ -457,14 +479,10 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
         sql_docs = f"SELECT item_id, item_vector, metadata FROM beaver_collections WHERE collection = ? AND item_id IN ({id_placeholders})"
         cursor.execute(sql_docs, (self._name, *top_ids))
         doc_map = {
-            row["item_id"]: self._model(
+            row["item_id"]: Document(
                 id=row["item_id"],
-                embedding=(
-                    np.frombuffer(row["item_vector"], dtype=np.float32).tolist()
-                    if row["item_vector"]
-                    else None
-                ),
-                **json.loads(row["metadata"]),
+                embedding=Document.deserialize_embedding(row["item_vector"]),
+                body=self._deserialize(row["metadata"]),
             )
             for row in cursor.fetchall()
         }
@@ -477,7 +495,7 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
         return final_results
 
     def connect(
-        self, source: Document, target: Document, label: str, metadata: dict = None
+        self, source: Document, target: Document, label: str
     ):
         """Creates a directed edge between two documents."""
         if not isinstance(source, Document) or not isinstance(target, Document):
@@ -491,11 +509,13 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
                     source.id,
                     target.id,
                     label,
-                    json.dumps(metadata) if metadata else None,
+                    None,
                 ),
             )
 
-    def neighbors(self, doc: Document[B], label: str | None = None) -> list[Document[B]]:
+    def neighbors(
+        self, doc: Document[B], label: str | None = None
+    ) -> list[Document[B]]:
         """Retrieves the neighboring documents connected to a given document."""
         sql = "SELECT DISTINCT t1.item_id, t1.item_vector, t1.metadata FROM beaver_collections AS t1 JOIN beaver_edges AS t2 ON t1.item_id = t2.target_item_id AND t1.collection = t2.collection WHERE t2.collection = ? AND t2.source_item_id = ?"
         params = [self._name, doc.id]
@@ -505,14 +525,10 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
 
         rows = self._db.connection.cursor().execute(sql, tuple(params)).fetchall()
         return [
-            self._model(
+            Document(
                 id=row["item_id"],
-                embedding=(
-                    np.frombuffer(row["item_vector"], dtype=np.float32).tolist()
-                    if row["item_vector"]
-                    else None
-                ),
-                **json.loads(row["metadata"]),
+                embedding=Document.deserialize_embedding(row["item_vector"]),
+                body=self._deserialize(row["metadata"]),
             )
             for row in rows
         ]
@@ -523,7 +539,7 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
         labels: List[str],
         depth: int,
         *,
-        outgoing: bool = True,
+        direction: Literal["outgoing", "incoming"] = "outgoing",
     ) -> List[Document[B]]:
         """Performs a graph traversal (BFS) from a starting document."""
         if not isinstance(source, Document):
@@ -534,7 +550,7 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
 
         source_col, target_col = (
             ("source_item_id", "target_item_id")
-            if outgoing
+            if direction == "outgoing"
             else ("target_item_id", "source_item_id")
         )
         sql = f"""
@@ -553,14 +569,10 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
 
         rows = self._db.connection.cursor().execute(sql, tuple(params)).fetchall()
         return [
-            self._model(
+            Document(
                 id=row["item_id"],
-                embedding=(
-                    np.frombuffer(row["item_vector"], dtype=np.float32).tolist()
-                    if row["item_vector"]
-                    else None
-                ),
-                **json.loads(row["metadata"]),
+                embedding=Document.deserialize_embedding(row["item_vector"]),
+                body=self._deserialize(row["metadata"]),
             )
             for row in rows
         ]
@@ -582,7 +594,7 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
         # The __iter__ method yields Document instances.
         # doc.to_dict(metadata_only=False) correctly serializes
         # the Document (including embedding) to a plain dictionary.
-        items_list = [doc.to_dict(metadata_only=False) for doc in self]
+        items_list = [doc.model_dump(mode="json") for doc in self]
 
         metadata = {
             "type": "Collection",
@@ -679,7 +691,7 @@ def rerank[B: BaseModel](
         raise ValueError("The number of result lists must match the number of weights.")
 
     rrf_scores: dict[str, float] = {}
-    doc_store: dict[str, D] = {}
+    doc_store: dict[str, Document[B]] = {}
 
     for result_list, weight in zip(results, weights):
         for rank, doc in enumerate(result_list):

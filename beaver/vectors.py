@@ -65,7 +65,7 @@ class NumpyVectorIndex:
         with self._thread_lock:
             return len(self._k_ids)
 
-    def index(self, vector: np.ndarray, item_id: str, cursor: sqlite3.Cursor):
+    def index(self, vector: list[float], item_id: str, cursor: sqlite3.Cursor):
         """
         Logs a vector insertion and updates the current process's in-memory
         delta index immediately.
@@ -83,7 +83,7 @@ class NumpyVectorIndex:
 
         # 2. Call the fast-path helper to update this process's in-memory state
         if new_log_id:
-            self._fast_path_insert(vector, item_id, new_log_id)
+            self._fast_path_insert(np.asarray(vector, dtype=np.float32), item_id, new_log_id)
 
     def drop(self, item_id: str, cursor: sqlite3.Cursor):
         """
@@ -308,11 +308,13 @@ class NumpyVectorIndex:
 
             self._last_seen_log_id = new_log_id
 
-    def search(self, vector: np.ndarray, top_k: int) -> List[Tuple[str, float]]:
+    def search(self, embedding: list[float], top_k: int) -> List[Tuple[str, float]]:
         """
         Performs a hybrid O(N+k) linear search in-memory.
         Returns the top_k closest vectors by L2 distance.
         """
+        vector = np.asarray(embedding, dtype=np.float32)
+
         self._infer_and_validate_dimension(vector)
         self._check_and_sync() # Ensures in-memory state is up-to-date
 
