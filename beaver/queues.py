@@ -5,7 +5,7 @@ import sqlite3
 import time
 from typing import IO, Any, Iterator, Literal, NamedTuple, Type, overload, Optional
 
-from beaver.cache import cached
+from beaver.cache import cached, invalidates_cache
 from .types import JsonSerializable, IDatabase
 from .locks import LockManager
 from .manager import ManagerBase, synced
@@ -59,6 +59,7 @@ class QueueManager[T: JsonSerializable](ManagerBase[T]):
     """
 
     @synced
+    @invalidates_cache
     def put(self, data: T, priority: float):
         """
         Adds an item to the queue with a specific priority.
@@ -78,35 +79,34 @@ class QueueManager[T: JsonSerializable](ManagerBase[T]):
         Performs a single, atomic attempt to retrieve and remove the
         highest-priority item from the queue. Returns None if the queue is empty.
         """
-        with self.connection:
-            cursor = self.connection.cursor()
-            cursor.execute(
-                """
-                SELECT rowid, priority, timestamp, data
-                FROM beaver_priority_queues
-                WHERE queue_name = ?
-                ORDER BY priority ASC, timestamp ASC
-                LIMIT 1
-                """,
-                (self._name,),
+        cursor = self.connection.cursor()
+        cursor.execute(
+            """
+            SELECT rowid, priority, timestamp, data
+            FROM beaver_priority_queues
+            WHERE queue_name = ?
+            ORDER BY priority ASC, timestamp ASC
+            LIMIT 1
+            """,
+            (self._name,),
+        )
+        result = cursor.fetchone()
+
+        if result is None:
+            return None
+
+        rowid, priority, timestamp, data = result
+
+        if pop:
+            self.connection.execute(
+                "DELETE FROM beaver_priority_queues WHERE rowid = ?", (rowid,)
             )
-            result = cursor.fetchone()
-
-            if result is None:
-                return None
-
-            rowid, priority, timestamp, data = result
-
-            if pop:
-                self.connection.execute(
-                    "DELETE FROM beaver_priority_queues WHERE rowid = ?", (rowid,)
-                )
 
         return QueueItem(
             priority=priority, timestamp=timestamp, data=self._deserialize(data)
         )
 
-    @cached(key=lambda k: "__peek__")
+    @cached(key=lambda: "__peek__")
     def peek(self) -> QueueItem[T] | None:
         """
         Retrieves the first item of the queue.
@@ -121,6 +121,8 @@ class QueueManager[T: JsonSerializable](ManagerBase[T]):
     @overload
     def get(self, block: Literal[False]) -> QueueItem[T]: ...
 
+    @synced
+    @invalidates_cache
     def get(self, block: bool = True, timeout: float | None = None) -> QueueItem[T]:
         """
         Atomically retrieves and removes the highest-priority item from the queue.
@@ -162,7 +164,7 @@ class QueueManager[T: JsonSerializable](ManagerBase[T]):
         """Returns an async version of the queue manager."""
         return AsyncQueueManager(self)
 
-    @cached(key=lambda k: "__len__")
+    @cached(key=lambda: "__len__")
     def __len__(self) -> int:
         """Returns the current number of items in the queue."""
         cursor = self.connection.cursor()
@@ -265,6 +267,7 @@ class QueueManager[T: JsonSerializable](ManagerBase[T]):
         return dump_object
 
     @synced
+    @invalidates_cache
     def clear(self):
         """
         Atomically removes all items from this queue.

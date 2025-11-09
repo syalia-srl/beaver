@@ -42,7 +42,7 @@ class ICache(Protocol):
     """Defines the public interface for all cache objects."""
 
     def get(self, key: str) -> Optional[Any]: ...
-    def set(self, key: str, value: Any): ...
+    def set(self, key: Any, value: Any): ...
     def pop(self, key: str): ...
     def clear(self): ...
     def stats(self) -> CacheStats: ...
@@ -161,22 +161,40 @@ def cached(key):
         @functools.wraps(func)
         def wrapper(self: ManagerBase, *args, **kwargs):
             cache = self.cache
-            cache_key = key(self, *args, **kwargs)
+            cache_key = key(*args, **kwargs)
 
             if cache_key is None:
                 return func(self, *args, **kwargs)
 
-            cached_value = cache.get(cache_key)
+            if not self.locked:
+                cached_value = cache.get(cache_key)
 
-            if cached_value is not None:
-                return cached_value  # HIT
+                if cached_value is not None:
+                    return cached_value  # HIT
 
-            try:
-                result = func(self, *args, **kwargs)
-                cache.set(cache_key, result)
-            except Exception:
-                raise
+            result = func(self, *args, **kwargs)
+            cache.set(cache_key, result)
 
             return result
         return wrapper
     return decorator
+
+
+def invalidates_cache(func):
+    """
+    Decorator for write methods that need to invalidate cache.
+    - Runs the decorated function.
+    - Clears the cache even if there is any exception.
+    """
+    from .manager import ManagerBase
+
+    @functools.wraps(func)
+    def wrapper(self: "ManagerBase", *args, **kwargs):
+        try:
+            result = func(self, *args, **kwargs)
+        finally:
+            self.cache.clear()
+
+        return result
+
+    return wrapper

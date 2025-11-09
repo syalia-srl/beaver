@@ -48,6 +48,13 @@ class ManagerBase[T: JsonSerializable]:
         )
 
     @property
+    def locked(self) -> bool:
+        """
+        Returns whether the current manager is locked by this process.
+        """
+        return self._lock._acquired
+
+    @property
     def connection(self) -> sqlite3.Connection:
         """
         Returns the thread-safe SQLite connection from the core DB instance.

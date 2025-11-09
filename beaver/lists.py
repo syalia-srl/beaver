@@ -2,7 +2,7 @@ import json
 from typing import Iterator, Union, IO, overload
 from datetime import datetime, timezone
 
-from .cache import cached
+from .cache import cached, invalidates_cache
 from .manager import ManagerBase, synced
 from .types import JsonSerializable
 
@@ -78,7 +78,7 @@ class ListManager[T: JsonSerializable](ManagerBase[T]):
 
         return dump_object
 
-    @cached(key=lambda k: "__len__")
+    @cached(key=lambda: "__len__")
     def __len__(self) -> int:
         """Returns the number of items in the list (e.g., `len(my_list)`)."""
         cursor = self.connection.cursor()
@@ -89,8 +89,8 @@ class ListManager[T: JsonSerializable](ManagerBase[T]):
         cursor.close()
         return count
 
-    @cached(key=lambda k: k if isinstance(k, int) else None)
     @synced
+    @cached(key=lambda k: k if isinstance(k, int) else None)
     def __getitem__(self, key: Union[int, slice]) -> T | list[T]:
         """
         Retrieves an item or slice from the list (e.g., `my_list[0]`, `my_list[1:3]`).
@@ -136,6 +136,7 @@ class ListManager[T: JsonSerializable](ManagerBase[T]):
             raise TypeError("List indices must be integers or slices.")
 
     @synced
+    @invalidates_cache
     def __setitem__(self, key: int, value: T):
         """Sets the value of an item at a specific index (e.g., `my_list[0] = 'new'`)."""
         if not isinstance(key, int):
@@ -165,6 +166,7 @@ class ListManager[T: JsonSerializable](ManagerBase[T]):
         )
 
     @synced
+    @invalidates_cache
     def __delitem__(self, key: int):
         """Deletes an item at a specific index (e.g., `del my_list[0]`)."""
         if not isinstance(key, int):
@@ -235,6 +237,7 @@ class ListManager[T: JsonSerializable](ManagerBase[T]):
         raise IndexError(f"{index} out of range.")
 
     @synced
+    @invalidates_cache
     def push(self, value: T):
         """Pushes an item to the end of the list."""
         cursor = self.connection.cursor()
@@ -251,6 +254,7 @@ class ListManager[T: JsonSerializable](ManagerBase[T]):
         )
 
     @synced
+    @invalidates_cache
     def prepend(self, value: T):
         """Prepends an item to the beginning of the list."""
         cursor = self.connection.cursor()
@@ -267,6 +271,7 @@ class ListManager[T: JsonSerializable](ManagerBase[T]):
         )
 
     @synced
+    @invalidates_cache
     def insert(self, index: int, value: T):
         """Inserts an item at a specific index."""
         list_len = len(self)
@@ -288,6 +293,7 @@ class ListManager[T: JsonSerializable](ManagerBase[T]):
         )
 
     @synced
+    @invalidates_cache
     def pop(self) -> T | None:
         """Removes and returns the last item from the list."""
         cursor = self.connection.cursor()
@@ -306,6 +312,7 @@ class ListManager[T: JsonSerializable](ManagerBase[T]):
         return self._deserialize(value_to_return)
 
     @synced
+    @invalidates_cache
     def deque(self) -> T | None:
         """Removes and returns the first item from the list."""
         cursor = self.connection.cursor()
@@ -324,6 +331,7 @@ class ListManager[T: JsonSerializable](ManagerBase[T]):
         return self._deserialize(value_to_return)
 
     @synced
+    @invalidates_cache
     def clear(self):
         """
         Atomically removes all items from this list.
