@@ -1,7 +1,7 @@
 ---
 number: 13
 title: "Adopt Pydantic, deprecate `beaver.Model`, and refactor `Document` to be Generic"
-state: open
+state: closed
 labels:
 - enhancement
 ---
