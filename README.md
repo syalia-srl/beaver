@@ -27,7 +27,7 @@
   - **Schemaless**: Flexible data storage without rigid schemas across all modalities.
   - **Synchronous, Multi-Process, and Thread-Safe**: Designed for simplicity and safety in multi-threaded and multi-process environments.
   - **Built for Local Applications**: Perfect for local AI tools, RAG prototypes, chatbots, and desktop utilities that need persistent, structured data without network overhead.
-  - **Fast by Default**: It's built on SQLite, which is famously fast and reliable for local applications. Vector search is a built-in feature accelerated by a multi-process-safe, in-memory `numpy` index.
+  - **Fast by Default**: It's built on SQLite, which is famously fast and reliable for local applications. Vector search is a built-in feature accelerated by a multi-process-safe, in-memory `numpy` index. It also features an optional, in-memory read cache. By setting `BeaverDB(cache_timeout=0.1)`, all reads are cached for 100ms, trading microsecond-level consistency for a massive boost in read-heavy applications by nearly eliminating database lookups.
   - **Standard Relational Interface**: While `beaver` provides high-level features, you can always use the same SQLite file for normal relational tasks with standard SQL.
 
 ## Core Features
@@ -36,7 +36,8 @@
   - **Namespaced Key-Value Dictionaries**: A Pythonic, dictionary-like interface for storing any JSON-serializable object within separate namespaces with optional TTL for cache implementations.
   - **Pythonic List Management**: A fluent, Redis-like interface for managing persistent, ordered lists.
   - **Persistent Priority Queue**: A high-performance, persistent priority queue perfect for task orchestration across multiple processes. Also with optional async support.
-  - **Inter-Process Locking**: A robust, deadlock-proof, and fair (FIFO) distributed lock (`db.lock()`) to coordinate multiple processes and prevent race conditions.
+  - **Inter-Process Locking**: Two levels of robust, deadlock-proof locks. Use `db.lock('task_name')` to coordinate arbitrary scripts, or `with db.list('my_list') as l:` to perform atomic, multi-step operations on a specific data structure.
+  - **Transparent Read Caching**: Optionally enable a high-speed, in-memory cache (`BeaverDB(cache_timeout=...)`) that trades millisecond-level consistency for instantaneous reads, drastically speeding up read-heavy applications.
   - **Time-Indexed Log for Monitoring**: A specialized data structure for structured, time-series logs. Query historical data by time range or create a live, aggregated view of the most recent events for real-time dashboards.
   - **Simple Blob Storage**: A dictionary-like interface for storing medium-sized binary files (like PDFs or images) directly in the database, ensuring transactional integrity with your other data.
   - **High-Performance Vector Storage & Search**: Store vector embeddings and perform fast, multi-process-safe linear searches using an in-memory `numpy`-based index.
@@ -45,7 +46,7 @@
   - **Single-File & Portable**: All data is stored in a single SQLite file, making it incredibly easy to move, back up, or embed in your application.
   - **Built-in REST API Server (Optional)**: Instantly serve your database over a RESTful API with automatic OpenAPI documentation using FastAPI.
   - **Full-Featured CLI Client**: Interact with your database directly from the command line for administrative tasks and data exploration.
-  - **Optional Type-Safety:** Although the database is schemaless, you can use a minimalistic typing system for automatic serialization and deserialization that is Pydantic-compatible out of the box.
+  - **First-Class Pydantic Support**: Optionally associate `pydantic.BaseModel`s with any data structure (`db.dict(model=User)`) for automatic, recursive data validation, serialization, and deserialization.
   - **Data Export & Backups:** Dump any dictionary, list, collection, queue, blob, or log structure to a portable JSON file with a single `.dump()` command.
 
 ## How Beaver is Implemented
@@ -250,7 +251,28 @@ next_task = tasks.get() # -> Returns the "respond_to_user" task
 print(f"Agent's next task: {next_task.data['action']}")
 ```
 
-### 2. User Authentication and Profile Store
+### 2. Atomic Batch Processing
+
+Ensure a worker process can safely pull a *batch* of items from a queue without another worker interfering, using the built-in manager lock.
+
+```python
+tasks_to_process = []
+try:
+    # This lock guarantees no other process can access 'agent_tasks'
+    # while this block is running.
+    with db.queue('agent_tasks').acquire(timeout=5) as q:
+        for _ in range(10): # Get a batch of 10
+            item = q.get(block=False)
+            tasks_to_process.append(item.data)
+except (TimeoutError, IndexError):
+    # Lock timed out or queue was empty
+    pass
+
+# Now process the batch outside the lock
+# process_batch(tasks_to_process)
+```
+
+### 3. User Authentication and Profile Store
 
 Use a **namespaced dictionary** to create a simple and secure user store. The key can be the username, and the value can be a dictionary containing the hashed password and other profile information.
 
@@ -268,7 +290,7 @@ users["alice"] = {
 alice_profile = users.get("alice")
 ```
 
-### 3. Chatbot Conversation History
+### 4. Chatbot Conversation History
 
 A **persistent list** is perfect for storing the history of a conversation. Each time the user or the bot sends a message, just `push` it to the list. This maintains a chronological record of the entire dialogue.
 
@@ -283,7 +305,7 @@ for message in chat_history:
     print(f"{message['role']}: {message['content']}")
 ```
 
-### 4. Build a RAG (Retrieval-Augmented Generation) System
+### 5. Build a RAG (Retrieval-Augmented Generation) System
 
 Combine **vector search** and **full-text search** to build a powerful RAG pipeline for your local documents. The vector search uses a multi-process-safe, in-memory `numpy` index that supports incremental additions without downtime.
 
@@ -297,7 +319,7 @@ from beaver.collections import rerank
 best_context = rerank(vector_results, text_results, weights=[0.6, 0.4])
 ```
 
-### 5. Caching for Expensive API Calls
+### 6. Caching for Expensive API Calls
 
 Leverage a **dictionary with a TTL (Time-To-Live)** to cache the results of slow network requests. This can dramatically speed up your application and reduce your reliance on external services.
 
@@ -313,7 +335,7 @@ if response is None:
     api_cache.set("weather_new_york", response, ttl_seconds=3600)
 ```
 
-### 6. Real-time Event-Driven Systems
+### 7. Real-time Event-Driven Systems
 
 Use the **high-efficiency pub/sub system** to build applications where different components react to events in real-time. This is perfect for decoupled systems, real-time UIs, or monitoring services.
 
@@ -329,7 +351,7 @@ with db.channel("system_events").subscribe() as listener:
         # >> Event received: {'event': 'user_login', 'user_id': 'alice'}
 ```
 
-### 7. Storing User-Uploaded Content
+### 8. Storing User-Uploaded Content
 
 Use the simple blob store to save files like user avatars, attachments, or generated reports directly in the database. This keeps all your data in one portable file.
 
@@ -350,7 +372,7 @@ attachments.put(
 avatar = attachments.get("user_123_avatar.png")
 ```
 
-### 8. Real-time Application Monitoring
+### 9. Real-time Application Monitoring
 
 Use the **time-indexed log** to monitor your application's health in real-time. The `live()` method provides a continuously updating, aggregated view of your log data, perfect for building simple dashboards directly in your terminal.
 
@@ -374,7 +396,7 @@ for summary in live_summary:
     print(f"Live Stats (10s window): Count={summary['count']}, Mean={summary['mean']:.2f}")
 ```
 
-### 9. Coordinate Distributed Web Scrapers
+### 10. Coordinate Distributed Web Scrapers
 
 Run multiple scraper processes in parallel and use `db.lock()` to coordinate them. You can ensure only one process refreshes a shared API token or sitemap, preventing race conditions and rate-limiting.
 
@@ -402,24 +424,23 @@ sitemap = scrapers_state.get("sitemap")
 # ... proceed with scraping ...
 ```
 
-## Type-Safe Data Models
+## Type-Safe Data Models with Pydantic
 
-For enhanced data integrity and a better developer experience, BeaverDB supports type-safe operations for all modalities. By associating a model with these data structures, you get automatic serialization and deserialization, complete with autocompletion in your editor.
+For enhanced data integrity and a superior developer experience, BeaverDB has first-class support for Pydantic.
 
-This feature is designed to be flexible and works seamlessly with two kinds of models:
-
-  - **Pydantic Models**: If you're already using Pydantic, your `BaseModel` classes will work out of the box.
-  - **Lightweight `beaver.Model`**: For a zero-dependency solution, you can inherit from the built-in `beaver.Model` class, which is a standard Python class with serialization methods automatically included.
+By associating a `pydantic.BaseModel` with a data structure, you get automatic, recursive (de)serialization and data validation, complete with autocompletion in your editor.
 
 Here’s a quick example of how to use it:
 
 ```python
-from beaver import BeaverDB, Model
+from pydantic import BaseModel
+from beaver import BeaverDB
 
-# Inherit from beaver.Model for a lightweight, dependency-free model
-class User(Model):
+# Define your Pydantic model
+class User(BaseModel):
     name: str
     email: str
+    permissions: list[str]
 
 db = BeaverDB("user_data.db")
 
@@ -427,17 +448,21 @@ db = BeaverDB("user_data.db")
 users = db.dict("user_profiles", model=User)
 
 # BeaverDB now handles serialization automatically
-users["alice"] = User(name="Alice", email="alice@example.com")
+users["alice"] = User(
+    name="Alice",
+    email="alice@example.com",
+    permissions=["read", "write"]
+)
 
-# The retrieved object is a proper instance of the User class
+# The retrieved object is a proper, validated User instance
 retrieved_user = users["alice"]
+
 # Your editor will provide autocompletion here
 print(f"Retrieved: {retrieved_user.name}")
+print(f"Permissions: {retrieved_user.permissions}")
 ```
 
-In the same way you can have typed message payloads in `db.channel`, typed metadata in `db.blobs`, and custom document types in `db.collection`, as well as custom types in lists and queues.
-
-Basically everywhere you can store or get some object in BeaverDB, you can use a typed version adding `model=MyClass` to the corresponding wrapper methond in `BeaverDB` and enjoy first-class type safety and inference.
+This works for all data structures: `db.dict`, `db.list`, `db.queue`, `db.log`, `db.channel`, and even the metadata in `db.blob` and `db.collection`.
 
 ## Documentation
 

@@ -30,13 +30,14 @@ issues:
 CURRENT_VERSION := $(shell grep 'version = ' pyproject.toml | cut -d '"' -f 2)
 
 .PHONY: release
-release: test-all
+release:
 	@echo "Current version: ${CURRENT_VERSION}"
 	@if [ -z "$(NEW_VERSION)" ]; then \
 		echo "ERROR: NEW_VERSION environment variable is not set."; \
 		echo "Usage: NEW_VERSION=x.y.z make release"; \
 		exit 1; \
 	fi
+	@make test-all
 	@echo "Bumping version from $(CURRENT_VERSION) to $(NEW_VERSION)..."
 
 	@echo Replace version in pyproject.toml
