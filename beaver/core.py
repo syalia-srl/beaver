@@ -65,18 +65,18 @@ class BeaverDB(IDatabase):
         self._manager_cache: dict[tuple[type, str], ManagerBase] = {}
         self._manager_cache_lock = threading.Lock()
 
+        # Store pragma settings
+        self._pragma_wal = pragma_wal
+        self._pragma_synchronous = pragma_synchronous
+        self._pragma_temp_memory = pragma_temp_memory
+        self._pragma_mmap_size = pragma_mmap_size
+
         # Initialize the schemas. This will implicitly create the first
         # connection for the main thread via the `connection` property.
         self._create_all_tables()
 
         # check current version against the version stored
         self._check_version()
-
-        # store pragma settings
-        self._pragma_wal = pragma_wal
-        self._pragma_synchronous = pragma_synchronous
-        self._pragma_temp_memory = pragma_temp_memory
-        self._pragma_mmap_size = pragma_mmap_size
 
     def singleton[T: BaseModel, M: ManagerBase](  # type: ignore
         self, cls: Type[M], name: str, model: Type[T] | None = None, **kwargs
