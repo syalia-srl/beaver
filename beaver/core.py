@@ -25,15 +25,30 @@ class BeaverDB(IDatabase):
     """
 
     def __init__(
-        self, db_path: str, connection_timeout: float = 30.0, cache_timeout: float = 0.0
+        self,
+        db_path: str,
+        /,
+        *,
+        connection_timeout: float = 30.0,
+        cache_timeout: float = 0.0,
+        pragma_wal: bool = True,
+        pragma_synchronous: bool = False,
+        pragma_temp_memory: bool = True,
+        pragma_mmap_size: int = 4 * 1024 * 1024 * 1024,
     ):
         """
         Initializes the database connection and creates all necessary tables.
 
         Args:
             db_path: The path to the SQLite database file.
+
+        Kwargs:
             connection_timeout: The timeout in seconds for SQLite connections.
             cache_timeout: The timeout in seconds for local caches (defaults to 0.0 to disable caching).
+            pragma_wal: Enable WAL mode for better concurrency.
+            pragma_synchronous: Enable synchronous mode for better durability.
+            pragma_temp_memory: Store temporary tables in memory for speed.
+            pragma_mmap_size: The number of bytes to use for memory-mapped I/O.
         """
         self._db_path = db_path
         self._timeout = connection_timeout
@@ -56,6 +71,12 @@ class BeaverDB(IDatabase):
 
         # check current version against the version stored
         self._check_version()
+
+        # store pragma settings
+        self._pragma_wal = pragma_wal
+        self._pragma_synchronous = pragma_synchronous
+        self._pragma_temp_memory = pragma_temp_memory
+        self._pragma_mmap_size = pragma_mmap_size
 
     def singleton[T: BaseModel, M: ManagerBase](  # type: ignore
         self, cls: Type[M], name: str, model: Type[T] | None = None, **kwargs
@@ -138,7 +159,21 @@ class BeaverDB(IDatabase):
 
             # No connection for this thread yet, so create one.
             conn = sqlite3.connect(self._db_path, timeout=self._timeout)
-            conn.execute("PRAGMA journal_mode=WAL;")
+
+            if self._pragma_wal:
+                conn.execute("PRAGMA journal_mode = WAL;")
+
+            if self._pragma_synchronous:
+                conn.execute("PRAGMA synchronous = FULL;")
+            else:
+                conn.execute("PRAGMA synchronous = NORMAL;")
+
+            if self._pragma_temp_memory:
+                conn.execute("PRAGMA temp_store = MEMORY;")
+
+            if self._pragma_mmap_size > 0:
+                conn.execute(f"PRAGMA mmap_size = {self._pragma_mmap_size};")
+
             conn.row_factory = sqlite3.Row
             self._thread_local.conn = conn
 
