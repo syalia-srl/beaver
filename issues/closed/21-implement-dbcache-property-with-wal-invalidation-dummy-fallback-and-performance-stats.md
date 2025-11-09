@@ -1,7 +1,7 @@
 ---
 number: 21
 title: "Implement `db.cache` Property with WAL Invalidation, Dummy Fallback, and Performance Stats"
-state: open
+state: closed
 labels:
 ---
 
