@@ -24,7 +24,9 @@ class BeaverDB(IDatabase):
     This class manages thread-safe database connections and table schemas.
     """
 
-    def __init__(self, db_path: str, connection_timeout: float = 30.0, cache_timeout: float = 0.0):
+    def __init__(
+        self, db_path: str, connection_timeout: float = 30.0, cache_timeout: float = 0.0
+    ):
         """
         Initializes the database connection and creates all necessary tables.
 
@@ -55,7 +57,7 @@ class BeaverDB(IDatabase):
         # check current version against the version stored
         self._check_version()
 
-    def singleton[T: BaseModel, M: ManagerBase]( # type: ignore
+    def singleton[T: BaseModel, M: ManagerBase](  # type: ignore
         self, cls: Type[M], name: str, model: Type[T] | None = None, **kwargs
     ) -> M:
         """
@@ -88,7 +90,7 @@ class BeaverDB(IDatabase):
                 instance = cls(name=name, db=self, model=model, **kwargs)
                 self._manager_cache[cache_key] = instance
 
-            return instance # type: ignore
+            return instance  # type: ignore
 
     def _check_version(self):
         from beaver import __version__
@@ -153,7 +155,9 @@ class BeaverDB(IDatabase):
         cache = getattr(self._thread_local, f"cache_{key}", None)
 
         if cache is None:
-            cache = LocalCache(self, cache_namespace=key, check_interval=self._cache_timeout)
+            cache = LocalCache(
+                self, cache_namespace=key, check_interval=self._cache_timeout
+            )
             setattr(self._thread_local, f"cache_{key}", cache)
 
         return cache
@@ -162,19 +166,19 @@ class BeaverDB(IDatabase):
         """Initializes all required tables in the database file."""
         with self.connection:
             self._create_blobs_table()
+            self._create_cache_table()
             self._create_collections_table()
             self._create_dict_table()
             self._create_edges_table()
             self._create_fts_table()
             self._create_list_table()
+            self._create_locks_table()
             self._create_logs_table()
             self._create_priority_queue_table()
             self._create_pubsub_table()
             self._create_trigrams_table()
-            self._create_versions_table()
-            self._create_locks_table()
             self._create_vector_change_log_table()
-            self._create_cache_table()
+            self._create_versions_table()
 
     def _create_cache_table(self):
         """Creates a table to track the version of each data manager for caching."""
@@ -192,7 +196,7 @@ class BeaverDB(IDatabase):
         # operation_type: 1 = INSERT, 2 = DELETE
         self.connection.execute(
             """
-            CREATE TABLE IF NOT EXISTS _vector_change_log (
+            CREATE TABLE IF NOT EXISTS beaver_vector_change_log (
                 log_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 collection_name TEXT NOT NULL,
                 item_id TEXT NOT NULL,
@@ -203,7 +207,7 @@ class BeaverDB(IDatabase):
         self.connection.execute(
             """
             CREATE INDEX IF NOT EXISTS idx_vcl_lookup
-            ON _vector_change_log (collection_name, log_id)
+            ON beaver_vector_change_log (collection_name, log_id)
             """
         )
 

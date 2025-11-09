@@ -1,5 +1,6 @@
 import typer
 import rich
+import rich.table
 from typing_extensions import Annotated
 
 import beaver
@@ -80,6 +81,48 @@ def serve(
         raise typer.Exit(code=1)
     server.serve(database, host=host, port=port)
 
+
+@app.command()
+def info(ctx: typer.Context):
+    """
+    Displays a summary of all data structures in the database.
+    """
+    db: BeaverDB = ctx.obj["db"]
+    rich.print(f"[bold]Database Summary: {db._db_path}[/bold]")
+
+    table = rich.table.Table(title="BeaverDB Contents")
+    table.add_column("Type", style="cyan")
+    table.add_column("Name", style="bold")
+    table.add_column("Count", style="magenta", justify="right")
+
+    try:
+        # Dictionaries
+        for name in db.dicts:
+            table.add_row("Dict", name, str(len(db.dict(name))))
+        # Lists
+        for name in db.lists:
+            table.add_row("List", name, str(len(db.list(name))))
+        # Queues
+        for name in db.queues:
+            table.add_row("Queue", name, str(len(db.queue(name))))
+        # Collections
+        for name in db.collections:
+            table.add_row("Collection", name, str(len(db.collection(name))))
+        # Blob Stores
+        for name in db.blobs:
+            table.add_row("Blob Store", name, str(len(db.blob(name))))
+        # Logs
+        for name in db.logs:
+            table.add_row("Log", name, "N/A (len not supported)")
+        # Active Locks
+        for name in db.locks:
+             table.add_row("Active Lock", name, "1")
+
+        rich.print(table)
+
+    except Exception as e:
+        rich.print(f"[bold red]Error:[/] {e}")
+        raise typer.Exit(code=1)
 
 if __name__ == "__main__":
     app()

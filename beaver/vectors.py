@@ -76,7 +76,7 @@ class NumpyVectorIndex:
 
         # 1. Log the insertion to the database
         cursor.execute(
-            "INSERT INTO _vector_change_log (collection_name, item_id, operation_type) VALUES (?, ?, ?)",
+            "INSERT INTO beaver_vector_change_log (collection_name, item_id, operation_type) VALUES (?, ?, ?)",
             (self._collection, item_id, INSERT_OPERATION)
         )
         new_log_id = cursor.lastrowid
@@ -96,7 +96,7 @@ class NumpyVectorIndex:
 
         # 1. Log the deletion to the database
         cursor.execute(
-            "INSERT INTO _vector_change_log (collection_name, item_id, operation_type) VALUES (?, ?, ?)",
+            "INSERT INTO beaver_vector_change_log (collection_name, item_id, operation_type) VALUES (?, ?, ?)",
             (self._collection, item_id, DELETE_OPERATION)
         )
         new_log_id = cursor.lastrowid
@@ -131,7 +131,7 @@ class NumpyVectorIndex:
         db_base_version = result[0] if result else 0
 
         cursor.execute(
-            "SELECT MAX(log_id) FROM _vector_change_log WHERE collection_name = ?",
+            "SELECT MAX(log_id) FROM beaver_vector_change_log WHERE collection_name = ?",
             (self._collection,)
         )
         result = cursor.fetchone()
@@ -150,7 +150,7 @@ class NumpyVectorIndex:
             """
             SELECT c.item_id, c.item_vector
             FROM beaver_collections c
-            LEFT JOIN _vector_change_log l ON c.collection = l.collection_name AND c.item_id = l.item_id AND l.operation_type = ?
+            LEFT JOIN beaver_vector_change_log l ON c.collection = l.collection_name AND c.item_id = l.item_id AND l.operation_type = ?
             WHERE c.collection = ? AND c.item_vector IS NOT NULL
             GROUP BY c.item_id
             HAVING MAX(CASE WHEN l.operation_type = ? THEN l.log_id ELSE 0 END) = 0
@@ -191,7 +191,7 @@ class NumpyVectorIndex:
         cursor.execute(
             """
             SELECT l.log_id, l.item_id, l.operation_type, c.item_vector
-            FROM _vector_change_log l
+            FROM beaver_vector_change_log l
             LEFT JOIN beaver_collections c ON l.collection_name = c.collection AND l.item_id = c.item_id
             WHERE l.collection_name = ? AND l.log_id > ?
             ORDER BY l.log_id ASC
@@ -366,7 +366,7 @@ class NumpyVectorIndex:
 
         # Delete all entries from the change log
         cursor.execute(
-            "DELETE FROM _vector_change_log WHERE collection_name = ?",
+            "DELETE FROM beaver_vector_change_log WHERE collection_name = ?",
             (self._collection,)
         )
 

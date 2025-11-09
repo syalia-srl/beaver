@@ -7,7 +7,7 @@ from typing_extensions import Annotated
 from typing import Optional, List, Any
 
 # Import Document and WalkDirection for graph commands
-from beaver import BeaverDB, Document, WalkDirection
+from beaver import BeaverDB, Document
 
 app = typer.Typer(
     name="collection",
@@ -376,7 +376,7 @@ def walk(
     doc_id: Annotated[str, typer.Argument(help="The ID of the starting document.")],
     labels: Annotated[str, typer.Option(help="Comma-separated list of labels to follow (e.g., 'FOLLOWS,MENTIONS').")],
     depth: Annotated[int, typer.Option(help="How many steps to walk.")] = 1,
-    direction: Annotated[WalkDirection, typer.Option(case_sensitive=False, help="Direction of the walk.")] = WalkDirection.OUTGOING
+    direction: Annotated[str, typer.Option(case_sensitive=False, help="Direction of the walk.")] = "outgoing"
 ):
     """
     Perform a multi-hop graph walk (BFS) from a document.
