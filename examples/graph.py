@@ -50,7 +50,7 @@ def graph_demo():
         source=alice,
         labels=["FOLLOWS"],
         depth=2,
-        direction=WalkDirection.OUTGOING,
+        outgoing=WalkDirection.OUTGOING,
     )
     print(f"Alice's extended network (friends of friends): {[p.id for p in foaf]}")
 
@@ -60,7 +60,7 @@ def graph_demo():
         source=bob,
         labels=["FOLLOWS"],
         depth=1,
-        direction=WalkDirection.INCOMING,
+        outgoing=WalkDirection.INCOMING,
     )
     print(f"Bob is followed by: {[p.id for p in followers]}")
 

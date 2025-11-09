@@ -210,7 +210,7 @@ def build(db: BeaverDB) -> FastAPI:
     @app.get("/blobs/{name}/{key}", response_class=Response, tags=["Blobs"])
     def get_blob(name: str, key: str):
         """Retrieves a blob as a binary file."""
-        blobs = db.blobs(name)
+        blobs = db.blob(name)
         blob = blobs.get(key)
         if blob is None:
             raise HTTPException(
@@ -228,7 +228,7 @@ def build(db: BeaverDB) -> FastAPI:
         metadata: Optional[str] = Form(None),
     ):
         """Stores a blob (binary file) with optional JSON metadata."""
-        blobs = db.blobs(name)
+        blobs = db.blob(name)
         file_bytes = await data.read()
 
         meta_dict = None
@@ -246,7 +246,7 @@ def build(db: BeaverDB) -> FastAPI:
     @app.delete("/blobs/{name}/{key}", tags=["Blobs"])
     def delete_blob(name: str, key: str):
         """Deletes a blob from the store."""
-        blobs = db.blobs(name)
+        blobs = db.blob(name)
         try:
             blobs.delete(key)
             return {"status": "ok"}
@@ -259,7 +259,7 @@ def build(db: BeaverDB) -> FastAPI:
     @app.get("/blobs/{name}/count", tags=["Blobs"], response_model=CountResponse)
     def get_blob_count(name: str) -> dict:
         """Retrieves the number of blobs in the store."""
-        b = db.blobs(name)
+        b = db.blob(name)
         return {"count": len(b)}
 
     # --- Logs Endpoints ---
@@ -430,7 +430,7 @@ def build(db: BeaverDB) -> FastAPI:
             source=source_doc,
             labels=req.labels,
             depth=req.depth,
-            direction=req.direction,
+            outgoing=req.direction,
         )
         return [doc.to_dict(metadata_only=False) for doc in results]
 

@@ -1,13 +1,12 @@
 import asyncio
 from datetime import datetime, timezone
 import json
-import sqlite3
 import time
-from typing import IO, Any, Iterator, Literal, NamedTuple, Type, overload, Optional
+from typing import IO, Iterator, Literal, NamedTuple, overload
+
+from pydantic import BaseModel
 
 from beaver.cache import cached, invalidates_cache
-from .types import JsonSerializable, IDatabase
-from .locks import LockManager
 from .manager import ManagerBase, synced
 
 
@@ -19,7 +18,7 @@ class QueueItem[T](NamedTuple):
     data: T
 
 
-class AsyncQueueManager[T: JsonSerializable]:
+class AsyncQueueManager[T: BaseModel]:
     """An async wrapper for the producer-consumer priority queue."""
 
     def __init__(self, queue: "QueueManager[T]"):
@@ -52,7 +51,7 @@ class AsyncQueueManager[T: JsonSerializable]:
         return await asyncio.to_thread(self._queue.get, block=block, timeout=timeout)
 
 
-class QueueManager[T: JsonSerializable](ManagerBase[T]):
+class QueueManager[T: BaseModel](ManagerBase[T]):
     """
     A wrapper providing a Pythonic interface to a persistent, multi-process
     producer-consumer priority queue.
@@ -220,7 +219,7 @@ class QueueManager[T: JsonSerializable](ManagerBase[T]):
             data = item.data
 
             # Handle model instances
-            if self._model and isinstance(data, JsonSerializable):
+            if self._model and isinstance(data, BaseModel):
                 data = json.loads(data.model_dump_json())
 
             items_list.append(

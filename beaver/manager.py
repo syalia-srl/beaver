@@ -1,13 +1,14 @@
 import json
 import functools
 import sqlite3
-from typing import Type, Optional, Any, Self
-from .types import IDatabase, JsonSerializable
+from typing import Type, Optional, Self
+from pydantic import BaseModel
+from .types import IDatabase
 from .locks import LockManager
 from .cache import ICache
 
 
-class ManagerBase[T: JsonSerializable]:
+class ManagerBase[T: BaseModel]:
     """
     Base class for data managers, providing common locking,
     caching, and serialization logic.
@@ -72,7 +73,7 @@ class ManagerBase[T: JsonSerializable]:
         """
         Serializes the given value to a JSON string.
         """
-        if isinstance(value, JsonSerializable):
+        if isinstance(value, BaseModel):
             return value.model_dump_json()
 
         return json.dumps(value)

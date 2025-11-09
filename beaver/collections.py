@@ -3,13 +3,26 @@ import json
 import threading
 import uuid
 from enum import Enum
-from typing import IO, Any, Iterator, List, Literal, Tuple, Type, TypeVar, Optional, overload
-from .types import Model, IDatabase
+from typing import (
+    IO,
+    Any,
+    Iterator,
+    List,
+    Literal,
+    Tuple,
+    Type,
+    TypeVar,
+    Optional,
+    overload,
+)
+from .types import IDatabase
 from .locks import LockManager
 from .vectors import NumpyVectorIndex as VectorIndex
-from .manager import ManagerBase
+from .manager import ManagerBase, synced
 
 import numpy as np
+
+from pydantic import BaseModel, Field
 
 # --- Fuzzy Search Helper Functions ---
 
@@ -68,68 +81,29 @@ def _sliding_window_levenshtein(query: str, content: str, fuzziness: int) -> int
     return int(min_dist)
 
 
-class WalkDirection(Enum):
-    OUTGOING = "outgoing"
-    INCOMING = "incoming"
-
-
-class Document(Model):
+class Document[B: BaseModel](BaseModel):
     """A data class representing a single item in a collection."""
 
-    def __init__(
-        self, embedding: list[float] | None = None, id: str | None = None, **metadata
-    ):
-        self.id = id or str(uuid.uuid4())
-
-        if embedding is None:
-            self.embedding = None
-        else:
-            if not isinstance(embedding, list) or not all(
-                isinstance(x, (int, float)) for x in embedding
-            ):
-                raise TypeError("Embedding must be a list of numbers.")
-            self.embedding = np.array(embedding, dtype=np.float32)
-
-        super().__init__(**metadata)
-
-    def to_dict(self, *, metadata_only: bool = True) -> dict[str, Any]:
-        """Serializes the document's metadata to a dictionary."""
-        metadata = self.__dict__.copy()
-
-        if metadata_only:
-            metadata.pop("embedding")
-            metadata.pop("id")
-        else:
-            metadata["embedding"] = (
-                self.embedding.tolist() if self.embedding is not None else None
-            )
-
-        return metadata
-
-    def __repr__(self):
-        d = self.to_dict()
-        d.pop("embedding", None)
-        metadata_str = ", ".join(f"{k}={v!r}" for k, v in self.to_dict().items())
-        return f"Document({metadata_str})"
-
-    def model_dump_json(self, metadata_only=False) -> str:
-        metadata = self.to_dict(metadata_only=metadata_only)
-        return json.dumps(metadata)
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    embedding: list[float] | None = None
+    body: B | None = None
 
 
-class CollectionManager[D: Document](ManagerBase[D]):
+class CollectionManager[B: BaseModel](ManagerBase[B]):
     """
     A wrapper for multi-modal collection operations, including document storage,
     FTS, fuzzy search, graph traversal, and persistent vector search.
     """
 
-    def __init__(self, name: str, db: IDatabase, model: Type[D] | None = None):
-        super().__init__(name, db, model or Document)
+    def __init__(self, name: str, db: IDatabase, model: Type[B] | None = None):
+        super().__init__(name, db, model)
 
         # All vector-related operations are now delegated to the VectorIndex class.
         self._vector_index = VectorIndex(name, db)
 
-        self._compact_lock = LockManager(db, f"__lock__internal__collection__{name}__compact", timeout=0)
+        self._compact_lock = LockManager(
+            db, f"__lock__internal__collection__{name}__compact", timeout=0
+        )
 
     def _flatten_metadata(self, metadata: dict, prefix: str = "") -> dict[str, Any]:
         """Flattens a nested dictionary for indexing."""
@@ -161,7 +135,14 @@ class CollectionManager[D: Document](ManagerBase[D]):
                 # And release the lock
                 self._compact_lock.release()
 
-    def index(self, document: D, *, fts: bool | list[str] = True, fuzzy: bool = False):
+    @synced
+    def index(
+        self,
+        document: Document[B],
+        *,
+        fts: bool | list[str] = True,
+        fuzzy: bool = False,
+    ):
         """
         Indexes a Document, including vector, FTS, and fuzzy search data.
         The entire operation is performed in a single atomic transaction.
@@ -169,109 +150,104 @@ class CollectionManager[D: Document](ManagerBase[D]):
         if not isinstance(document, Document):
             raise TypeError("Item to index must be a Document object.")
 
-        with self._internal_lock:
-            with self._db.connection:
-                cursor = self._db.connection.cursor()
+        cursor = self._db.connection.cursor()
 
-                # Step 1: Core Document and Vector Storage
-                cursor.execute(
-                    "INSERT OR REPLACE INTO beaver_collections (collection, item_id, item_vector, metadata) VALUES (?, ?, ?, ?)",
-                    (
-                        self._name,
-                        document.id,
-                        (
-                            document.embedding.tobytes()
-                            if document.embedding is not None
-                            else None
-                        ),
-                        json.dumps(document.to_dict()),
-                    ),
-                )
+        # Step 1: Core Document and Vector Storage
+        cursor.execute(
+            "INSERT OR REPLACE INTO beaver_collections (collection, item_id, item_vector, metadata) VALUES (?, ?, ?, ?)",
+            (
+                self._name,
+                document.id,
+                (
+                    document.embedding.tobytes()
+                    if document.embedding is not None
+                    else None
+                ),
+                json.dumps(document.to_dict()),
+            ),
+        )
 
-                # Step 2: Delegate to the VectorIndex if an embedding exists.
-                if document.embedding is not None:
-                    self._vector_index.index(document.embedding, document.id, cursor)
+        # Step 2: Delegate to the VectorIndex if an embedding exists.
+        if document.embedding is not None:
+            self._vector_index.index(document.embedding, document.id, cursor)
 
-                # Step 3: FTS and Fuzzy Indexing
-                cursor.execute(
-                    "DELETE FROM beaver_fts_index WHERE collection = ? AND item_id = ?",
-                    (self._name, document.id),
-                )
-                cursor.execute(
-                    "DELETE FROM beaver_trigrams WHERE collection = ? AND item_id = ?",
-                    (self._name, document.id),
-                )
+        # Step 3: FTS and Fuzzy Indexing
+        cursor.execute(
+            "DELETE FROM beaver_fts_index WHERE collection = ? AND item_id = ?",
+            (self._name, document.id),
+        )
+        cursor.execute(
+            "DELETE FROM beaver_trigrams WHERE collection = ? AND item_id = ?",
+            (self._name, document.id),
+        )
 
-                flat_metadata = self._flatten_metadata(document.to_dict())
-                fields_to_index: dict[str, str] = {}
-                if isinstance(fts, list):
-                    fields_to_index = {
-                        k: v
-                        for k, v in flat_metadata.items()
-                        if k in fts and isinstance(v, str)
-                    }
-                elif fts:
-                    fields_to_index = {
-                        k: v for k, v in flat_metadata.items() if isinstance(v, str)
-                    }
+        flat_metadata = self._flatten_metadata(document.to_dict())
+        fields_to_index: dict[str, str] = {}
+        if isinstance(fts, list):
+            fields_to_index = {
+                k: v
+                for k, v in flat_metadata.items()
+                if k in fts and isinstance(v, str)
+            }
+        elif fts:
+            fields_to_index = {
+                k: v for k, v in flat_metadata.items() if isinstance(v, str)
+            }
 
-                if fields_to_index:
-                    fts_data = [
-                        (self._name, document.id, path, content)
-                        for path, content in fields_to_index.items()
-                    ]
+        if fields_to_index:
+            fts_data = [
+                (self._name, document.id, path, content)
+                for path, content in fields_to_index.items()
+            ]
+            cursor.executemany(
+                "INSERT INTO beaver_fts_index (collection, item_id, field_path, field_content) VALUES (?, ?, ?, ?)",
+                fts_data,
+            )
+            if fuzzy:
+                trigram_data = []
+                for path, content in fields_to_index.items():
+                    for trigram in _get_trigrams(content.lower()):
+                        trigram_data.append((self._name, document.id, path, trigram))
+                if trigram_data:
                     cursor.executemany(
-                        "INSERT INTO beaver_fts_index (collection, item_id, field_path, field_content) VALUES (?, ?, ?, ?)",
-                        fts_data,
+                        "INSERT INTO beaver_trigrams (collection, item_id, field_path, trigram) VALUES (?, ?, ?, ?)",
+                        trigram_data,
                     )
-                    if fuzzy:
-                        trigram_data = []
-                        for path, content in fields_to_index.items():
-                            for trigram in _get_trigrams(content.lower()):
-                                trigram_data.append(
-                                    (self._name, document.id, path, trigram)
-                                )
-                        if trigram_data:
-                            cursor.executemany(
-                                "INSERT INTO beaver_trigrams (collection, item_id, field_path, trigram) VALUES (?, ?, ?, ?)",
-                                trigram_data,
-                            )
 
         # After the transaction commits, check if auto-compaction is needed.
         if self._needs_compactation():
             self.compact()
 
-    def drop(self, document: Document):
+    @synced
+    def drop(self, document: Document[B]):
         """Removes a document and all its associated data from the collection."""
-        if not isinstance(document, Document):
+        if not isinstance(document, Document[B]):
             raise TypeError("Item to drop must be a Document object.")
 
-        with self._internal_lock:
-            with self._db.connection:
-                cursor = self._db.connection.cursor()
-                cursor.execute(
-                    "DELETE FROM beaver_collections WHERE collection = ? AND item_id = ?",
-                    (self._name, document.id),
-                )
-                cursor.execute(
-                    "DELETE FROM beaver_fts_index WHERE collection = ? AND item_id = ?",
-                    (self._name, document.id),
-                )
-                cursor.execute(
-                    "DELETE FROM beaver_trigrams WHERE collection = ? AND item_id = ?",
-                    (self._name, document.id),
-                )
-                cursor.execute(
-                    "DELETE FROM beaver_edges WHERE collection = ? AND (source_item_id = ? OR target_item_id = ?)",
-                    (self._name, document.id, document.id),
-                )
-                self._vector_index.drop(document.id, cursor)
+        cursor = self._db.connection.cursor()
+        cursor.execute(
+            "DELETE FROM beaver_collections WHERE collection = ? AND item_id = ?",
+            (self._name, document.id),
+        )
+        cursor.execute(
+            "DELETE FROM beaver_fts_index WHERE collection = ? AND item_id = ?",
+            (self._name, document.id),
+        )
+        cursor.execute(
+            "DELETE FROM beaver_trigrams WHERE collection = ? AND item_id = ?",
+            (self._name, document.id),
+        )
+        cursor.execute(
+            "DELETE FROM beaver_edges WHERE collection = ? AND (source_item_id = ? OR target_item_id = ?)",
+            (self._name, document.id, document.id),
+        )
+        self._vector_index.drop(document.id, cursor)
 
         # Check for auto-compaction after a drop as well.
         if self._needs_compactation():
             self.compact()
 
-    def __iter__(self) -> Iterator[D]:
+    def __iter__(self) -> Iterator[Document[B]]:
         """Returns an iterator over all documents in the collection."""
         cursor = self._db.connection.cursor()
         cursor.execute(
@@ -289,7 +265,9 @@ class CollectionManager[D: Document](ManagerBase[D]):
             )
         cursor.close()
 
-    def search(self, vector: list[float], top_k: int = 10) -> List[Tuple[D, float]]:
+    def search(
+        self, vector: list[float], top_k: int = 10
+    ) -> List[Tuple[Document[B], float]]:
         """Performs a fast, in-memory nearest neighbor search."""
         if not isinstance(vector, list):
             raise TypeError("Search vector must be a list of floats.")
@@ -338,7 +316,7 @@ class CollectionManager[D: Document](ManagerBase[D]):
         on: str | list[str] | None = None,
         top_k: int = 10,
         fuzziness: int = 0,
-    ) -> list[tuple[D, float]]:
+    ) -> list[tuple[Document[B], float]]:
         """
         Performs a full-text or fuzzy search on indexed string fields.
         """
@@ -352,7 +330,7 @@ class CollectionManager[D: Document](ManagerBase[D]):
 
     def _perform_fts_search(
         self, query: str, on: list[str] | None, top_k: int
-    ) -> list[tuple[D, float]]:
+    ) -> list[tuple[Document[B], float]]:
         """Performs a standard FTS search."""
         cursor = self._db.connection.cursor()
         sql_query = """
@@ -424,7 +402,7 @@ class CollectionManager[D: Document](ManagerBase[D]):
 
     def _perform_fuzzy_search(
         self, query: str, on: list[str] | None, top_k: int, fuzziness: int
-    ) -> list[tuple[D, float]]:
+    ) -> list[tuple[Document[B], float]]:
         """Performs a 3-stage fuzzy search: gather, score, and sort."""
         fts_results = self._perform_fts_search(query, on, top_k)
         fts_candidate_ids = {doc.id for doc, _ in fts_results}
@@ -517,7 +495,7 @@ class CollectionManager[D: Document](ManagerBase[D]):
                 ),
             )
 
-    def neighbors(self, doc: D, label: str | None = None) -> list[D]:
+    def neighbors(self, doc: Document[B], label: str | None = None) -> list[Document[B]]:
         """Retrieves the neighboring documents connected to a given document."""
         sql = "SELECT DISTINCT t1.item_id, t1.item_vector, t1.metadata FROM beaver_collections AS t1 JOIN beaver_edges AS t2 ON t1.item_id = t2.target_item_id AND t1.collection = t2.collection WHERE t2.collection = ? AND t2.source_item_id = ?"
         params = [self._name, doc.id]
@@ -541,14 +519,12 @@ class CollectionManager[D: Document](ManagerBase[D]):
 
     def walk(
         self,
-        source: D,
+        source: Document[B],
         labels: List[str],
         depth: int,
         *,
-        direction: Literal[
-            WalkDirection.OUTGOING, WalkDirection.INCOMING
-        ] = WalkDirection.OUTGOING,
-    ) -> List[D]:
+        outgoing: bool = True,
+    ) -> List[Document[B]]:
         """Performs a graph traversal (BFS) from a starting document."""
         if not isinstance(source, Document):
             raise TypeError("The starting point must be a Document object.")
@@ -558,7 +534,7 @@ class CollectionManager[D: Document](ManagerBase[D]):
 
         source_col, target_col = (
             ("source_item_id", "target_item_id")
-            if direction == WalkDirection.OUTGOING
+            if outgoing
             else ("target_item_id", "source_item_id")
         )
         sql = f"""
@@ -612,13 +588,10 @@ class CollectionManager[D: Document](ManagerBase[D]):
             "type": "Collection",
             "name": self._name,
             "count": len(items_list),
-            "dump_date": datetime.now(timezone.utc).isoformat()
+            "dump_date": datetime.now(timezone.utc).isoformat(),
         }
 
-        return {
-            "metadata": metadata,
-            "items": items_list
-        }
+        return {"metadata": metadata, "items": items_list}
 
     @overload
     def dump(self) -> dict:
@@ -671,18 +644,17 @@ class CollectionManager[D: Document](ManagerBase[D]):
                 ]
                 for table in tables_to_clear:
                     cursor.execute(
-                        f"DELETE FROM {table} WHERE collection = ?",
-                        (self._name,)
+                        f"DELETE FROM {table} WHERE collection = ?", (self._name,)
                     )
 
                 # 2. Clear vector-specific tables
                 cursor.execute(
                     "DELETE FROM _vector_change_log WHERE collection_name = ?",
-                    (self._name,)
+                    (self._name,),
                 )
                 cursor.execute(
                     "DELETE FROM beaver_collection_versions WHERE collection_name = ?",
-                    (self._name,)
+                    (self._name,),
                 )
 
             # 3. Reset the in-memory vector index
@@ -691,9 +663,9 @@ class CollectionManager[D: Document](ManagerBase[D]):
             self._vector_index = VectorIndex(self._name, self._db)
 
 
-def rerank[D: Document](
-    *results: list[D], weights: list[float] | None = None, k: int = 60
-) -> list[D]:
+def rerank[B: BaseModel](
+    *results: list[Document[B]], weights: list[float] | None = None, k: int = 60
+) -> list[Document[B]]:
     """
     Reranks documents from multiple search result lists using Reverse Rank Fusion (RRF).
     """

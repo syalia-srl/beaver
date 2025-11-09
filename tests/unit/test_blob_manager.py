@@ -1,12 +1,13 @@
+from pydantic import BaseModel
 import pytest
 import base64
-from beaver import BeaverDB, Model
+from beaver import BeaverDB
 from beaver.blobs import Blob
 
 pytestmark = pytest.mark.unit
 
 # --- Test Model for Serialization ---
-class FileMeta(Model):
+class FileMeta(BaseModel):
     mimetype: str
     user_id: int
 

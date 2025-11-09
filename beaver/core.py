@@ -1,20 +1,21 @@
 import sqlite3
 import threading
 import warnings
-from typing import List, Type
 
-from beaver.cache import DummyCache, ICache, LocalCache
-from beaver.manager import ManagerBase
+from pydantic import BaseModel
 
-from .types import IDatabase, JsonSerializable
 from .blobs import BlobManager
+from .cache import DummyCache, LocalCache
 from .channels import ChannelManager
 from .collections import CollectionManager, Document
 from .dicts import DictManager
 from .lists import ListManager
 from .locks import LockManager
 from .logs import LogManager
+from .manager import ManagerBase
 from .queues import QueueManager
+from .types import IDatabase, ICache
+from typing import List, Type
 
 
 class BeaverDB(IDatabase):
@@ -54,7 +55,7 @@ class BeaverDB(IDatabase):
         # check current version against the version stored
         self._check_version()
 
-    def singleton[T: JsonSerializable, M: ManagerBase](
+    def singleton[T: BaseModel, M: ManagerBase]( # type: ignore
         self, cls: Type[M], name: str, model: Type[T] | None = None, **kwargs
     ) -> M:
         """
@@ -71,8 +72,8 @@ class BeaverDB(IDatabase):
         if not name:
             raise ValueError("name must be a non-empty string.")
 
-        if model is not None and not isinstance(model, JsonSerializable):
-            raise TypeError("model must be a JsonSerializable class.")
+        if model is not None and not issubclass(model, BaseModel):
+            raise TypeError("model must be a BaseModel class.")
 
         # Use the db's lock for thread-safe cache access
         with self._manager_cache_lock:
@@ -87,7 +88,7 @@ class BeaverDB(IDatabase):
                 instance = cls(name=name, db=self, model=model, **kwargs)
                 self._manager_cache[cache_key] = instance
 
-            return instance
+            return instance # type: ignore
 
     def _check_version(self):
         from beaver import __version__
@@ -447,7 +448,7 @@ class BeaverDB(IDatabase):
 
     # --- Factory and Passthrough Methods ---
 
-    def dict[T: JsonSerializable](
+    def dict[T: BaseModel](
         self, name: str, model: type[T] | None = None
     ) -> DictManager[T]:
         """
@@ -456,7 +457,7 @@ class BeaverDB(IDatabase):
         """
         return self.singleton(DictManager, name, model)
 
-    def list[T: JsonSerializable](
+    def list[T: BaseModel](
         self, name: str, model: type[T] | None = None
     ) -> ListManager[T]:
         """
@@ -465,7 +466,7 @@ class BeaverDB(IDatabase):
         """
         return self.singleton(ListManager, name, model)
 
-    def queue[T: JsonSerializable](
+    def queue[T: BaseModel](
         self, name: str, model: type[T] | None = None
     ) -> QueueManager[T]:
         """
@@ -483,7 +484,7 @@ class BeaverDB(IDatabase):
         """
         return self.singleton(CollectionManager, name, model)
 
-    def channel[T: JsonSerializable](
+    def channel[T: BaseModel](
         self, name: str, model: type[T] | None = None
     ) -> ChannelManager[T]:
         """
@@ -491,13 +492,13 @@ class BeaverDB(IDatabase):
         """
         return self.singleton(ChannelManager, name, model)
 
-    def blob[M: JsonSerializable](
+    def blob[M: BaseModel](
         self, name: str, model: type[M] | None = None
     ) -> BlobManager[M]:
         """Returns a wrapper object for interacting with a named blob store."""
         return self.singleton(BlobManager, name, model)
 
-    def log[T: JsonSerializable](
+    def log[T: BaseModel](
         self, name: str, model: type[T] | None = None
     ) -> LogManager[T]:
         """

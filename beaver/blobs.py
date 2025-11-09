@@ -2,7 +2,8 @@ import base64
 from datetime import datetime, timezone
 import json
 from typing import IO, Iterator, NamedTuple, Optional, overload
-from .types import JsonSerializable
+
+from pydantic import BaseModel
 from .manager import ManagerBase, synced
 
 
@@ -14,7 +15,7 @@ class Blob[M](NamedTuple):
     metadata: Optional[M]
 
 
-class BlobManager[M: JsonSerializable](ManagerBase[M]):
+class BlobManager[M: BaseModel](ManagerBase[M]):
     """A wrapper providing a Pythonic interface to a blob store in the database."""
 
     @synced
@@ -126,7 +127,7 @@ class BlobManager[M: JsonSerializable](ManagerBase[M]):
                 metadata = blob.metadata
 
                 # Handle model instances in metadata
-                if self._model and isinstance(metadata, JsonSerializable):
+                if self._model and isinstance(metadata, BaseModel):
                     metadata = json.loads(metadata.model_dump_json())
 
                 # Encode binary data to a base64 string

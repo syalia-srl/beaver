@@ -8,7 +8,9 @@ from datetime import datetime, timedelta, timezone
 from queue import Empty, Queue
 from typing import IO, Any, AsyncIterator, Callable, Iterator, Type, TypeVar, overload
 
-from .types import JsonSerializable, IDatabase
+from pydantic import BaseModel
+
+from .types import IDatabase
 from .manager import ManagerBase, synced
 
 # A special message object used to signal the iterator to gracefully shut down.
@@ -166,7 +168,7 @@ class AsyncLogManager[T]:
         return AsyncLiveIterator(sync_iterator)
 
 
-class LogManager[T: JsonSerializable](ManagerBase[T]):
+class LogManager[T: BaseModel](ManagerBase[T]):
     """
     A wrapper for interacting with a named, time-indexed log, providing
     type-safe and async-compatible methods.
@@ -273,7 +275,7 @@ class LogManager[T: JsonSerializable](ManagerBase[T]):
         for timestamp, data in self:
 
             # Handle model instances
-            if self._model and isinstance(data, JsonSerializable):
+            if self._model and isinstance(data, BaseModel):
                 data = json.loads(data.model_dump_json())
 
             items_list.append(

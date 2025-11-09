@@ -5,10 +5,14 @@ BeaverDB class that interacts with a remote BeaverDB server over HTTP.
 This implementation relies on the 'httpx' library.
 """
 
+raise NotImplementedError("Remote client functionality is under development.")
+
+
 import threading
 from typing import Generic, Type, TypeVar, Optional, Any
+
+from pydantic import BaseModel
 import httpx
-from .types import JsonSerializable
 from .collections import Document
 
 # --- Base Remote Manager ---
@@ -28,7 +32,7 @@ class RemoteManager:
 
     def _validate_model(self, model: Type | None):
         """Helper to validate the model, mirroring BeaverDB.core"""
-        if model and not isinstance(model, JsonSerializable):
+        if model and not isinstance(model, BaseModel):
             # This check might need to be refined if Pydantic isn't a direct dependency
             pass
 

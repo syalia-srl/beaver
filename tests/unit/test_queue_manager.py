@@ -1,12 +1,13 @@
+from pydantic import BaseModel
 import pytest
 import time
-from beaver import BeaverDB, Model
+from beaver import BeaverDB
 from beaver.queues import QueueItem
 
 pytestmark = pytest.mark.unit
 
 # --- Test Model for Serialization ---
-class Task(Model):
+class Task(BaseModel):
     action: str
     task_id: int
 

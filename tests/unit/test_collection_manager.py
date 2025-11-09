@@ -198,7 +198,7 @@ def test_fuzzy_match_requires_fts_and_fuzzy_flags(db_memory: BeaverDB, text_docs
     results = coll.match("prgramming", fuzziness=2)
     assert len(results) == 0
 
-from beaver import BeaverDB, Document, WalkDirection
+from beaver import BeaverDB, Document
 
 # ... (Keep the existing fixtures: text_docs, vector_docs) ...
 

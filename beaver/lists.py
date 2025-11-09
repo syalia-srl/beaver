@@ -2,12 +2,13 @@ import json
 from typing import Iterator, Union, IO, overload
 from datetime import datetime, timezone
 
+from pydantic import BaseModel
+
 from .cache import cached, invalidates_cache
 from .manager import ManagerBase, synced
-from .types import JsonSerializable
 
 
-class ListManager[T: JsonSerializable](ManagerBase[T]):
+class ListManager[T: BaseModel](ManagerBase[T]):
     """
     A wrapper providing a Pythonic, full-featured interface to a list in the database.
 
@@ -30,7 +31,7 @@ class ListManager[T: JsonSerializable](ManagerBase[T]):
         for item in self:
             item_value = item
             # Check if a model is defined and the item is a model instance
-            if self._model and isinstance(item, JsonSerializable):
+            if self._model and isinstance(item, BaseModel):
                 # Convert the model object to a serializable dict
                 item_value = json.loads(item.model_dump_json())
 

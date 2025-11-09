@@ -1,15 +1,13 @@
 from datetime import datetime, timezone
 import json
-import sqlite3
 import time
-from typing import IO, Any, Iterator, Tuple, Type, Optional, overload
+from typing import IO, Any, Iterator, Tuple, overload
 
-from beaver.cache import ICache
-from .types import JsonSerializable, IDatabase
-from .locks import LockManager
+from pydantic import BaseModel
+
 from .manager import ManagerBase, synced
 
-class DictManager[T: JsonSerializable](ManagerBase[T]):
+class DictManager[T: BaseModel](ManagerBase[T]):
     """A wrapper providing a Pythonic interface to a dictionary in the database."""
 
     def _get_dump_object(self) -> dict:
@@ -19,7 +17,7 @@ class DictManager[T: JsonSerializable](ManagerBase[T]):
         for k, v in self.items():
             item_value = v
             # Check if a model is defined and the value is a model instance
-            if self._model and isinstance(v, JsonSerializable):
+            if self._model and isinstance(v, BaseModel):
                 # Use the model's serializer to get its string representation,
                 # then parse that string back into a dict.
                 # This ensures the dump contains serializable dicts, not model objects.

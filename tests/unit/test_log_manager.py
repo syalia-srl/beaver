@@ -1,12 +1,13 @@
+from pydantic import BaseModel
 import pytest
 import time
 from datetime import datetime, timedelta, timezone
-from beaver import BeaverDB, Model
+from beaver import BeaverDB
 
 pytestmark = pytest.mark.unit
 
 # --- Test Model for Serialization ---
-class LogEntry(Model):
+class LogEntry(BaseModel):
     level: str
     message: str
 

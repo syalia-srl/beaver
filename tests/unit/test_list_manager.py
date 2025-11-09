@@ -1,10 +1,11 @@
+from pydantic import BaseModel
 import pytest
-from beaver import BeaverDB, Model
+from beaver import BeaverDB
 
 pytestmark = pytest.mark.unit
 
 # --- Test Model for Serialization ---
-class Person(Model):
+class Person(BaseModel):
     name: str
     age: int
 
