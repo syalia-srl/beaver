@@ -1,6 +1,7 @@
 # examples/upsert_vector_search.py
 from beaver import BeaverDB, Document
 
+
 def upsert_vector_demo():
     print("--- Running Upsert Vector Search Demo ---")
     db = BeaverDB("demo.db")
@@ -11,7 +12,9 @@ def upsert_vector_demo():
     doc2 = Document(embedding=[0.9, 0.1, 0.1], text="A dog chased a ball.")
 
     # We provide a specific ID for the third document.
-    doc3 = Document(id="article-42", embedding=[0.2, 0.2, 0.6], text="A kitten played on a rug.")
+    doc3 = Document(
+        id="article-42", embedding=[0.2, 0.2, 0.6], text="A kitten played on a rug."
+    )
 
     docs.index(doc1)
     docs.index(doc2)
@@ -24,9 +27,9 @@ def upsert_vector_demo():
     print("\n--- Performing Upsert ---")
     updated_doc3 = Document(
         id="article-42",
-        embedding=[0.21, 0.22, 0.61], # Slightly different vector
-        text="A small cat played on a rug.", # Updated text
-        status="updated" # Added new metadata
+        embedding=[0.21, 0.22, 0.61],  # Slightly different vector
+        text="A small cat played on a rug.",  # Updated text
+        status="updated",  # Added new metadata
     )
     docs.index(updated_doc3)
     print("Upserted document with ID 'article-42'.")
@@ -45,6 +48,7 @@ def upsert_vector_demo():
     print(f"  Distance: {distance:.4f}")
 
     db.close()
+
 
 if __name__ == "__main__":
     upsert_vector_demo()

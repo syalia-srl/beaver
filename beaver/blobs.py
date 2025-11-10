@@ -106,8 +106,7 @@ class BlobManager[M: BaseModel](ManagerBase[M]):
         """Returns the number of blobs in the store."""
         cursor = self.connection.cursor()
         cursor.execute(
-            "SELECT COUNT(*) FROM beaver_blobs WHERE store_name = ?",
-            (self._name,)
+            "SELECT COUNT(*) FROM beaver_blobs WHERE store_name = ?", (self._name,)
         )
         count = cursor.fetchone()[0]
         cursor.close()
@@ -131,25 +130,20 @@ class BlobManager[M: BaseModel](ManagerBase[M]):
                     metadata = json.loads(metadata.model_dump_json())
 
                 # Encode binary data to a base64 string
-                data_b64 = base64.b64encode(blob.data).decode('utf-8')
+                data_b64 = base64.b64encode(blob.data).decode("utf-8")
 
-                items_list.append({
-                    "key": blob.key,
-                    "metadata": metadata,
-                    "data_b64": data_b64
-                })
+                items_list.append(
+                    {"key": blob.key, "metadata": metadata, "data_b64": data_b64}
+                )
 
         metadata = {
             "type": "BlobStore",
             "name": self._name,
             "count": len(items_list),
-            "dump_date": datetime.now(timezone.utc).isoformat()
+            "dump_date": datetime.now(timezone.utc).isoformat(),
         }
 
-        return {
-            "metadata": metadata,
-            "items": items_list
-        }
+        return {"metadata": metadata, "items": items_list}
 
     @overload
     def dump(self) -> dict:

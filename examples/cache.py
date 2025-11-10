@@ -1,13 +1,15 @@
 import time
 from beaver import BeaverDB
 
+
 def expensive_api_call(prompt: str):
     """A mock function that simulates a slow API call."""
     print(f"--- Making expensive API call for: '{prompt}' ---")
-    time.sleep(2) # Simulate network latency
+    time.sleep(2)  # Simulate network latency
     if prompt == "capital of Ecuador":
         return "Quito"
     return "Data not found"
+
 
 def cache_demo():
     """Demonstrates using a namespaced dictionary as a persistent cache with TTL."""

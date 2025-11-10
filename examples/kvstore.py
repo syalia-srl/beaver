@@ -42,7 +42,6 @@ def dict_store_demo():
     print(f"\nAfter deleting 'session_active', config has {len(config)} items.")
     print(f"Is 'session_active' still in config? {'session_active' in config}")
 
-
     db.close()
     print("-" * 35 + "\n")
 

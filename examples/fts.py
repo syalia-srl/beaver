@@ -1,5 +1,6 @@
 from beaver import BeaverDB, Document
 
+
 def full_text_search_demo():
     """
     Demonstrates the full-text search (FTS) functionality in BeaverDB.
@@ -18,22 +19,16 @@ def full_text_search_demo():
     doc1 = Document(
         id="py-001",
         content="Python is a versatile programming language. Its use in data science is notable.",
-        author={
-            "name": "Jane Doe",
-            "email": "jane.doe@example.com"
-        },
-        category="Programming Languages"
+        author={"name": "Jane Doe", "email": "jane.doe@example.com"},
+        category="Programming Languages",
     )
     articles.index(doc1)
 
     doc2 = Document(
         id="sql-002",
         content="SQLite is a powerful embedded database. It is ideal for local applications.",
-        author={
-            "name": "John Smith",
-            "handle": "@john_smith_sql"
-        },
-        category="Databases"
+        author={"name": "John Smith", "handle": "@john_smith_sql"},
+        category="Databases",
     )
     articles.index(doc2)
 
@@ -41,10 +36,10 @@ def full_text_search_demo():
         id="py-dev-003",
         content="Web application development with Python is made easier with frameworks like Django.",
         author={
-            "name": "Jane Doe", # Same author as doc1
-            "email": "jane.doe@example.com"
+            "name": "Jane Doe",  # Same author as doc1
+            "email": "jane.doe@example.com",
         },
-        category="Web Development"
+        category="Web Development",
     )
     articles.index(doc3)
 

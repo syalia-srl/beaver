@@ -494,9 +494,7 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
                 final_results.append((doc_map[doc_id], float(distance_map[doc_id])))
         return final_results
 
-    def connect(
-        self, source: Document, target: Document, label: str
-    ):
+    def connect(self, source: Document, target: Document, label: str):
         """Creates a directed edge between two documents."""
         if not isinstance(source, Document) or not isinstance(target, Document):
             raise TypeError("Source and target must be Document objects.")

@@ -1,11 +1,13 @@
 # examples/typed_model.py
 from beaver import BeaverDB, Model
 
+
 # By inheriting from beaver.Model, this class automatically gets
 # the serialization methods needed by the database.
 class Person(Model):
     name: str
     age: int
+
 
 def typed_model_demo():
     """Demonstrates using the built-in Model base class for type safety."""

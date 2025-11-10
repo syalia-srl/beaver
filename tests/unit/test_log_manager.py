@@ -6,10 +6,12 @@ from beaver import BeaverDB
 
 pytestmark = pytest.mark.unit
 
+
 # --- Test Model for Serialization ---
 class LogEntry(BaseModel):
     level: str
     message: str
+
 
 # --- Helper to create timestamps ---
 def ts(seconds_offset: float) -> datetime:
@@ -17,7 +19,9 @@ def ts(seconds_offset: float) -> datetime:
     # Using timezone.utc to be explicit, as logs.py does
     return datetime.now(timezone.utc) + timedelta(seconds=seconds_offset)
 
+
 # --- Test Cases ---
+
 
 def test_log_log_and_range(db_memory: BeaverDB):
     """Tests logging a single entry and retrieving it with range()."""
@@ -34,6 +38,7 @@ def test_log_log_and_range(db_memory: BeaverDB):
     assert len(results) == 1
     assert results[0] == log_data
 
+
 def test_log_range_precision(db_memory: BeaverDB):
     """Tests logging multiple entries and retrieving a precise subset."""
     logs = db_memory.log("test_log_precision")
@@ -43,11 +48,11 @@ def test_log_range_precision(db_memory: BeaverDB):
     t_end = ts(0.04)
 
     time.sleep(0.01)
-    logs.log({"id": 1}) # Should be included
+    logs.log({"id": 1})  # Should be included
     time.sleep(0.02)
-    logs.log({"id": 2}) # Should be included
+    logs.log({"id": 2})  # Should be included
     time.sleep(0.05)
-    logs.log({"id": 3}) # Should NOT be included
+    logs.log({"id": 3})  # Should NOT be included
 
     # Query the range from start to end
     results = logs.range(t_start, t_end)
@@ -55,6 +60,7 @@ def test_log_range_precision(db_memory: BeaverDB):
     assert len(results) == 2
     assert results[0] == {"id": 1}
     assert results[1] == {"id": 2}
+
 
 def test_log_range_empty(db_memory: BeaverDB):
     """Tests that range() returns an empty list for no matches."""
@@ -64,6 +70,7 @@ def test_log_range_empty(db_memory: BeaverDB):
     # Query a time range in the future
     results = logs.range(ts(1), ts(2))
     assert len(results) == 0
+
 
 def test_log_with_model_serialization(db_memory: BeaverDB):
     """Tests that LogManager correctly serializes/deserializes models."""
@@ -84,22 +91,24 @@ def test_log_with_model_serialization(db_memory: BeaverDB):
     assert retrieved.level == "INFO"
     assert retrieved.message == "System start"
 
+
 def test_log_iter(db_memory: BeaverDB):
     """Tests that __iter__ yields all log entries in chronological order."""
     logs = db_memory.log("test_log_iter")
 
     logs.log({"id": 2}, timestamp=ts(0.02))
-    logs.log({"id": 1}, timestamp=ts(0.01)) # Log out of order
+    logs.log({"id": 1}, timestamp=ts(0.01))  # Log out of order
     logs.log({"id": 3}, timestamp=ts(0.03))
 
     # The iterator should return them in correct timestamp order
-    results = list(logs) # Calls __iter__
+    results = list(logs)  # Calls __iter__
 
     assert len(results) == 3
     # Each item is a (timestamp, data) tuple
     assert results[0][1] == {"id": 1}
     assert results[1][1] == {"id": 2}
     assert results[2][1] == {"id": 3}
+
 
 def test_log_dump(db_memory: BeaverDB):
     """Tests the .dump() method."""
@@ -125,6 +134,7 @@ def test_log_dump(db_memory: BeaverDB):
 
     assert items[1]["data"] == {"id": 2}
     assert items[1]["timestamp"] == t2.timestamp()
+
 
 def test_log_dump_with_model(db_memory: BeaverDB):
     """Tests that .dump() correctly serializes model instances."""

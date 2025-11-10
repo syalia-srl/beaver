@@ -10,31 +10,36 @@ from beaver import BeaverDB
 
 app = typer.Typer(
     name="blob",
-    help="Interact with blob stores. (e.g., beaver blob assets put my-file.png /path/to/file.png)"
+    help="Interact with blob stores. (e.g., beaver blob assets put my-file.png /path/to/file.png)",
 )
+
 
 def _get_db(ctx: typer.Context) -> BeaverDB:
     """Helper to get the DB instance from the main context."""
     return ctx.find_object(dict)["db"]
+
 
 def _parse_metadata(metadata_str: Optional[str]) -> Optional[dict]:
     """Parses the metadata string as JSON."""
     if metadata_str is None:
         return None
     if not (metadata_str.startswith("{") or metadata_str.startswith("[")):
-        raise typer.BadParameter("Metadata must be valid JSON (e.g., '{\"key\":\"value\"}')")
+        raise typer.BadParameter(
+            'Metadata must be valid JSON (e.g., \'{"key":"value"}\')'
+        )
     try:
         return json.loads(metadata_str)
     except json.JSONDecodeError:
         raise typer.BadParameter("Invalid JSON format for metadata.")
+
 
 @app.callback(invoke_without_command=True)
 def blob_main(
     ctx: typer.Context,
     name: Annotated[
         Optional[str],
-        typer.Argument(help="The name of the blob store to interact with.")
-    ] = None
+        typer.Argument(help="The name of the blob store to interact with."),
+    ] = None,
 ):
     """
     Manage binary blob stores.
@@ -53,7 +58,9 @@ def blob_main(
             else:
                 for blob_name in blob_names:
                     rich.print(f"  • {blob_name}")
-            rich.print("\n[bold]Usage:[/bold] beaver blob [bold]<NAME>[/bold] [COMMAND]")
+            rich.print(
+                "\n[bold]Usage:[/bold] beaver blob [bold]<NAME>[/bold] [COMMAND]"
+            )
             return
         except Exception as e:
             rich.print(f"[bold red]Error querying blob stores:[/] {e}")
@@ -69,18 +76,31 @@ def blob_main(
             rich.print(f"Blob Store '[bold]{name}[/bold]' contains {count} items.")
             rich.print("\n[bold]Commands:[/bold]")
             rich.print("  put, get, del, list, dump")
-            rich.print(f"\nRun [bold]beaver blob {name} --help[/bold] for command-specific options.")
+            rich.print(
+                f"\nRun [bold]beaver blob {name} --help[/bold] for command-specific options."
+            )
         except Exception as e:
             rich.print(f"[bold red]Error:[/] {e}")
             raise typer.Exit(code=1)
         raise typer.Exit()
 
+
 @app.command()
 def put(
     ctx: typer.Context,
     key: Annotated[str, typer.Argument(help="The unique key to store the blob under.")],
-    file_path: Annotated[Path, typer.Argument(exists=True, dir_okay=False, readable=True, help="The path to the file to upload.")],
-    metadata: Annotated[Optional[str], typer.Option(help="Optional metadata as a JSON string.")] = None
+    file_path: Annotated[
+        Path,
+        typer.Argument(
+            exists=True,
+            dir_okay=False,
+            readable=True,
+            help="The path to the file to upload.",
+        ),
+    ],
+    metadata: Annotated[
+        Optional[str], typer.Option(help="Optional metadata as a JSON string.")
+    ] = None,
 ):
     """
     Put (upload) a file into the blob store.
@@ -94,16 +114,27 @@ def put(
             file_bytes = f.read()
 
         db.blob(name).put(key, file_bytes, metadata=parsed_metadata)
-        rich.print(f"[green]Success:[/] File '{file_path}' stored as key '{key}' in blob store '{name}'.")
+        rich.print(
+            f"[green]Success:[/] File '{file_path}' stored as key '{key}' in blob store '{name}'."
+        )
     except Exception as e:
         rich.print(f"[bold red]Error:[/] {e}")
         raise typer.Exit(code=1)
+
 
 @app.command()
 def get(
     ctx: typer.Context,
     key: Annotated[str, typer.Argument(help="The key of the blob to retrieve.")],
-    output_path: Annotated[Path, typer.Argument(exists=True, dir_okay=False, readable=True, help="The path to the file to upload.")],
+    output_path: Annotated[
+        Path,
+        typer.Argument(
+            exists=True,
+            dir_okay=False,
+            readable=True,
+            help="The path to the file to upload.",
+        ),
+    ],
 ):
     """
     Get (download) a file from the blob store.
@@ -123,16 +154,20 @@ def get(
         if blob.metadata:
             rich.print("[bold]Metadata:[/bold]")
             if isinstance(blob.metadata, (dict, list)):
-                 rich.print_json(data=blob.metadata)
+                rich.print_json(data=blob.metadata)
             else:
-                 rich.print(str(blob.metadata))
+                rich.print(str(blob.metadata))
 
     except Exception as e:
         rich.print(f"[bold red]Error:[/] {e}")
         raise typer.Exit(code=1)
 
+
 @app.command(name="del")
-def delete(ctx: typer.Context, key: Annotated[str, typer.Argument(help="The key of the blob to delete.")]):
+def delete(
+    ctx: typer.Context,
+    key: Annotated[str, typer.Argument(help="The key of the blob to delete.")],
+):
     """
     Delete a blob from the store.
     """
@@ -147,6 +182,7 @@ def delete(ctx: typer.Context, key: Annotated[str, typer.Argument(help="The key 
     except Exception as e:
         rich.print(f"[bold red]Error:[/] {e}")
         raise typer.Exit(code=1)
+
 
 @app.command(name="list")
 def list_keys(ctx: typer.Context):
@@ -172,6 +208,7 @@ def list_keys(ctx: typer.Context):
     except Exception as e:
         rich.print(f"[bold red]Error:[/] {e}")
         raise typer.Exit(code=1)
+
 
 @app.command()
 def dump(ctx: typer.Context):

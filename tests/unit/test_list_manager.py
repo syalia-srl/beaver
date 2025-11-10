@@ -4,14 +4,17 @@ from beaver import BeaverDB
 
 pytestmark = pytest.mark.unit
 
+
 # --- Test Model for Serialization ---
 class Person(BaseModel):
     name: str
     age: int
 
+
 # --- Test Cases ---
 
 # 1. Basic Stack/Queue Operations
+
 
 def test_list_push_and_len(db_memory: BeaverDB):
     """Tests basic push and __len__."""
@@ -21,6 +24,7 @@ def test_list_push_and_len(db_memory: BeaverDB):
     my_list.push("b")
     my_list.push("c")
     assert len(my_list) == 3
+
 
 def test_list_pop(db_memory: BeaverDB):
     """Tests that pop removes from the end (LIFO)."""
@@ -32,6 +36,7 @@ def test_list_pop(db_memory: BeaverDB):
     assert my_list.pop() == "a"
     assert len(my_list) == 0
 
+
 def test_list_pop_empty(db_memory: BeaverDB):
     """Tests that pop on an empty list returns None."""
     my_list = db_memory.list("test_pop_empty")
@@ -39,14 +44,16 @@ def test_list_pop_empty(db_memory: BeaverDB):
     assert my_list.pop() is None
     assert len(my_list) == 0
 
+
 def test_list_prepend(db_memory: BeaverDB):
     """Tests that prepend adds to the beginning."""
     my_list = db_memory.list("test_prepend")
     my_list.prepend("a")
-    my_list.prepend("b") # Should be at the front
+    my_list.prepend("b")  # Should be at the front
     assert len(my_list) == 2
     assert my_list[0] == "b"
     assert my_list[1] == "a"
+
 
 def test_list_deque(db_memory: BeaverDB):
     """Tests that deque removes from the beginning (FIFO)."""
@@ -58,6 +65,7 @@ def test_list_deque(db_memory: BeaverDB):
     assert my_list.deque() == "b"
     assert len(my_list) == 0
 
+
 def test_list_deque_empty(db_memory: BeaverDB):
     """Tests that deque on an empty list returns None."""
     my_list = db_memory.list("test_deque_empty")
@@ -65,7 +73,9 @@ def test_list_deque_empty(db_memory: BeaverDB):
     assert my_list.deque() is None
     assert len(my_list) == 0
 
+
 # 2. Pythonic Indexing and Slicing
+
 
 def test_list_get_item_positive_and_negative(db_memory: BeaverDB):
     """Tests __getitem__ with positive and negative indices."""
@@ -80,6 +90,7 @@ def test_list_get_item_positive_and_negative(db_memory: BeaverDB):
     assert my_list[-2] == "b"
     assert my_list[-3] == "a"
 
+
 def test_list_get_item_out_of_bounds(db_memory: BeaverDB):
     """Tests that __getitem__ raises IndexError for invalid indices."""
     my_list = db_memory.list("test_getitem_bounds")
@@ -88,6 +99,7 @@ def test_list_get_item_out_of_bounds(db_memory: BeaverDB):
         _ = my_list[1]
     with pytest.raises(IndexError):
         _ = my_list[-2]
+
 
 def test_list_set_item(db_memory: BeaverDB):
     """Tests __setitem__ with positive and negative indices."""
@@ -102,6 +114,7 @@ def test_list_set_item(db_memory: BeaverDB):
     # Verify the entire list state
     assert my_list[:] == ["a", "new_b", "new_c"]
 
+
 def test_list_set_item_out_of_bounds(db_memory: BeaverDB):
     """Tests that __setitem__ raises IndexError for invalid indices."""
     my_list = db_memory.list("test_setitem_bounds")
@@ -111,19 +124,21 @@ def test_list_set_item_out_of_bounds(db_memory: BeaverDB):
     with pytest.raises(IndexError):
         my_list[-2] = "fail"
 
+
 def test_list_del_item(db_memory: BeaverDB):
     """Tests __delitem__ with positive and negative indices."""
     my_list = db_memory.list("test_delitem")
     my_list.push("a")
     my_list.push("b")
     my_list.push("c")
-    del my_list[1] # Deletes "b"
+    del my_list[1]  # Deletes "b"
     assert len(my_list) == 2
     assert my_list[0] == "a"
     assert my_list[1] == "c"
-    del my_list[-1] # Deletes "c"
+    del my_list[-1]  # Deletes "c"
     assert len(my_list) == 1
     assert my_list[0] == "a"
+
 
 def test_list_del_item_out_of_bounds(db_memory: BeaverDB):
     """Tests that __delitem__ raises IndexError for invalid indices."""
@@ -134,11 +149,12 @@ def test_list_del_item_out_of_bounds(db_memory: BeaverDB):
     with pytest.raises(IndexError):
         del my_list[-2]
 
+
 def test_list_slicing(db_memory: BeaverDB):
     """Tests __getitem__ with various slice operations."""
     my_list = db_memory.list("test_slicing")
     for i in range(5):
-        my_list.push(i) # [0, 1, 2, 3, 4]
+        my_list.push(i)  # [0, 1, 2, 3, 4]
 
     assert my_list[:] == [0, 1, 2, 3, 4]
     assert my_list[1:3] == [1, 2]
@@ -148,6 +164,7 @@ def test_list_slicing(db_memory: BeaverDB):
     assert my_list[1:-1] == [1, 2, 3]
     assert my_list[-3:-1] == [2, 3]
 
+
 def test_list_slicing_with_step_raises_error(db_memory: BeaverDB):
     """Tests that slicing with a step is not supported."""
     my_list = db_memory.list("test_slicing_step")
@@ -156,21 +173,24 @@ def test_list_slicing_with_step_raises_error(db_memory: BeaverDB):
     with pytest.raises(ValueError):
         _ = my_list[::2]
 
+
 # 3. Other Core Methods
+
 
 def test_list_insert(db_memory: BeaverDB):
     """Tests insertion at various points in the list."""
     my_list = db_memory.list("test_insert")
     my_list.push("a")
     my_list.push("c")
-    my_list.insert(1, "b") # Insert in middle
+    my_list.insert(1, "b")  # Insert in middle
     assert my_list[:] == ["a", "b", "c"]
-    my_list.insert(0, "start") # Insert at start (equiv to prepend)
+    my_list.insert(0, "start")  # Insert at start (equiv to prepend)
     assert my_list[0] == "start"
     assert my_list[:] == ["start", "a", "b", "c"]
-    my_list.insert(99, "end") # Insert at end (equiv to push)
+    my_list.insert(99, "end")  # Insert at end (equiv to push)
     assert my_list[-1] == "end"
     assert len(my_list) == 5
+
 
 def test_list_contains(db_memory: BeaverDB):
     """Tests the __contains__ (in) operator."""
@@ -182,6 +202,7 @@ def test_list_contains(db_memory: BeaverDB):
     assert "b" not in my_list
     assert {"id": 2} not in my_list
 
+
 def test_list_iter(db_memory: BeaverDB):
     """Tests the __iter__ method."""
     my_list = db_memory.list("test_iter")
@@ -191,7 +212,9 @@ def test_list_iter(db_memory: BeaverDB):
     items = list(my_list)
     assert items == ["a", "b", "c"]
 
+
 # 4. Advanced Features (Serialization & Dump)
+
 
 def test_list_with_model_serialization(db_memory: BeaverDB):
     """Tests that the ListManager correctly serializes/deserializes models."""
@@ -206,8 +229,9 @@ def test_list_with_model_serialization(db_memory: BeaverDB):
 
     popped = people.pop()
     assert isinstance(popped, Person)
-    assert popped.name == "Alice" # Check value from popped item
+    assert popped.name == "Alice"  # Check value from popped item
     assert popped.age == 30
+
 
 def test_list_contains_with_model(db_memory: BeaverDB):
     """Tests the __contains__ operator with serialized models."""
@@ -217,6 +241,7 @@ def test_list_contains_with_model(db_memory: BeaverDB):
     people.push(alice)
     assert alice in people
     assert bob not in people
+
 
 def test_list_dump(db_memory: BeaverDB):
     """Tests the .dump() method for a standard list."""
@@ -230,6 +255,7 @@ def test_list_dump(db_memory: BeaverDB):
     assert dump_data["metadata"]["name"] == "test_dump"
     assert dump_data["metadata"]["count"] == 2
     assert dump_data["items"] == ["a", {"b": 1}]
+
 
 def test_list_dump_with_model(db_memory: BeaverDB):
     """Tests that .dump() correctly serializes model instances."""

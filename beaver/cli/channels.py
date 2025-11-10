@@ -9,12 +9,14 @@ from beaver import BeaverDB
 
 app = typer.Typer(
     name="channel",
-    help="Interact with pub/sub channels. (e.g., beaver channel events publish 'msg')"
+    help="Interact with pub/sub channels. (e.g., beaver channel events publish 'msg')",
 )
+
 
 def _get_db(ctx: typer.Context) -> BeaverDB:
     """Helper to get the DB instance from the main context."""
     return ctx.find_object(dict)["db"]
+
 
 def _parse_value(value: str):
     """
@@ -60,13 +62,13 @@ def _parse_value(value: str):
 
     return value
 
+
 @app.callback(invoke_without_command=True)
 def channel_main(
     ctx: typer.Context,
     name: Annotated[
-        Optional[str],
-        typer.Argument(help="The name of the channel to interact with.")
-    ] = None
+        Optional[str], typer.Argument(help="The name of the channel to interact with.")
+    ] = None,
 ):
     """
     Manage pub/sub channels.
@@ -85,7 +87,9 @@ def channel_main(
             else:
                 for channel_name in channel_names:
                     rich.print(f"  • {channel_name}")
-            rich.print("\n[bold]Usage:[/bold] beaver channel [bold]<NAME>[/bold] [COMMAND]")
+            rich.print(
+                "\n[bold]Usage:[/bold] beaver channel [bold]<NAME>[/bold] [COMMAND]"
+            )
             return
         except Exception as e:
             rich.print(f"[bold red]Error querying channels:[/] {e}")
@@ -99,13 +103,18 @@ def channel_main(
         rich.print(f"Channel '[bold]{name}[/bold]'.")
         rich.print("\n[bold]Commands:[/bold]")
         rich.print("  publish, listen")
-        rich.print(f"\nRun [bold]beaver channel {name} --help[/bold] for command-specific options.")
+        rich.print(
+            f"\nRun [bold]beaver channel {name} --help[/bold] for command-specific options."
+        )
         raise typer.Exit()
+
 
 @app.command()
 def publish(
     ctx: typer.Context,
-    message: Annotated[str, typer.Argument(help="The message to publish (JSON, string, number, etc.).")]
+    message: Annotated[
+        str, typer.Argument(help="The message to publish (JSON, string, number, etc.).")
+    ],
 ):
     """
     Publish a message to the channel.
@@ -120,6 +129,7 @@ def publish(
         rich.print(f"[bold red]Error:[/] {e}")
         raise typer.Exit(code=1)
 
+
 @app.command()
 def listen(ctx: typer.Context):
     """
@@ -128,7 +138,9 @@ def listen(ctx: typer.Context):
     db = ctx.obj["db"]
     name = ctx.obj["name"]
 
-    rich.print(f"[cyan]Listening to channel '[bold]{name}[/bold]'... Press Ctrl+C to stop.[/cyan]")
+    rich.print(
+        f"[cyan]Listening to channel '[bold]{name}[/bold]'... Press Ctrl+C to stop.[/cyan]"
+    )
 
     try:
         with db.channel(name).subscribe() as listener:
@@ -137,10 +149,14 @@ def listen(ctx: typer.Context):
 
                 if isinstance(message, (dict, list)):
                     message_str = json.dumps(message)
-                    rich.print(f"[dim]{now}[/dim] [bold yellow]►[/bold yellow] {message_str}")
+                    rich.print(
+                        f"[dim]{now}[/dim] [bold yellow]►[/bold yellow] {message_str}"
+                    )
                 else:
                     message_str = str(message)
-                    rich.print(f"[dim]{now}[/dim] [bold yellow]►[/bold yellow] {message_str}")
+                    rich.print(
+                        f"[dim]{now}[/dim] [bold yellow]►[/bold yellow] {message_str}"
+                    )
 
     except KeyboardInterrupt:
         rich.print("\n[cyan]Stopping listener...[/cyan]")

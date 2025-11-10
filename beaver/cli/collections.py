@@ -11,14 +11,16 @@ from beaver import BeaverDB, Document
 
 app = typer.Typer(
     name="collection",
-    help="Interact with document collections (vector, text, graph). (e.g., beaver collection articles match 'python')"
+    help="Interact with document collections (vector, text, graph). (e.g., beaver collection articles match 'python')",
 )
 
 # --- Helper Functions ---
 
+
 def _get_db(ctx: typer.Context) -> BeaverDB:
     """Helper to get the DB instance from the main context."""
     return ctx.find_object(dict)["db"]
+
 
 def _parse_json_or_file(input_str: str) -> Any:
     """
@@ -27,10 +29,10 @@ def _parse_json_or_file(input_str: str) -> Any:
     """
     try:
         if os.path.exists(input_str):
-            with open(input_str, 'r') as f:
+            with open(input_str, "r") as f:
                 return json.load(f)
     except Exception:
-        pass # Not a valid file path, or can't be read
+        pass  # Not a valid file path, or can't be read
 
     # Not a file, try to parse as JSON string
     try:
@@ -40,9 +42,10 @@ def _parse_json_or_file(input_str: str) -> Any:
         try:
             return json.loads(f'"{input_str}"')
         except json.JSONDecodeError:
-             raise typer.BadParameter(
+            raise typer.BadParameter(
                 f"Input '{input_str}' is not a valid file path or a valid JSON string."
             )
+
 
 def _truncate(text: str, length: int = 100) -> str:
     """Truncates a string and adds an ellipsis if needed."""
@@ -50,15 +53,17 @@ def _truncate(text: str, length: int = 100) -> str:
         return text[:length] + "..."
     return text
 
+
 # --- Main Callback and Commands ---
+
 
 @app.callback(invoke_without_command=True)
 def collection_main(
     ctx: typer.Context,
     name: Annotated[
         Optional[str],
-        typer.Argument(help="The name of the collection to interact with.")
-    ] = None
+        typer.Argument(help="The name of the collection to interact with."),
+    ] = None,
 ):
     """
     Manage document collections.
@@ -77,7 +82,9 @@ def collection_main(
             else:
                 for col_name in collection_names:
                     rich.print(f"  • {col_name}")
-            rich.print("\n[bold]Usage:[/bold] beaver collection [bold]<NAME>[/bold] [COMMAND]")
+            rich.print(
+                "\n[bold]Usage:[/bold] beaver collection [bold]<NAME>[/bold] [COMMAND]"
+            )
             return
         except Exception as e:
             rich.print(f"[bold red]Error querying collections:[/] {e}")
@@ -92,17 +99,22 @@ def collection_main(
             count = len(db.collection(name))
             rich.print(f"Collection '[bold]{name}[/bold]' contains {count} documents.")
             rich.print("\n[bold]Commands:[/bold]")
-            rich.print("  get, index, drop, items, match, search, connect, neighboors, walk, dump")
-            rich.print(f"\nRun [bold]beaver collection {name} --help[/bold] for command-specific options.")
+            rich.print(
+                "  get, index, drop, items, match, search, connect, neighboors, walk, dump"
+            )
+            rich.print(
+                f"\nRun [bold]beaver collection {name} --help[/bold] for command-specific options."
+            )
         except Exception as e:
             rich.print(f"[bold red]Error:[/] {e}")
             raise typer.Exit(code=1)
         raise typer.Exit()
 
+
 @app.command()
 def get(
     ctx: typer.Context,
-    doc_id: Annotated[str, typer.Argument(help="The ID of the document to retrieve.")]
+    doc_id: Annotated[str, typer.Argument(help="The ID of the document to retrieve.")],
 ):
     """
     Get and print a single document by its ID.
@@ -130,6 +142,7 @@ def get(
         # Handle vector decoding if numpy is available
         try:
             import numpy as np
+
             doc_data["embedding"] = (
                 list(map(float, np.frombuffer(row["item_vector"], dtype=np.float32)))
                 if row["item_vector"]
@@ -144,13 +157,26 @@ def get(
         rich.print(f"[bold red]Error:[/] {e}")
         raise typer.Exit(code=1)
 
+
 @app.command()
 def index(
     ctx: typer.Context,
-    json_or_file: Annotated[str, typer.Argument(help="A JSON string or a file path to a JSON file.")],
-    fts_on: Annotated[Optional[str], typer.Option("--fts", help="Comma-separated list of fields for FTS (e.g., 'title,body'). Default: all string fields.")] = None,
-    no_fts: Annotated[bool, typer.Option("--no-fts", help="Disable FTS indexing for this document.")] = False,
-    fuzzy: Annotated[bool, typer.Option("--fuzzy/--no-fuzzy", help="Enable fuzzy search indexing.")] = False
+    json_or_file: Annotated[
+        str, typer.Argument(help="A JSON string or a file path to a JSON file.")
+    ],
+    fts_on: Annotated[
+        Optional[str],
+        typer.Option(
+            "--fts",
+            help="Comma-separated list of fields for FTS (e.g., 'title,body'). Default: all string fields.",
+        ),
+    ] = None,
+    no_fts: Annotated[
+        bool, typer.Option("--no-fts", help="Disable FTS indexing for this document.")
+    ] = False,
+    fuzzy: Annotated[
+        bool, typer.Option("--fuzzy/--no-fuzzy", help="Enable fuzzy search indexing.")
+    ] = False,
 ):
     """
     Index a new document from a JSON string or file.
@@ -165,8 +191,8 @@ def index(
         if not isinstance(doc_dict, dict):
             raise typer.BadParameter("Input must be a JSON object (a dictionary).")
 
-        doc_id = doc_dict.pop('id', None)
-        doc_embedding = doc_dict.pop('embedding', None)
+        doc_id = doc_dict.pop("id", None)
+        doc_embedding = doc_dict.pop("embedding", None)
 
         # The rest of the dict is metadata
         doc = Document(id=doc_id, embedding=doc_embedding, **doc_dict)
@@ -175,21 +201,24 @@ def index(
         if no_fts:
             fts_arg = False
         elif fts_on:
-            fts_arg = fts_on.split(',')
+            fts_arg = fts_on.split(",")
         else:
             fts_arg = True
 
         db.collection(name).index(doc, fts=fts_arg, fuzzy=fuzzy)
-        rich.print(f"[green]Success:[/] Document indexed with ID: [bold]{doc.id}[/bold]")
+        rich.print(
+            f"[green]Success:[/] Document indexed with ID: [bold]{doc.id}[/bold]"
+        )
 
     except Exception as e:
         rich.print(f"[bold red]Error:[/] {e}")
         raise typer.Exit(code=1)
 
+
 @app.command(name="drop")
 def drop_doc(
     ctx: typer.Context,
-    doc_id: Annotated[str, typer.Argument(help="The ID of the document to delete.")]
+    doc_id: Annotated[str, typer.Argument(help="The ID of the document to delete.")],
 ):
     """
     Delete a document from the collection by its ID.
@@ -198,10 +227,13 @@ def drop_doc(
     name = ctx.obj["name"]
     try:
         db.collection(name).drop(Document(id=doc_id))
-        rich.print(f"[green]Success:[/] Document '{doc_id}' dropped from collection '{name}'.")
+        rich.print(
+            f"[green]Success:[/] Document '{doc_id}' dropped from collection '{name}'."
+        )
     except Exception as e:
         rich.print(f"[bold red]Error:[/] {e}")
         raise typer.Exit(code=1)
+
 
 @app.command()
 def items(ctx: typer.Context):
@@ -222,9 +254,11 @@ def items(ctx: typer.Context):
         table.add_column("Metadata (Summary)")
 
         for doc in all_items:
-            metadata_dict = doc.to_dict() # This returns only metadata
+            metadata_dict = doc.to_dict()  # This returns only metadata
             metadata_str = json.dumps(metadata_dict)
-            embedding_str = f"{len(doc.embedding)}d" if doc.embedding is not None else "None"
+            embedding_str = (
+                f"{len(doc.embedding)}d" if doc.embedding is not None else "None"
+            )
             table.add_row(doc.id, embedding_str, _truncate(metadata_str))
 
         rich.print(table)
@@ -233,13 +267,21 @@ def items(ctx: typer.Context):
         rich.print(f"[bold red]Error:[/] {e}")
         raise typer.Exit(code=1)
 
+
 @app.command()
 def match(
     ctx: typer.Context,
     query: Annotated[str, typer.Argument(help="The search query text.")],
-    on: Annotated[Optional[str], typer.Option(help="Comma-separated list of fields to search (e.g., 'title,body').")] = None,
-    fuzziness: Annotated[int, typer.Option(help="Fuzziness level (0=exact, 1-2=typos).")] = 0,
-    top_k: Annotated[int, typer.Option("--k", help="Number of results to return.")] = 5
+    on: Annotated[
+        Optional[str],
+        typer.Option(
+            help="Comma-separated list of fields to search (e.g., 'title,body')."
+        ),
+    ] = None,
+    fuzziness: Annotated[
+        int, typer.Option(help="Fuzziness level (0=exact, 1-2=typos).")
+    ] = 0,
+    top_k: Annotated[int, typer.Option("--k", help="Number of results to return.")] = 5,
 ):
     """
     Perform a full-text (or fuzzy) search.
@@ -247,8 +289,10 @@ def match(
     db = ctx.obj["db"]
     name = ctx.obj["name"]
     try:
-        on_list = on.split(',') if on else None
-        results = db.collection(name).match(query, on=on_list, top_k=top_k, fuzziness=fuzziness)
+        on_list = on.split(",") if on else None
+        results = db.collection(name).match(
+            query, on=on_list, top_k=top_k, fuzziness=fuzziness
+        )
 
         if not results:
             rich.print("No results found.")
@@ -270,11 +314,15 @@ def match(
         rich.print(f"[bold red]Error:[/] {e}")
         raise typer.Exit(code=1)
 
+
 @app.command()
 def search(
     ctx: typer.Context,
-    vector_json: Annotated[str, typer.Argument(help="The query vector as a JSON list (e.g., '[0.1, 0.2]').")],
-    top_k: Annotated[int, typer.Option("--k", help="Number of results to return.")] = 5
+    vector_json: Annotated[
+        str,
+        typer.Argument(help="The query vector as a JSON list (e.g., '[0.1, 0.2]')."),
+    ],
+    top_k: Annotated[int, typer.Option("--k", help="Number of results to return.")] = 5,
 ):
     """
     Perform an approximate nearest neighbor (vector) search.
@@ -285,7 +333,9 @@ def search(
     try:
         vector_list = _parse_json_or_file(vector_json)
         if not isinstance(vector_list, list):
-            raise typer.BadParameter("Input must be a JSON list (e.g., '[0.1, 0.2, 0.3]').")
+            raise typer.BadParameter(
+                "Input must be a JSON list (e.g., '[0.1, 0.2, 0.3]')."
+            )
 
         results = db.collection(name).search(vector_list, top_k=top_k)
 
@@ -312,13 +362,18 @@ def search(
         rich.print(f"[bold red]Error:[/] {e}")
         raise typer.Exit(code=1)
 
+
 @app.command()
 def connect(
     ctx: typer.Context,
     source_id: Annotated[str, typer.Argument(help="The ID of the source document.")],
     target_id: Annotated[str, typer.Argument(help="The ID of the target document.")],
-    label: Annotated[str, typer.Argument(help="The label for the relationship (e.g., 'FOLLOWS').")],
-    metadata: Annotated[Optional[str], typer.Option(help="Optional metadata as a JSON string.")] = None
+    label: Annotated[
+        str, typer.Argument(help="The label for the relationship (e.g., 'FOLLOWS').")
+    ],
+    metadata: Annotated[
+        Optional[str], typer.Option(help="Optional metadata as a JSON string.")
+    ] = None,
 ):
     """
     Connect two documents with a directed, labeled relationship.
@@ -330,18 +385,25 @@ def connect(
         source_doc = Document(id=source_id)
         target_doc = Document(id=target_id)
 
-        db.collection(name).connect(source_doc, target_doc, label, metadata=parsed_metadata)
-        rich.print(f"[green]Success:[/] Connected '{source_id}' -> '{target_id}' with label '{label}'.")
+        db.collection(name).connect(
+            source_doc, target_doc, label, metadata=parsed_metadata
+        )
+        rich.print(
+            f"[green]Success:[/] Connected '{source_id}' -> '{target_id}' with label '{label}'."
+        )
 
     except Exception as e:
         rich.print(f"[bold red]Error:[/] {e}")
         raise typer.Exit(code=1)
 
+
 @app.command()
 def neighbors(
     ctx: typer.Context,
     doc_id: Annotated[str, typer.Argument(help="The ID of the source document.")],
-    label: Annotated[Optional[str], typer.Option(help="Filter by edge label (e.g., 'FOLLOWS').")] = None
+    label: Annotated[
+        Optional[str], typer.Option(help="Filter by edge label (e.g., 'FOLLOWS').")
+    ] = None,
 ):
     """
     Find the 1-hop outgoing neighbors of a document.
@@ -353,7 +415,10 @@ def neighbors(
         results = db.collection(name).neighbors(source_doc, label=label)
 
         if not results:
-            rich.print(f"No neighbors found for '{doc_id}'" + (f" with label '{label}'." if label else "."))
+            rich.print(
+                f"No neighbors found for '{doc_id}'"
+                + (f" with label '{label}'." if label else ".")
+            )
             return
 
         table = rich.table.Table(title=f"Neighbors of: [bold]'{doc_id}'[/bold]")
@@ -370,13 +435,21 @@ def neighbors(
         rich.print(f"[bold red]Error:[/] {e}")
         raise typer.Exit(code=1)
 
+
 @app.command()
 def walk(
     ctx: typer.Context,
     doc_id: Annotated[str, typer.Argument(help="The ID of the starting document.")],
-    labels: Annotated[str, typer.Option(help="Comma-separated list of labels to follow (e.g., 'FOLLOWS,MENTIONS').")],
+    labels: Annotated[
+        str,
+        typer.Option(
+            help="Comma-separated list of labels to follow (e.g., 'FOLLOWS,MENTIONS')."
+        ),
+    ],
     depth: Annotated[int, typer.Option(help="How many steps to walk.")] = 1,
-    direction: Annotated[str, typer.Option(case_sensitive=False, help="Direction of the walk.")] = "outgoing"
+    direction: Annotated[
+        str, typer.Option(case_sensitive=False, help="Direction of the walk.")
+    ] = "outgoing",
 ):
     """
     Perform a multi-hop graph walk (BFS) from a document.
@@ -385,20 +458,19 @@ def walk(
     name = ctx.obj["name"]
     try:
         source_doc = Document(id=doc_id)
-        label_list = labels.split(',')
+        label_list = labels.split(",")
 
         results = db.collection(name).walk(
-            source=source_doc,
-            labels=label_list,
-            depth=depth,
-            direction=direction
+            source=source_doc, labels=label_list, depth=depth, direction=direction
         )
 
         if not results:
             rich.print(f"No results found for walk from '{doc_id}'.")
             return
 
-        table = rich.table.Table(title=f"Walk Results from: [bold]'{doc_id}'[/bold] (Depth: {depth})")
+        table = rich.table.Table(
+            title=f"Walk Results from: [bold]'{doc_id}'[/bold] (Depth: {depth})"
+        )
         table.add_column("ID", style="cyan", no_wrap=True)
         table.add_column("Metadata (Summary)")
 
@@ -411,6 +483,7 @@ def walk(
     except Exception as e:
         rich.print(f"[bold red]Error:[/] {e}")
         raise typer.Exit(code=1)
+
 
 @app.command()
 def dump(ctx: typer.Context):

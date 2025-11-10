@@ -111,8 +111,7 @@ class ListManager[T: BaseModel](ManagerBase[T]):
                 (self._name, limit, start),
             )
             results = [
-                self._deserialize(row["item_value"])
-                for row in cursor.fetchall()
+                self._deserialize(row["item_value"]) for row in cursor.fetchall()
             ]
             cursor.close()
             return results
@@ -191,9 +190,7 @@ class ListManager[T: BaseModel](ManagerBase[T]):
 
         rowid_to_delete = result["rowid"]
         # Delete that specific row
-        cursor.execute(
-            "DELETE FROM beaver_lists WHERE rowid = ?", (rowid_to_delete,)
-        )
+        cursor.execute("DELETE FROM beaver_lists WHERE rowid = ?", (rowid_to_delete,))
 
     def __iter__(self) -> Iterator[T]:
         """Returns an iterator for the list."""
@@ -307,9 +304,7 @@ class ListManager[T: BaseModel](ManagerBase[T]):
             return None
 
         rowid_to_delete, value_to_return = result
-        cursor.execute(
-            "DELETE FROM beaver_lists WHERE rowid = ?", (rowid_to_delete,)
-        )
+        cursor.execute("DELETE FROM beaver_lists WHERE rowid = ?", (rowid_to_delete,))
         return self._deserialize(value_to_return)
 
     @synced
@@ -326,9 +321,7 @@ class ListManager[T: BaseModel](ManagerBase[T]):
             return None
 
         rowid_to_delete, value_to_return = result
-        cursor.execute(
-            "DELETE FROM beaver_lists WHERE rowid = ?", (rowid_to_delete,)
-        )
+        cursor.execute("DELETE FROM beaver_lists WHERE rowid = ?", (rowid_to_delete,))
         return self._deserialize(value_to_return)
 
     @synced

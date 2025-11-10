@@ -77,13 +77,15 @@ class NumpyVectorIndex:
         # 1. Log the insertion to the database
         cursor.execute(
             "INSERT INTO beaver_vector_change_log (collection_name, item_id, operation_type) VALUES (?, ?, ?)",
-            (self._collection, item_id, INSERT_OPERATION)
+            (self._collection, item_id, INSERT_OPERATION),
         )
         new_log_id = cursor.lastrowid
 
         # 2. Call the fast-path helper to update this process's in-memory state
         if new_log_id:
-            self._fast_path_insert(np.asarray(vector, dtype=np.float32), item_id, new_log_id)
+            self._fast_path_insert(
+                np.asarray(vector, dtype=np.float32), item_id, new_log_id
+            )
 
     def drop(self, item_id: str, cursor: sqlite3.Cursor):
         """
@@ -97,7 +99,7 @@ class NumpyVectorIndex:
         # 1. Log the deletion to the database
         cursor.execute(
             "INSERT INTO beaver_vector_change_log (collection_name, item_id, operation_type) VALUES (?, ?, ?)",
-            (self._collection, item_id, DELETE_OPERATION)
+            (self._collection, item_id, DELETE_OPERATION),
         )
         new_log_id = cursor.lastrowid
 
@@ -132,14 +134,16 @@ class NumpyVectorIndex:
 
         cursor.execute(
             "SELECT MAX(log_id) FROM beaver_vector_change_log WHERE collection_name = ?",
-            (self._collection,)
+            (self._collection,),
         )
         result = cursor.fetchone()
         db_max_log_id = result[0] if result and result[0] is not None else 0
 
         return db_base_version, db_max_log_id
 
-    def _load_base_index(self, cursor: sqlite3.Cursor, db_base_version: int, db_max_log_id: int):
+    def _load_base_index(
+        self, cursor: sqlite3.Cursor, db_base_version: int, db_max_log_id: int
+    ):
         """
         Loads all data from the main tables, rebuilding the in-memory index
         from scratch. This is the "pay the cost" moment for startup and
@@ -155,7 +159,7 @@ class NumpyVectorIndex:
             GROUP BY c.item_id
             HAVING MAX(CASE WHEN l.operation_type = ? THEN l.log_id ELSE 0 END) = 0
             """,
-            (DELETE_OPERATION, self._collection, DELETE_OPERATION)
+            (DELETE_OPERATION, self._collection, DELETE_OPERATION),
         )
 
         base_vectors = []
@@ -196,7 +200,7 @@ class NumpyVectorIndex:
             WHERE l.collection_name = ? AND l.log_id > ?
             ORDER BY l.log_id ASC
             """,
-            (self._collection, self._last_seen_log_id)
+            (self._collection, self._last_seen_log_id),
         )
 
         rows = cursor.fetchall()
@@ -216,13 +220,17 @@ class NumpyVectorIndex:
                     self._infer_and_validate_dimension(vector)
                     new_k_vectors.append(vector)
                     new_k_ids.append(item_id)
-                    self._deleted_ids.discard(item_id)  # Remove from tombstones if re-indexed
+                    self._deleted_ids.discard(
+                        item_id
+                    )  # Remove from tombstones if re-indexed
 
             elif op_type == DELETE_OPERATION:
                 self._deleted_ids.add(item_id)
                 # Also remove from delta if it was just added
                 if item_id in new_k_ids:
-                    indices_to_remove = [i for i, id in enumerate(new_k_ids) if id == item_id]
+                    indices_to_remove = [
+                        i for i, id in enumerate(new_k_ids) if id == item_id
+                    ]
                     for i in sorted(indices_to_remove, reverse=True):
                         del new_k_vectors[i]
                         del new_k_ids[i]
@@ -247,7 +255,11 @@ class NumpyVectorIndex:
         db_base_version, db_max_log_id = self._get_db_versions(cursor)
 
         # Fast path: If local state matches DB state, do nothing.
-        if self._is_initialized and self._local_base_version == db_base_version and self._last_seen_log_id == db_max_log_id:
+        if (
+            self._is_initialized
+            and self._local_base_version == db_base_version
+            and self._last_seen_log_id == db_max_log_id
+        ):
             return
 
         # Slow path: State is different.
@@ -266,14 +278,13 @@ class NumpyVectorIndex:
         """
         self._infer_and_validate_dimension(vector)
 
-
         with self._thread_lock:
             new_k_vectors = list(self._k_matrix) if self._k_matrix is not None else []
             new_k_ids = list(self._k_ids)
 
             new_k_vectors.append(vector)
             new_k_ids.append(item_id)
-            self._deleted_ids.discard(item_id) # Remove from tombstones
+            self._deleted_ids.discard(item_id)  # Remove from tombstones
 
             assert isinstance(self._dimension, int)
             self._k_matrix = np.array(new_k_vectors).reshape(-1, self._dimension)
@@ -293,14 +304,18 @@ class NumpyVectorIndex:
                 new_k_vectors = list(self._k_matrix)
                 new_k_ids = list(self._k_ids)
 
-                indices_to_remove = [i for i, id in enumerate(new_k_ids) if id == item_id]
+                indices_to_remove = [
+                    i for i, id in enumerate(new_k_ids) if id == item_id
+                ]
                 for i in sorted(indices_to_remove, reverse=True):
                     del new_k_vectors[i]
                     del new_k_ids[i]
 
                 if new_k_vectors:
                     assert isinstance(self._dimension, int)
-                    self._k_matrix = np.array(new_k_vectors).reshape(-1, self._dimension)
+                    self._k_matrix = np.array(new_k_vectors).reshape(
+                        -1, self._dimension
+                    )
                     self._k_ids = new_k_ids
                 else:
                     self._k_matrix = None
@@ -316,7 +331,7 @@ class NumpyVectorIndex:
         vector = np.asarray(embedding, dtype=np.float32)
 
         self._infer_and_validate_dimension(vector)
-        self._check_and_sync() # Ensures in-memory state is up-to-date
+        self._check_and_sync()  # Ensures in-memory state is up-to-date
 
         with self._thread_lock:
             all_distances: List[float] = []
@@ -327,13 +342,13 @@ class NumpyVectorIndex:
             # Search Base Index (O(N))
             if self._n_matrix is not None:
                 # Calculate L2 distance (squared)
-                distances = np.sum((self._n_matrix - query_vector)**2, axis=1)
+                distances = np.sum((self._n_matrix - query_vector) ** 2, axis=1)
                 all_distances.extend(distances)
                 all_ids.extend(self._n_ids)
 
             # Search Delta Index (O(k))
             if self._k_matrix is not None:
-                distances = np.sum((self._k_matrix - query_vector)**2, axis=1)
+                distances = np.sum((self._k_matrix - query_vector) ** 2, axis=1)
                 all_distances.extend(distances)
                 all_ids.extend(self._k_ids)
 
@@ -367,7 +382,7 @@ class NumpyVectorIndex:
         # Delete all entries from the change log
         cursor.execute(
             "DELETE FROM beaver_vector_change_log WHERE collection_name = ?",
-            (self._collection,)
+            (self._collection,),
         )
 
         # Increment the base version

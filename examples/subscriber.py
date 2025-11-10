@@ -1,6 +1,7 @@
 import queue
 from beaver import BeaverDB
 
+
 def main():
     """
     Continuously listens for messages on a channel until manually stopped.
@@ -28,6 +29,7 @@ def main():
     finally:
         # Ensure the database connection is closed gracefully.
         db.close()
+
 
 if __name__ == "__main__":
     main()

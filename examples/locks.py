@@ -39,7 +39,9 @@ def run_lock_demo():
 
         except TimeoutError:
             # This happens if we couldn't get the lock within the 5-second timeout
-            print(f"[PID {pid}] ❌ Lock acquisition TIMED OUT. Another process is busy.")
+            print(
+                f"[PID {pid}] ❌ Lock acquisition TIMED OUT. Another process is busy."
+            )
         except Exception as e:
             print(f"[PID {pid}] An error occurred: {e}")
 

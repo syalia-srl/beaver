@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from .manager import ManagerBase, synced
 
+
 class DictManager[T: BaseModel](ManagerBase[T]):
     """A wrapper providing a Pythonic interface to a dictionary in the database."""
 

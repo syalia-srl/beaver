@@ -15,14 +15,16 @@ from beaver import BeaverDB
 
 app = typer.Typer(
     name="log",
-    help="Interact with time-indexed logs. (e.g., beaver log errors write '{\"code\": 500}')"
+    help="Interact with time-indexed logs. (e.g., beaver log errors write '{\"code\": 500}')",
 )
 
 # --- Helper Functions ---
 
+
 def _get_db(ctx: typer.Context) -> BeaverDB:
     """Helper to get the DB instance from the main context."""
     return ctx.find_object(dict)["db"]
+
 
 def _parse_value(value: str):
     """
@@ -68,6 +70,7 @@ def _parse_value(value: str):
 
     return value
 
+
 def _build_stats_aggregator(window: List[Dict[str, Any]]) -> dict:
     """
     The custom aggregator function.
@@ -102,6 +105,7 @@ def _build_stats_aggregator(window: List[Dict[str, Any]]) -> dict:
 
     return summary
 
+
 def _generate_stats_table(summary: dict, name: str, window_s: int) -> Table:
     """Builds a rich.Table object from the stats summary."""
 
@@ -118,26 +122,27 @@ def _generate_stats_table(summary: dict, name: str, window_s: int) -> Table:
             key,
             str(stats["count"]),
             ", ".join(stats["types"]),
-            f"{stats.get('min', 'N/A'):.2f}" if 'min' in stats else "N/A",
-            f"{stats.get('max', 'N/A'):.2f}" if 'max' in stats else "N/A",
-            f"{stats.get('mean', 'N/A'):.2f}" if 'mean' in stats else "N/A",
+            f"{stats.get('min', 'N/A'):.2f}" if "min" in stats else "N/A",
+            f"{stats.get('max', 'N/A'):.2f}" if "max" in stats else "N/A",
+            f"{stats.get('mean', 'N/A'):.2f}" if "mean" in stats else "N/A",
         )
 
     caption = f"Total Events: {summary['total_count']}"
-    if summary['non_dict_count'] > 0:
+    if summary["non_dict_count"] > 0:
         caption += f" ({summary['non_dict_count']} non-JSON-object events not shown)"
     table.caption = caption
     return table
 
+
 # --- CLI Commands ---
+
 
 @app.callback(invoke_without_command=True)
 def log_main(
     ctx: typer.Context,
     name: Annotated[
-        Optional[str],
-        typer.Argument(help="The name of the log to interact with.")
-    ] = None
+        Optional[str], typer.Argument(help="The name of the log to interact with.")
+    ] = None,
 ):
     """
     Manage time-indexed logs.
@@ -167,13 +172,21 @@ def log_main(
         rich.print(f"Log '[bold]{name}[/bold]'.")
         rich.print("\n[bold]Commands:[/bold]")
         rich.print("  write, watch")
-        rich.print(f"\nRun [bold]beaver log {name} --help[/bold] for command-specific options.")
+        rich.print(
+            f"\nRun [bold]beaver log {name} --help[/bold] for command-specific options."
+        )
         raise typer.Exit()
+
 
 @app.command()
 def write(
     ctx: typer.Context,
-    data: Annotated[str, typer.Argument(help="The data to log (e.g., '{\"a\": 1}', '\"my string\"', '123.45', 'true').")]
+    data: Annotated[
+        str,
+        typer.Argument(
+            help="The data to log (e.g., '{\"a\": 1}', '\"my string\"', '123.45', 'true')."
+        ),
+    ],
 ):
     """
     Write a new data entry to the log.
@@ -190,11 +203,16 @@ def write(
         rich.print(f"[bold red]Error:[/] {e}")
         raise typer.Exit(code=1)
 
+
 @app.command()
 def watch(
     ctx: typer.Context,
-    window: Annotated[int, typer.Option("--window", help="Time window in seconds to aggregate over.")] = 60,
-    frequency: Annotated[int, typer.Option("--frequency", help="Time in seconds between updates.")] = 1,
+    window: Annotated[
+        int, typer.Option("--window", help="Time window in seconds to aggregate over.")
+    ] = 60,
+    frequency: Annotated[
+        int, typer.Option("--frequency", help="Time in seconds between updates.")
+    ] = 1,
 ):
     """
     Watch a live, aggregated view of JSON log entries.
@@ -210,10 +228,12 @@ def watch(
         live_stream = log_manager.live(
             window=timedelta(seconds=window),
             period=timedelta(seconds=frequency),
-            aggregator=_build_stats_aggregator
+            aggregator=_build_stats_aggregator,
         )
 
-        rich.print(f"[cyan]Watching log '[bold]{name}[/bold]' (Window: {window}s, Freq: {frequency}s)... Press Ctrl+C to stop.[/cyan]")
+        rich.print(
+            f"[cyan]Watching log '[bold]{name}[/bold]' (Window: {window}s, Freq: {frequency}s)... Press Ctrl+C to stop.[/cyan]"
+        )
 
         # Use screen=True to create a new buffer and avoid flickering
         with Live(screen=True, refresh_per_second=4, transient=True) as live:

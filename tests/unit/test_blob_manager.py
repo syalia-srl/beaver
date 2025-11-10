@@ -6,10 +6,12 @@ from beaver.blobs import Blob
 
 pytestmark = pytest.mark.unit
 
+
 # --- Test Model for Serialization ---
 class FileMeta(BaseModel):
     mimetype: str
     user_id: int
+
 
 # --- Test Data ---
 BLOB_DATA_1 = b"This is a test blob."
@@ -18,6 +20,7 @@ BLOB_DATA_2 = b"\x00\x01\x02\x03\x04"
 # --- Test Cases ---
 
 # 1. Basic Operations
+
 
 def test_blob_put_and_get(db_memory: BeaverDB):
     """Tests basic put and get operations."""
@@ -33,6 +36,7 @@ def test_blob_put_and_get(db_memory: BeaverDB):
     assert blob.data == BLOB_DATA_1
     assert blob.metadata is None
 
+
 def test_blob_put_with_metadata(db_memory: BeaverDB):
     """Tests storing and retrieving a blob with metadata."""
     blobs = db_memory.blob("test_metadata")
@@ -45,6 +49,7 @@ def test_blob_put_with_metadata(db_memory: BeaverDB):
     assert blob is not None
     assert blob.data == BLOB_DATA_1
     assert blob.metadata == metadata
+
 
 def test_blob_put_overwrite(db_memory: BeaverDB):
     """Tests that putting a blob with an existing key overwrites it."""
@@ -62,16 +67,19 @@ def test_blob_put_overwrite(db_memory: BeaverDB):
 
     assert len(blobs) == 1
 
+
 def test_blob_put_invalid_data_type(db_memory: BeaverDB):
     """Tests that put() raises TypeError for non-bytes data."""
     blobs = db_memory.blob("test_invalid_data")
     with pytest.raises(TypeError):
         blobs.put("key1", "this is a string, not bytes")
 
+
 def test_blob_get_not_found(db_memory: BeaverDB):
     """Tests that get() returns None for a missing key."""
     blobs = db_memory.blob("test_get_not_found")
     assert blobs.get("missing_key") is None
+
 
 def test_blob_delete(db_memory: BeaverDB):
     """Tests the delete() method."""
@@ -85,6 +93,7 @@ def test_blob_delete(db_memory: BeaverDB):
     assert len(blobs) == 0
     assert blobs.get("key1") is None
 
+
 def test_blob_delete_not_found(db_memory: BeaverDB):
     """Tests that delete() raises KeyError for a missing key."""
     blobs = db_memory.blob("test_delete_not_found")
@@ -92,7 +101,9 @@ def test_blob_delete_not_found(db_memory: BeaverDB):
     with pytest.raises(KeyError):
         blobs.delete("missing_key")
 
+
 # 2. Pythonic Dunder Methods
+
 
 def test_blob_contains(db_memory: BeaverDB):
     """Tests the __contains__ (in) operator."""
@@ -101,6 +112,7 @@ def test_blob_contains(db_memory: BeaverDB):
 
     assert "key1" in blobs
     assert "missing_key" not in blobs
+
 
 def test_blob_len_and_iter(db_memory: BeaverDB):
     """Tests __len__ and __iter__ (which yields keys)."""
@@ -119,7 +131,9 @@ def test_blob_len_and_iter(db_memory: BeaverDB):
     assert "key1" in keys
     assert "key2" in keys
 
+
 # 3. Advanced Features (Serialization & Dump)
+
 
 def test_blob_with_model_serialization(db_memory: BeaverDB):
     """Tests that metadata is correctly serialized/deserialized with a model."""
@@ -134,6 +148,7 @@ def test_blob_with_model_serialization(db_memory: BeaverDB):
     assert isinstance(blob.metadata, FileMeta)
     assert blob.metadata.mimetype == "image/png"
     assert blob.metadata.user_id == 123
+
 
 def test_blob_dump(db_memory: BeaverDB):
     """Tests the .dump() method, including base64 encoding."""
@@ -156,7 +171,7 @@ def test_blob_dump(db_memory: BeaverDB):
     assert item["metadata"] == metadata
 
     # Check that data was correctly base64 encoded
-    assert item["data_b64"] == base64.b64encode(BLOB_DATA_1).decode('utf-8')
+    assert item["data_b64"] == base64.b64encode(BLOB_DATA_1).decode("utf-8")
 
     # Check that we can decode it back
     assert base64.b64decode(item["data_b64"]) == BLOB_DATA_1

@@ -8,8 +8,9 @@ from beaver import BeaverDB
 
 app = typer.Typer(
     name="dict",
-    help="Interact with namespaced dictionaries. (e.g., beaver dict my-dict get my-key)"
+    help="Interact with namespaced dictionaries. (e.g., beaver dict my-dict get my-key)",
 )
+
 
 def _parse_value(value: str):
     """Parses the value string as JSON if appropriate."""
@@ -20,13 +21,14 @@ def _parse_value(value: str):
             return value
     return value
 
+
 @app.callback(invoke_without_command=True)
 def dict_main(
     ctx: typer.Context,
     name: Annotated[
         Optional[str],
-        typer.Argument(help="The name of the dictionary to interact with.")
-    ] = None
+        typer.Argument(help="The name of the dictionary to interact with."),
+    ] = None,
 ):
     """
     Manage namespaced dictionaries.
@@ -49,7 +51,9 @@ def dict_main(
             else:
                 for dict_name in dict_names:
                     rich.print(f"  • {dict_name}")
-            rich.print("\n[bold]Usage:[/bold] beaver dict [bold]<NAME>[/bold] [COMMAND]")
+            rich.print(
+                "\n[bold]Usage:[/bold] beaver dict [bold]<NAME>[/bold] [COMMAND]"
+            )
             return
         except Exception as e:
             rich.print(f"[bold red]Error querying dictionaries:[/] {e}")
@@ -63,11 +67,16 @@ def dict_main(
         rich.print(f"No command specified for dictionary '[bold]{name}[/bold]'.")
         rich.print("\n[bold]Commands:[/bold]")
         rich.print("  get, set, del, keys, dump")
-        rich.print(f"\nRun [bold]beaver dict {name} --help[/bold] for command-specific options.")
+        rich.print(
+            f"\nRun [bold]beaver dict {name} --help[/bold] for command-specific options."
+        )
         raise typer.Exit()
 
+
 @app.command()
-def get(ctx: typer.Context, key: Annotated[str, typer.Argument(help="The key to retrieve.")]):
+def get(
+    ctx: typer.Context, key: Annotated[str, typer.Argument(help="The key to retrieve.")]
+):
     """
     Get a value by key.
     """
@@ -87,11 +96,12 @@ def get(ctx: typer.Context, key: Annotated[str, typer.Argument(help="The key to 
         rich.print(f"[bold red]Error:[/] {e}")
         raise typer.Exit(code=1)
 
+
 @app.command()
 def set(
     ctx: typer.Context,
     key: Annotated[str, typer.Argument(help="The key to set.")],
-    value: Annotated[str, typer.Argument(help="The value (JSON or string).")]
+    value: Annotated[str, typer.Argument(help="The value (JSON or string).")],
 ):
     """
     Set a value for a key.
@@ -106,8 +116,11 @@ def set(
         rich.print(f"[bold red]Error:[/] {e}")
         raise typer.Exit(code=1)
 
+
 @app.command(name="del")
-def delete(ctx: typer.Context, key: Annotated[str, typer.Argument(help="The key to delete.")]):
+def delete(
+    ctx: typer.Context, key: Annotated[str, typer.Argument(help="The key to delete.")]
+):
     """
     Delete a key from the dictionary.
     """
@@ -122,6 +135,7 @@ def delete(ctx: typer.Context, key: Annotated[str, typer.Argument(help="The key 
     except Exception as e:
         rich.print(f"[bold red]Error:[/] {e}")
         raise typer.Exit(code=1)
+
 
 @app.command()
 def keys(ctx: typer.Context):
@@ -140,6 +154,7 @@ def keys(ctx: typer.Context):
     except Exception as e:
         rich.print(f"[bold red]Error:[/] {e}")
         raise typer.Exit(code=1)
+
 
 @app.command()
 def dump(ctx: typer.Context):

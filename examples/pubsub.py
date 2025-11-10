@@ -2,6 +2,7 @@ import threading
 import time
 from beaver import BeaverDB
 
+
 # --- 1. Listener Task ---
 # This function will be run by each listener thread.
 def listener_task(name: str, db: BeaverDB):

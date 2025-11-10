@@ -9,6 +9,7 @@ from beaver import BeaverDB
 DB_PATH = "tasks.db"
 QUEUE_NAME = "distributed_task_queue"
 
+
 def producer():
     """
     Runs in a loop, producing new tasks with random priorities and adding
@@ -60,10 +61,14 @@ def consumer():
                 item = task_queue.get(timeout=5.0)
 
                 # 2. "Process" the task
-                print(f"[{pid}] Got task '{item.data['task_id']}' with priority {item.priority}. Processing...")
+                print(
+                    f"[{pid}] Got task '{item.data['task_id']}' with priority {item.priority}. Processing..."
+                )
                 processing_time = random.uniform(1.0, 4.0)
                 time.sleep(processing_time)
-                print(f"[{pid}] Finished task '{item.data['task_id']}' in {processing_time:.2f}s.")
+                print(
+                    f"[{pid}] Finished task '{item.data['task_id']}' in {processing_time:.2f}s."
+                )
 
             except TimeoutError:
                 # This block is executed if no task arrives within the 5-second timeout

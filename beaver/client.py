@@ -17,14 +17,11 @@ from .collections import Document
 
 # --- Base Remote Manager ---
 
+
 class RemoteManager:
     """Base class for all remote managers, holding the HTTP client."""
-    def __init__(
-        self,
-        client: httpx.Client,
-        name: str,
-        model: Type | None = None
-    ):
+
+    def __init__(self, client: httpx.Client, name: str, model: Type | None = None):
         self._client = client
         self._name = name
         self._model = model
@@ -36,28 +33,30 @@ class RemoteManager:
             # This check might need to be refined if Pydantic isn't a direct dependency
             pass
 
+
 # --- Stub Remote Manager Implementations ---
+
 
 class RemoteDictManager[T](RemoteManager):
     """
     Manages a remote dictionary. All methods will make HTTP requests.
     (This is a skeleton implementation)
     """
-    def __init__(
-        self,
-        client: httpx.Client,
-        name: str,
-        model: Type[T] | None = None
-    ):
+
+    def __init__(self, client: httpx.Client, name: str, model: Type[T] | None = None):
         super().__init__(client, name, model)
         # Placeholder for manager-level locking, mirroring local implementation
         self._lock = RemoteLockManager(client, f"__lock__dict__{name}", None)
 
     def __setitem__(self, key: str, value: T):
-        raise NotImplementedError("This method will be implemented in a future milestone.")
+        raise NotImplementedError(
+            "This method will be implemented in a future milestone."
+        )
 
     def __getitem__(self, key: str) -> T:
-        raise NotImplementedError("This method will be implemented in a future milestone.")
+        raise NotImplementedError(
+            "This method will be implemented in a future milestone."
+        )
 
     # ... other dict methods (get, __delitem__, __len__, items, etc.) ...
 
@@ -67,17 +66,15 @@ class RemoteListManager[T](RemoteManager):
     Manages a remote list. All methods will make HTTP requests.
     (This is a skeleton implementation)
     """
-    def __init__(
-        self,
-        client: httpx.Client,
-        name: str,
-        model: Type[T] | None = None
-    ):
+
+    def __init__(self, client: httpx.Client, name: str, model: Type[T] | None = None):
         super().__init__(client, name, model)
         self._lock = RemoteLockManager(client, f"__lock__list__{name}", None)
 
     def push(self, value: T):
-        raise NotImplementedError("This method will be implemented in a future milestone.")
+        raise NotImplementedError(
+            "This method will be implemented in a future milestone."
+        )
 
     # ... other list methods (pop, __getitem__, __setitem__, etc.) ...
 
@@ -87,20 +84,20 @@ class RemoteQueueManager[T](RemoteManager):
     Manages a remote priority queue. All methods will make HTTP requests.
     (This is a skeleton implementation)
     """
-    def __init__(
-        self,
-        client: httpx.Client,
-        name: str,
-        model: Type[T] | None = None
-    ):
+
+    def __init__(self, client: httpx.Client, name: str, model: Type[T] | None = None):
         super().__init__(client, name, model)
         self._lock = RemoteLockManager(client, f"__lock__queue__{name}", None)
 
     def put(self, data: T, priority: float):
-        raise NotImplementedError("This method will be implemented in a future milestone.")
+        raise NotImplementedError(
+            "This method will be implemented in a future milestone."
+        )
 
     def get(self, block: bool = True, timeout: float | None = None):
-        raise NotImplementedError("This method will be implemented in a future milestone.")
+        raise NotImplementedError(
+            "This method will be implemented in a future milestone."
+        )
 
     # ... other queue methods (peek, __len__, etc.) ...
 
@@ -110,20 +107,20 @@ class RemoteCollectionManager[D](RemoteManager):
     Manages a remote collection. All methods will make HTTP requests.
     (This is a skeleton implementation)
     """
-    def __init__(
-        self,
-        client: httpx.Client,
-        name: str,
-        model: Type[D] | None = None
-    ):
+
+    def __init__(self, client: httpx.Client, name: str, model: Type[D] | None = None):
         super().__init__(client, name, model)
         self._lock = RemoteLockManager(client, f"__lock__collection__{name}", None)
 
     def index(self, document: D, *, fts: bool | list[str] = True, fuzzy: bool = False):
-        raise NotImplementedError("This method will be implemented in a future milestone.")
+        raise NotImplementedError(
+            "This method will be implemented in a future milestone."
+        )
 
     def search(self, vector: list[float], top_k: int = 10):
-        raise NotImplementedError("This method will be implemented in a future milestone.")
+        raise NotImplementedError(
+            "This method will be implemented in a future milestone."
+        )
 
     # ... other collection methods (drop, match, connect, walk, etc.) ...
 
@@ -133,11 +130,16 @@ class RemoteChannelManager[T](RemoteManager):
     Manages a remote pub/sub channel.
     (This is a skeleton implementation)
     """
+
     def publish(self, payload: T):
-        raise NotImplementedError("This method will be implemented in a future milestone.")
+        raise NotImplementedError(
+            "This method will be implemented in a future milestone."
+        )
 
     def subscribe(self):
-        raise NotImplementedError("This method will be implemented in a future milestone.")
+        raise NotImplementedError(
+            "This method will be implemented in a future milestone."
+        )
 
 
 class RemoteBlobManager[M](RemoteManager):
@@ -145,20 +147,20 @@ class RemoteBlobManager[M](RemoteManager):
     Manages a remote blob store. All methods will make HTTP requests.
     (This is a skeleton implementation)
     """
-    def __init__(
-        self,
-        client: httpx.Client,
-        name: str,
-        model: Type[M] | None = None
-    ):
+
+    def __init__(self, client: httpx.Client, name: str, model: Type[M] | None = None):
         super().__init__(client, name, model)
         self._lock = RemoteLockManager(client, f"__lock__blob__{name}", None)
 
     def put(self, key: str, data: bytes, metadata: Optional[M] = None):
-        raise NotImplementedError("This method will be implemented in a future milestone.")
+        raise NotImplementedError(
+            "This method will be implemented in a future milestone."
+        )
 
     def get(self, key: str):
-        raise NotImplementedError("This method will be implemented in a future milestone.")
+        raise NotImplementedError(
+            "This method will be implemented in a future milestone."
+        )
 
     # ... other blob methods (delete, __len__, etc.) ...
 
@@ -168,14 +170,23 @@ class RemoteLogManager[T](RemoteManager):
     Manages a remote time-indexed log.
     (This is a skeleton implementation)
     """
-    def log(self, data: T, timestamp: Any | None = None): # Using Any for datetime
-        raise NotImplementedError("This method will be implemented in a future milestone.")
 
-    def range(self, start: Any, end: Any): # Using Any for datetime
-        raise NotImplementedError("This method will be implemented in a future milestone.")
+    def log(self, data: T, timestamp: Any | None = None):  # Using Any for datetime
+        raise NotImplementedError(
+            "This method will be implemented in a future milestone."
+        )
 
-    def live(self, window: Any, period: Any, aggregator: Any): # Using Any for timedelta/callable
-        raise NotImplementedError("This method will be implemented in a future milestone.")
+    def range(self, start: Any, end: Any):  # Using Any for datetime
+        raise NotImplementedError(
+            "This method will be implemented in a future milestone."
+        )
+
+    def live(
+        self, window: Any, period: Any, aggregator: Any
+    ):  # Using Any for timedelta/callable
+        raise NotImplementedError(
+            "This method will be implemented in a future milestone."
+        )
 
 
 class RemoteLockManager(RemoteManager):
@@ -183,6 +194,7 @@ class RemoteLockManager(RemoteManager):
     Manages a remote inter-process lock.
     (This is a skeleton implementation)
     """
+
     def __init__(
         self,
         client: httpx.Client,
@@ -198,10 +210,14 @@ class RemoteLockManager(RemoteManager):
         self._poll_interval = poll_interval
 
     def acquire(self):
-        raise NotImplementedError("This method will be implemented in a future milestone.")
+        raise NotImplementedError(
+            "This method will be implemented in a future milestone."
+        )
 
     def release(self):
-        raise NotImplementedError("This method will be implemented in a future milestone.")
+        raise NotImplementedError(
+            "This method will be implemented in a future milestone."
+        )
 
     def __enter__(self):
         self.acquire()
@@ -212,6 +228,7 @@ class RemoteLockManager(RemoteManager):
 
 
 # --- The Main Client Class ---
+
 
 class BeaverClient:
     """
@@ -271,7 +288,9 @@ class BeaverClient:
 
         return RemoteListManager(self._client, name, model)
 
-    def queue[T](self, name: str, model: type[T] | None = None) -> RemoteQueueManager[T]:
+    def queue[T](
+        self, name: str, model: type[T] | None = None
+    ) -> RemoteQueueManager[T]:
         """
         Returns a wrapper for interacting with a remote persistent priority queue.
         If model is defined, it should be a type used for automatic (de)serialization.
@@ -292,10 +311,14 @@ class BeaverClient:
 
         with self._collections_lock:
             if name not in self._collections:
-                self._collections[name] = RemoteCollectionManager(self._client, name, model)
-            return self._collections[name] # type: ignore
+                self._collections[name] = RemoteCollectionManager(
+                    self._client, name, model
+                )
+            return self._collections[name]  # type: ignore
 
-    def channel[T](self, name: str, model: type[T] | None = None) -> RemoteChannelManager[T]:
+    def channel[T](
+        self, name: str, model: type[T] | None = None
+    ) -> RemoteChannelManager[T]:
         """
         Returns a singleton wrapper for a remote pub/sub channel.
         """
@@ -350,7 +373,9 @@ class BeaverClient:
         Returns an async-compatible version of the client.
         (This is a skeleton implementation)
         """
-        raise NotImplementedError("AsyncBeaverClient will be implemented in a future milestone.")
+        raise NotImplementedError(
+            "AsyncBeaverClient will be implemented in a future milestone."
+        )
 
 
 class AsyncBeaverClient:
@@ -358,6 +383,7 @@ class AsyncBeaverClient:
     An async-compatible, drop-in client for a remote BeaverDB server.
     (This is a skeleton implementation)
     """
+
     def __init__(self, base_url: str, **httpx_args):
         self._client = httpx.AsyncClient(base_url=base_url, **httpx_args)
         # ... async-compatible locks and manager caches ...

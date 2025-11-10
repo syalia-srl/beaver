@@ -25,15 +25,19 @@ USER_TTL_SECONDS = 15  # A user is considered offline after 15 seconds
 
 # --- 2. Custom Textual Messages for UI updates ---
 
+
 class NewLogMessage(Message):
     """A message to add a new log/chat entry to the UI."""
+
     def __init__(self, text: str, style: str) -> None:
         self.text = text
         self.style = style
         super().__init__()
 
+
 class UpdateUserList(Message):
     """A message to refresh the online user list in the UI."""
+
     def __init__(self, users: list[str]) -> None:
         self.users = users
         super().__init__()
@@ -41,11 +45,13 @@ class UpdateUserList(Message):
 
 # --- 3. BeaverDB Chat Client (The "Backend") ---
 
+
 class ChatClient:
     """
     Handles all the backend logic and communication with BeaverDB.
     It runs in the background and communicates with the TUI via Textual messages.
     """
+
     def __init__(self, app: App, room_name: str, username: str):
         self.app = app
         self.room_name = room_name
@@ -81,11 +87,15 @@ class ChatClient:
                                 log_msg = f"{timestamp} [SYSTEM] -> {message['user']} has joined the room."
                                 style = "italic green"
                         elif message["type"] == "leave":
-                             if message["user"] != self.username:
+                            if message["user"] != self.username:
                                 log_msg = f"{timestamp} [SYSTEM] -> {message['user']} has left the room."
                                 style = "italic yellow"
                         elif message["type"] == "message":
-                            sender = "You" if message["user"] == self.username else message['user']
+                            sender = (
+                                "You"
+                                if message["user"] == self.username
+                                else message["user"]
+                            )
                             log_msg = f"{timestamp} [{sender}] -> {message['text']}"
                             style = "bold magenta" if sender == "You" else ""
 
@@ -104,12 +114,15 @@ class ChatClient:
         # Post history to UI
         history = self.message_history[-10:]
         if history:
-            self.app.post_message(NewLogMessage("--- Last 10 messages ---", "bold blue"))
+            self.app.post_message(
+                NewLogMessage("--- Last 10 messages ---", "bold blue")
+            )
             for msg in history:
-                 log_msg = f"[{msg['user']}] -> {msg['text']}"
-                 self.app.post_message(NewLogMessage(log_msg, []))
-            self.app.post_message(NewLogMessage("------------------------", "bold blue"))
-
+                log_msg = f"[{msg['user']}] -> {msg['text']}"
+                self.app.post_message(NewLogMessage(log_msg, []))
+            self.app.post_message(
+                NewLogMessage("------------------------", "bold blue")
+            )
 
     def stop(self):
         """Stops the client and cleans up resources."""
@@ -126,7 +139,9 @@ class ChatClient:
 
     def send_heartbeat(self):
         """Refreshes this user's TTL in the online user list."""
-        self.online_users.set(self.username, {"status": "online"}, ttl_seconds=USER_TTL_SECONDS)
+        self.online_users.set(
+            self.username, {"status": "online"}, ttl_seconds=USER_TTL_SECONDS
+        )
 
     def refresh_online_users(self):
         """Gets the current user list and posts an update to the UI."""
@@ -135,6 +150,7 @@ class ChatClient:
 
 
 # --- 4. The Textual TUI Application ---
+
 
 class ChatApp(App):
     """A Textual TUI for the BeaverDB distributed chat."""
@@ -158,11 +174,13 @@ class ChatApp(App):
                 Container(
                     Static("ONLINE USERS", classes="sidebar-title"),
                     Static(id="user-list", classes="sidebar-content"),
-                    id="sidebar"
+                    id="sidebar",
                 ),
             ),
-            Input(placeholder="Type your message and press Enter...", id="message-input"),
-            id="app-grid"
+            Input(
+                placeholder="Type your message and press Enter...", id="message-input"
+            ),
+            id="app-grid",
         )
         yield Footer()
 
@@ -172,7 +190,9 @@ class ChatApp(App):
         self.chat_client.start()
         # Set timers to periodically send heartbeats and refresh the user list
         self.set_interval(HEARTBEAT_INTERVAL_SECONDS, self.chat_client.send_heartbeat)
-        self.set_interval(HEARTBEAT_INTERVAL_SECONDS / 2, self.chat_client.refresh_online_users)
+        self.set_interval(
+            HEARTBEAT_INTERVAL_SECONDS / 2, self.chat_client.refresh_online_users
+        )
 
     async def on_input_submitted(self, message: Input.Submitted) -> None:
         """Handle the user pressing Enter in the input box."""
@@ -184,7 +204,9 @@ class ChatApp(App):
         """Handle a new chat/log message from the backend client."""
         log_view = self.query_one("#messages", ListView)
         list_item = ListItem(Label(message.text))
-        list_item.styles.color = message.style.split(" ")[-1] if message.style else "white"
+        list_item.styles.color = (
+            message.style.split(" ")[-1] if message.style else "white"
+        )
         if "italic" in message.style:
             list_item.styles.text_style = "italic"
         if "bold" in message.style:

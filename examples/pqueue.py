@@ -1,6 +1,7 @@
 from beaver import BeaverDB
 import time
 
+
 def priority_queue_demo():
     """Demonstrates the persistent priority queue functionality."""
     print("--- Running Priority Queue Demo ---")

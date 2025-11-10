@@ -44,11 +44,7 @@ def fuzzy_search_demo():
     # --- 3. Fuzzy Search on a Specific Field ---
     # Search for "Jhn Smith" with a typo. It should find "Jon Smith".
     print("\n--- Fuzzy Search for 'Jhn Smith' on 'author.name' ---")
-    fuzzy_results = articles.match(
-        "Jhn Smith",
-        on=["author.name"],
-        fuzziness=2
-    )
+    fuzzy_results = articles.match("Jhn Smith", on=["author.name"], fuzziness=2)
     for doc, distance in fuzzy_results:
         print(f"  - Found: '{doc.author['name']}' (Distance: {distance})")
         assert doc.id == "sql-002"

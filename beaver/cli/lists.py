@@ -9,12 +9,14 @@ from beaver import BeaverDB
 
 app = typer.Typer(
     name="list",
-    help="Interact with persistent lists. (e.g., beaver list my-list push 'new item')"
+    help="Interact with persistent lists. (e.g., beaver list my-list push 'new item')",
 )
+
 
 def _get_db(ctx: typer.Context) -> BeaverDB:
     """Helper to get the DB instance from the main context."""
     return ctx.find_object(dict)["db"]
+
 
 def _parse_value(value: str):
     """Parses the value string as JSON if appropriate."""
@@ -25,13 +27,13 @@ def _parse_value(value: str):
             return value
     return value
 
+
 @app.callback(invoke_without_command=True)
 def list_main(
     ctx: typer.Context,
     name: Annotated[
-        Optional[str],
-        typer.Argument(help="The name of the list to interact with.")
-    ] = None
+        Optional[str], typer.Argument(help="The name of the list to interact with.")
+    ] = None,
 ):
     """
     Manage persistent lists.
@@ -50,7 +52,9 @@ def list_main(
             else:
                 for list_name in list_names:
                     rich.print(f"  • {list_name}")
-            rich.print("\n[bold]Usage:[/bold] beaver list [bold]<NAME>[/bold] [COMMAND]")
+            rich.print(
+                "\n[bold]Usage:[/bold] beaver list [bold]<NAME>[/bold] [COMMAND]"
+            )
             return
         except Exception as e:
             rich.print(f"[bold red]Error querying lists:[/] {e}")
@@ -66,16 +70,19 @@ def list_main(
             rich.print(f"List '[bold]{name}[/bold]' contains {count} items.")
             rich.print("\n[bold]Commands:[/bold]")
             rich.print("  push, pop, deque, insert, remove, items, dump")
-            rich.print(f"\nRun [bold]beaver list {name} --help[/bold] for command-specific options.")
+            rich.print(
+                f"\nRun [bold]beaver list {name} --help[/bold] for command-specific options."
+            )
         except Exception as e:
             rich.print(f"[bold red]Error:[/] {e}")
             raise typer.Exit(code=1)
         raise typer.Exit()
 
+
 @app.command()
 def push(
     ctx: typer.Context,
-    value: Annotated[str, typer.Argument(help="The value to add (JSON or string).")]
+    value: Annotated[str, typer.Argument(help="The value to add (JSON or string).")],
 ):
     """
     Add (push) an item to the end of the list.
@@ -89,6 +96,7 @@ def push(
     except Exception as e:
         rich.print(f"[bold red]Error:[/] {e}")
         raise typer.Exit(code=1)
+
 
 @app.command()
 def pop(ctx: typer.Context):
@@ -113,6 +121,7 @@ def pop(ctx: typer.Context):
         rich.print(f"[bold red]Error:[/] {e}")
         raise typer.Exit(code=1)
 
+
 @app.command()
 def deque(ctx: typer.Context):
     """
@@ -136,11 +145,14 @@ def deque(ctx: typer.Context):
         rich.print(f"[bold red]Error:[/] {e}")
         raise typer.Exit(code=1)
 
+
 @app.command()
 def insert(
     ctx: typer.Context,
-    index: Annotated[int, typer.Argument(help="The index to insert at (e.g., 0 for front).")],
-    value: Annotated[str, typer.Argument(help="The value to insert (JSON or string).")]
+    index: Annotated[
+        int, typer.Argument(help="The index to insert at (e.g., 0 for front).")
+    ],
+    value: Annotated[str, typer.Argument(help="The value to insert (JSON or string).")],
 ):
     """
     Insert an item at a specific index.
@@ -150,15 +162,18 @@ def insert(
     try:
         parsed_value = _parse_value(value)
         db.list(name).insert(index, parsed_value)
-        rich.print(f"[green]Success:[/] Item inserted at index {index} in list '{name}'.")
+        rich.print(
+            f"[green]Success:[/] Item inserted at index {index} in list '{name}'."
+        )
     except Exception as e:
         rich.print(f"[bold red]Error:[/] {e}")
         raise typer.Exit(code=1)
 
+
 @app.command()
 def remove(
     ctx: typer.Context,
-    index: Annotated[int, typer.Argument(help="The index of the item to remove.")]
+    index: Annotated[int, typer.Argument(help="The index of the item to remove.")],
 ):
     """
     Remove and return an item from a specific index.
@@ -177,11 +192,12 @@ def remove(
             rich.print(item)
 
     except IndexError:
-         rich.print(f"[bold red]Error:[/] Index {index} out of range for list '{name}'.")
-         raise typer.Exit(code=1)
+        rich.print(f"[bold red]Error:[/] Index {index} out of range for list '{name}'.")
+        raise typer.Exit(code=1)
     except Exception as e:
         rich.print(f"[bold red]Error:[/] {e}")
         raise typer.Exit(code=1)
+
 
 @app.command()
 def items(ctx: typer.Context):
@@ -211,6 +227,7 @@ def items(ctx: typer.Context):
     except Exception as e:
         rich.print(f"[bold red]Error:[/] {e}")
         raise typer.Exit(code=1)
+
 
 @app.command()
 def dump(ctx: typer.Context):

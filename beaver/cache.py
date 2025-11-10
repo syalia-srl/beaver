@@ -80,24 +80,21 @@ class DummyCache:
     def touch(self):
         pass
 
+
 class LocalCache:
     """
     A thread-local cache that invalidates based on a central,
     database-backed version number, checking only once per interval.
     """
-    def __init__(
-        self,
-        db,
-        cache_namespace: str,
-        check_interval: float
-    ):
+
+    def __init__(self, db, cache_namespace: str, check_interval: float):
         from .types import IDatabase
 
         self._db: IDatabase = db
         self._data: dict[str, Any] = {}
         self._lock = threading.Lock()
 
-        self._version_key: str = cache_namespace # e.g., "list:tasks"
+        self._version_key: str = cache_namespace  # e.g., "list:tasks"
         self._local_version: int = -1
         self._last_check_time: float = 0.0
         self._min_check_interval: float = check_interval
@@ -116,7 +113,7 @@ class LocalCache:
         cursor = self._db.connection.cursor()
         cursor.execute(
             "SELECT version FROM beaver_manager_versions WHERE namespace = ?",
-            (self._version_key,)
+            (self._version_key,),
         )
         result = cursor.fetchone()
         return int(result[0]) if result else 0
@@ -139,7 +136,7 @@ class LocalCache:
                 return
 
             global_version = self._get_global_version()
-            self._last_check_time = time.time() # Reset timer
+            self._last_check_time = time.time()  # Reset timer
 
             if global_version != self._local_version:
                 self._data.clear()
@@ -174,7 +171,7 @@ class LocalCache:
     def invalidate(self):
         with self._lock:
             self._data.clear()
-            self._local_version = 0 # Must force re-check
+            self._local_version = 0  # Must force re-check
             self._invalidations += 1
             self._last_check_time = 0.0
 
@@ -200,7 +197,7 @@ class LocalCache:
                         version = version + 1
                     RETURNING version;
                     """,
-                    (self._version_key,)
+                    (self._version_key,),
                 )
                 new_version = cursor.fetchone()[0]
 
@@ -251,7 +248,9 @@ def cached(key):
             cache.set(cache_key, result)
 
             return result
+
         return wrapper
+
     return decorator
 
 

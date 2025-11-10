@@ -5,6 +5,7 @@ pytestmark = pytest.mark.unit
 
 # --- Test Data Fixtures ---
 
+
 # A set of documents with text metadata for FTS/fuzzy tests
 @pytest.fixture
 def text_docs():
@@ -12,25 +13,22 @@ def text_docs():
         Document(
             id="py",
             body=dict(
-                content="Python is a great programming language.",
-                author="Guido"
-            )
+                content="Python is a great programming language.", author="Guido"
+            ),
         ),
         Document(
             id="sql",
-            body=dict(
-                content="SQLite is a powerful database.",
-                author="Richard"
-            )
+            body=dict(content="SQLite is a powerful database.", author="Richard"),
         ),
         Document(
             id="js",
             body=dict(
                 content="JavaScript is a language for web programming.",
-                author="Brendan"
-            )
-        )
+                author="Brendan",
+            ),
+        ),
     ]
+
 
 # A set of documents with vector embeddings for search tests
 @pytest.fixture
@@ -38,24 +36,26 @@ def vector_docs():
     return [
         Document(
             id="cat",
-            embedding=[0.1, 0.1, 0.9], # Vector for "cat"
-            body="A small feline."
+            embedding=[0.1, 0.1, 0.9],  # Vector for "cat"
+            body="A small feline.",
         ),
         Document(
             id="dog",
-            embedding=[0.9, 0.1, 0.1], # Vector for "dog"
-            body="A loyal canine."
+            embedding=[0.9, 0.1, 0.1],  # Vector for "dog"
+            body="A loyal canine.",
         ),
         Document(
             id="person",
-            embedding=[0.1, 0.9, 0.1], # Vector for "person"
-            body="A human being."
-        )
+            embedding=[0.1, 0.9, 0.1],  # Vector for "person"
+            body="A human being.",
+        ),
     ]
+
 
 # --- Test Cases ---
 
 # 1. Core Indexing and Lifecycle
+
 
 def test_collection_index_and_len(db_memory: BeaverDB):
     """Tests that indexing documents increases the collection length."""
@@ -66,6 +66,7 @@ def test_collection_index_and_len(db_memory: BeaverDB):
     coll.index(doc1)
 
     assert len(coll) == 1
+
 
 def test_collection_index_upsert_and_iter(db_memory: BeaverDB):
     """Tests that indexing with an existing ID overwrites (upserts) the document."""
@@ -86,8 +87,9 @@ def test_collection_index_upsert_and_iter(db_memory: BeaverDB):
     items = list(coll)
     assert len(items) == 1
     assert items[0].id == "d1"
-    assert items[0].body['content'] == "version 2"
-    assert items[0].body['status'] == "new" # Verify new metadata is present
+    assert items[0].body["content"] == "version 2"
+    assert items[0].body["status"] == "new"  # Verify new metadata is present
+
 
 def test_collection_drop(db_memory: BeaverDB):
     """Tests that dropping a document removes it from the collection."""
@@ -103,12 +105,14 @@ def test_collection_drop(db_memory: BeaverDB):
     assert len(coll) == 1
 
     items = list(coll)
-    assert items[0].id == "d2" # Only doc2 should remain
+    assert items[0].id == "d2"  # Only doc2 should remain
 
     coll.drop(doc2)
     assert len(coll) == 0
 
+
 # 2. Vector Search Tests
+
 
 def test_vector_search(db_memory: BeaverDB, vector_docs):
     """Tests vector search for correctness and top_k."""
@@ -138,13 +142,16 @@ def test_vector_search(db_memory: BeaverDB, vector_docs):
     result_ids = {doc.id for doc, dist in results_k3}
     assert result_ids == {"cat", "dog", "person"}
 
+
 def test_vector_search_no_results(db_memory: BeaverDB):
     """Tests that vector search returns an empty list when collection is empty."""
     coll = db_memory.collection("test_vector_empty")
     results = coll.search([0.1, 0.2, 0.3], top_k=1)
     assert results == []
 
+
 # 3. Full-Text Search (FTS) and Fuzzy Search
+
 
 def test_fts_match_default(db_memory: BeaverDB, text_docs):
     """Tests standard FTS (fuzziness=0) across all indexed text fields."""
@@ -157,6 +164,7 @@ def test_fts_match_default(db_memory: BeaverDB, text_docs):
     assert len(results) == 2
     result_ids = {doc.id for doc, rank in results}
     assert result_ids == {"py", "js"}
+
 
 def test_fts_match_on_field(db_memory: BeaverDB, text_docs):
     """Tests FTS restricted to a specific metadata field."""
@@ -174,6 +182,7 @@ def test_fts_match_on_field(db_memory: BeaverDB, text_docs):
     assert len(results) == 1
     assert results[0][0].id == "py"
 
+
 def test_fuzzy_match(db_memory: BeaverDB, text_docs):
     """Tests fuzzy search (fuzziness > 0) for typos."""
     coll = db_memory.collection("test_fuzzy")
@@ -190,6 +199,7 @@ def test_fuzzy_match(db_memory: BeaverDB, text_docs):
     assert "py" in result_ids
     assert "js" in result_ids
 
+
 def test_fuzzy_match_requires_fts_and_fuzzy_flags(db_memory: BeaverDB, text_docs):
     """Tests that fuzzy search finds no results if flags weren't set at index time."""
     coll = db_memory.collection("test_fuzzy_flags")
@@ -204,9 +214,11 @@ def test_fuzzy_match_requires_fts_and_fuzzy_flags(db_memory: BeaverDB, text_docs
     results = coll.match("prgramming", fuzziness=2)
     assert len(results) == 0
 
+
 from beaver import BeaverDB, Document
 
 # ... (Keep the existing fixtures: text_docs, vector_docs) ...
+
 
 @pytest.fixture
 def graph_docs(db_memory: BeaverDB):
@@ -237,7 +249,9 @@ def graph_docs(db_memory: BeaverDB):
 
     return coll, docs
 
+
 # --- Graph Method Tests ---
+
 
 def test_graph_connect_and_neighbors(graph_docs):
     """Tests that connect creates edges and neighbors finds them."""
@@ -246,10 +260,11 @@ def test_graph_connect_and_neighbors(graph_docs):
     # Test Alice's neighbors (should be Bob and Charlie, regardless of label)
     alice_neighbors = coll.neighbors(docs["alice"])
 
-    assert len(alice_neighbors) == 2 # Bob and Charlie
+    assert len(alice_neighbors) == 2  # Bob and Charlie
     neighbor_ids = {doc.id for doc in alice_neighbors}
     assert "bob" in neighbor_ids
     assert "charlie" in neighbor_ids
+
 
 def test_graph_neighbors_with_label(graph_docs):
     """Tests filtering neighbors by a specific edge label."""
@@ -269,6 +284,7 @@ def test_graph_neighbors_with_label(graph_docs):
     alice_empty = coll.neighbors(docs["alice"], label="ENEMIES")
     assert len(alice_empty) == 0
 
+
 def test_graph_walk_outgoing(graph_docs):
     """Tests a multi-hop (depth=2) outgoing walk."""
     coll, docs = graph_docs
@@ -287,6 +303,7 @@ def test_graph_walk_outgoing(graph_docs):
     foaf_ids = {doc.id for doc in foaf}
     assert foaf_ids == {"bob", "charlie", "diana"}
 
+
 def test_graph_walk_incoming(graph_docs):
     """Tests an incoming walk to find followers."""
     coll, docs = graph_docs
@@ -303,6 +320,7 @@ def test_graph_walk_incoming(graph_docs):
     assert len(followers) == 2
     follower_ids = {doc.id for doc in followers}
     assert follower_ids == {"alice", "charlie"}
+
 
 def test_graph_walk_multi_label(graph_docs):
     """Tests walking with multiple labels."""

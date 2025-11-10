@@ -28,7 +28,9 @@ class ManagerBase[T: BaseModel]:
         manager_type_prefix = self.__class__.__name__.replace("Manager", "").lower()
 
         if not isinstance(name, str) or not name:
-            raise TypeError(f"{manager_type_prefix.capitalize()} name must be a non-empty string.")
+            raise TypeError(
+                f"{manager_type_prefix.capitalize()} name must be a non-empty string."
+            )
 
         self._name = name
         self._db = db
@@ -45,7 +47,7 @@ class ManagerBase[T: BaseModel]:
             db,
             internal_lock_name,
             timeout=1.0,  # Short timeout for internal operations
-            lock_ttl=5.0 # Short TTL to clear crashes
+            lock_ttl=5.0,  # Short TTL to clear crashes
         )
 
     @property
@@ -150,6 +152,7 @@ def synced(func):
     This ensures the entire method is both an atomic, process-safe operation
     (via the lock) and an ACID-compliant transaction (via the connection).
     """
+
     @functools.wraps(func)
     def wrapper(self: ManagerBase, *args, **kwargs):
         """Wraps the function in the internal lock and a transaction."""

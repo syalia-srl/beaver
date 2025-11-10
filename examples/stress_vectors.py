@@ -44,7 +44,9 @@ def stress_test():
         vector = vectors[i]
         indexed_data[doc_id] = vector
 
-        doc = Document(id=doc_id, embedding=vector.tolist(), data=f"This is document {i}")
+        doc = Document(
+            id=doc_id, embedding=vector.tolist(), data=f"This is document {i}"
+        )
         collection.index(doc)
 
         if (i + 1) % 100 == 0:
@@ -70,14 +72,20 @@ def stress_test():
             found_doc, distance = results[0]
             if found_doc.id == doc_id:
                 success_count += 1
-                print(f"  ({i+1}/{SEARCH_SAMPLE_SIZE}) ✅ Correct match for {doc_id} (Distance: {distance:.4f})")
+                print(
+                    f"  ({i+1}/{SEARCH_SAMPLE_SIZE}) ✅ Correct match for {doc_id} (Distance: {distance:.4f})"
+                )
             else:
-                print(f"  ({i+1}/{SEARCH_SAMPLE_SIZE}) ❌ Incorrect match for {doc_id}. Expected {doc_id}, got {found_doc.id}")
+                print(
+                    f"  ({i+1}/{SEARCH_SAMPLE_SIZE}) ❌ Incorrect match for {doc_id}. Expected {doc_id}, got {found_doc.id}"
+                )
         else:
             print(f"  ({i+1}/{SEARCH_SAMPLE_SIZE}) ❌ No results found for {doc_id}")
 
     search_end_time = time.time()
-    print(f"\nSearch verification finished in {search_end_time - search_start_time:.2f} seconds.")
+    print(
+        f"\nSearch verification finished in {search_end_time - search_start_time:.2f} seconds."
+    )
 
     print("\n--- Test Summary ---")
     print(f"Total documents indexed: {NUM_VECTORS}")

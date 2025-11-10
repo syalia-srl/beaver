@@ -36,7 +36,9 @@ class AsyncSubscriber[T]:
         """
         while True:
             try:
-                msg = await asyncio.to_thread(self._subscriber._queue.get, timeout=timeout)
+                msg = await asyncio.to_thread(
+                    self._subscriber._queue.get, timeout=timeout
+                )
                 if msg is _SHUTDOWN_SENTINEL:
                     break
                 yield msg
@@ -185,7 +187,9 @@ class ChannelManager[T: BaseModel](ManagerBase[T]):
         Useful for reducing the database once logs are not needed.
         """
         with self._db.connection:
-            self._db.connection.execute("DELETE FROM beaver_pubsub_log WHERE channel_name = ?", (self._name,))
+            self._db.connection.execute(
+                "DELETE FROM beaver_pubsub_log WHERE channel_name = ?", (self._name,)
+            )
 
     def _polling_loop(self):
         """

@@ -34,7 +34,7 @@ class BeaverDB(IDatabase):
         pragma_wal: bool = True,
         pragma_synchronous: bool = False,
         pragma_temp_memory: bool = True,
-        pragma_mmap_size: int = 4 * 1024 * 1024 * 1024,
+        pragma_mmap_size: int = 0,
     ):
         """
         Initializes the database connection and creates all necessary tables.

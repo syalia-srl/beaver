@@ -2,6 +2,7 @@ import time
 import random
 from beaver import BeaverDB
 
+
 def main():
     """
     Continuously publishes messages to a channel until manually stopped.

@@ -11,19 +11,19 @@ articles = db.collection("articles")
 docs_to_index = [
     Document(
         id="py-fast",
-        embedding=[0.1, 0.9, 0.2], # Vector leans towards "speed"
-        content="Python is a great language for fast prototyping and development."
+        embedding=[0.1, 0.9, 0.2],  # Vector leans towards "speed"
+        content="Python is a great language for fast prototyping and development.",
     ),
     Document(
         id="py-data",
-        embedding=[0.8, 0.2, 0.9], # Vector leans towards "data science"
-        content="The Python ecosystem is ideal for data science and machine learning."
+        embedding=[0.8, 0.2, 0.9],  # Vector leans towards "data science"
+        content="The Python ecosystem is ideal for data science and machine learning.",
     ),
     Document(
         id="js-fast",
-        embedding=[0.2, 0.8, 0.1], # Vector similar to "py-fast"
-        content="JavaScript engines are optimized for fast execution in the browser."
-    )
+        embedding=[0.2, 0.8, 0.1],  # Vector similar to "py-fast"
+        content="JavaScript engines are optimized for fast execution in the browser.",
+    ),
 ]
 
 for doc in docs_to_index:
@@ -40,7 +40,7 @@ keyword_results = [doc for doc, rank in articles.match(query=keyword_query)]
 
 # Vector Search: A query vector representing "high-performance code"
 # This will find documents that are semantically similar, even without the exact keywords.
-vector_query = [0.15, 0.85, 0.15] # A vector close to "fast"
+vector_query = [0.15, 0.85, 0.15]  # A vector close to "fast"
 vector_results = [doc for doc, score in articles.search(vector=vector_query)]
 
 

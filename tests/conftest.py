@@ -3,6 +3,7 @@ import uuid
 import pytest
 from beaver import BeaverDB
 
+
 @pytest.fixture
 def db_path():
     """
@@ -18,6 +19,7 @@ def db_path():
     # Teardown: Clean up the database file after the test runs
     if os.path.exists(db_file):
         os.remove(db_file)
+
 
 @pytest.fixture
 def db(db_path):

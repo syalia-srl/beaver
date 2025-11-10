@@ -7,11 +7,14 @@ pytestmark = pytest.mark.unit
 
 # --- Test Model for Serialization ---
 
+
 class Person(BaseModel):
     name: str
     age: int
 
+
 # --- Test Cases ---
+
 
 def test_dict_set_and_get(db_memory: BeaverDB):
     """Tests basic __setitem__ and __getitem__."""
@@ -25,6 +28,7 @@ def test_dict_set_and_get(db_memory: BeaverDB):
     assert config["user_id"] == 123
     assert config["features"] == {"beta": True, "new_nav": False}
 
+
 def test_dict_get_with_default(db_memory: BeaverDB):
     """Tests the .get() method with a default value."""
     config = db_memory.dict("config")
@@ -34,6 +38,7 @@ def test_dict_get_with_default(db_memory: BeaverDB):
     assert config.get("existing_key", "default") == "hello"
     assert config.get("missing_key", "default") == "default"
     assert config.get("missing_key") is None
+
 
 def test_dict_delete_item(db_memory: BeaverDB):
     """Tests __delitem__ and that it raises KeyError."""
@@ -49,12 +54,14 @@ def test_dict_delete_item(db_memory: BeaverDB):
     with pytest.raises(KeyError):
         del config["non_existent_key"]
 
+
 def test_dict_get_missing_key(db_memory: BeaverDB):
     """Tests that __getitem__ raises KeyError for missing keys."""
     config = db_memory.dict("config")
 
     with pytest.raises(KeyError):
         _ = config["non_existent_key"]
+
 
 def test_dict_len(db_memory: BeaverDB):
     """Tests the __len__ method."""
@@ -67,11 +74,12 @@ def test_dict_len(db_memory: BeaverDB):
     config["key2"] = 2
     assert len(config) == 2
 
-    config["key1"] = "overwrite" # Overwriting should not change length
+    config["key1"] = "overwrite"  # Overwriting should not change length
     assert len(config) == 2
 
     del config["key1"]
     assert len(config) == 1
+
 
 def test_dict_ttl_expiry(db_memory: BeaverDB):
     """Tests that keys set with a TTL expire correctly."""
@@ -93,6 +101,7 @@ def test_dict_ttl_expiry(db_memory: BeaverDB):
     with pytest.raises(KeyError):
         _ = cache["short_lived"]
 
+
 def test_dict_ttl_value_error(db_memory: BeaverDB):
     """Tests that invalid TTL values raise an error."""
     cache = db_memory.dict("cache")
@@ -100,6 +109,7 @@ def test_dict_ttl_value_error(db_memory: BeaverDB):
         cache.set("key", "value", ttl_seconds=0)
     with pytest.raises(ValueError):
         cache.set("key", "value", ttl_seconds=-10)
+
 
 def test_dict_iterators(db_memory: BeaverDB):
     """Tests keys(), values(), and items() iterators."""
@@ -127,6 +137,7 @@ def test_dict_iterators(db_memory: BeaverDB):
     iter_keys = list(config)
     assert sorted(iter_keys) == sorted(["a", "b"])
 
+
 def test_dict_pop(db_memory: BeaverDB):
     """Tests the .pop() method."""
     config = db_memory.dict("config")
@@ -143,6 +154,7 @@ def test_dict_pop(db_memory: BeaverDB):
     # Test pop on missing key (no default)
     assert config.pop("c") is None
 
+
 def test_dict_contains(db_memory: BeaverDB):
     """Tests the __contains__ (in) operator."""
     config = db_memory.dict("config")
@@ -151,6 +163,7 @@ def test_dict_contains(db_memory: BeaverDB):
 
     assert "a" in config
     assert "b" not in config
+
 
 def test_dict_with_model_serialization(db_memory: BeaverDB):
     """Tests that the DictManager correctly serializes/deserializes models."""
@@ -165,6 +178,7 @@ def test_dict_with_model_serialization(db_memory: BeaverDB):
     assert isinstance(retrieved_user, Person)
     assert retrieved_user.name == "Alice"
     assert retrieved_user.age == 30
+
 
 def test_dict_dump(db_memory: BeaverDB):
     """Tests the .dump() method."""

@@ -1,6 +1,7 @@
 import asyncio
 from beaver import BeaverDB
 
+
 async def listener_task(name: str, db: BeaverDB):
     """An async task that listens for messages on a channel."""
     print(f"[{name}] Starting and subscribing to 'async_events'.")
@@ -9,6 +10,7 @@ async def listener_task(name: str, db: BeaverDB):
     async with async_channel.subscribe() as listener:
         async for message in listener.listen():
             print(f"[{name}] Received -> {message}")
+
 
 async def publisher_task(db: BeaverDB):
     """An async task that publishes several messages."""
@@ -25,6 +27,7 @@ async def publisher_task(db: BeaverDB):
 
     print("[Publisher] Finished publishing.")
 
+
 async def main():
     """Sets up and runs the concurrent async publisher and listeners."""
     db = BeaverDB("async_demo.db")
@@ -35,12 +38,13 @@ async def main():
     publisher = asyncio.create_task(publisher_task(db))
 
     await publisher
-    await asyncio.sleep(2) # Wait for messages to be processed
+    await asyncio.sleep(2)  # Wait for messages to be processed
 
     # In a real app, you might cancel the listeners or have a shutdown event
     listener_a.cancel()
     listener_b.cancel()
     db.close()
+
 
 if __name__ == "__main__":
     print("--- BeaverDB Async Pub/Sub Demo ---")

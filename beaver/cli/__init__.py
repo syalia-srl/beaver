@@ -35,6 +35,7 @@ def version_callback(value: bool):
         print(beaver.__version__)
         raise typer.Exit()
 
+
 @app.callback()
 def main(
     ctx: typer.Context,
@@ -61,13 +62,16 @@ def main(
         rich.print(f"[bold red]Error opening database:[/] {e}")
         raise typer.Exit(code=1)
 
+
 # --- Serve Command ---
 @app.command()
 def serve(
     database: Annotated[
         str, typer.Option(help="The path to the BeaverDB database file.")
     ] = "beaver.db",
-    host: Annotated[str, typer.Option(help="The host to bind the server to.")] = "127.0.0.1",
+    host: Annotated[
+        str, typer.Option(help="The host to bind the server to.")
+    ] = "127.0.0.1",
     port: Annotated[int, typer.Option(help="The port to run the server on.")] = 8000,
 ):
     """Starts a REST API server for the BeaverDB database."""
@@ -116,13 +120,14 @@ def info(ctx: typer.Context):
             table.add_row("Log", name, "N/A (len not supported)")
         # Active Locks
         for name in db.locks:
-             table.add_row("Active Lock", name, "1")
+            table.add_row("Active Lock", name, "1")
 
         rich.print(table)
 
     except Exception as e:
         rich.print(f"[bold red]Error:[/] {e}")
         raise typer.Exit(code=1)
+
 
 if __name__ == "__main__":
     app()

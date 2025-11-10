@@ -73,14 +73,14 @@ def main():
         live_summary = logs.live(
             window=timedelta(seconds=5),
             period=timedelta(seconds=1),
-            aggregator=aggregate_metrics
+            aggregator=aggregate_metrics,
         )
 
         print("[Main Thread] Starting live view. Press Ctrl+C to stop.")
 
         for summary in live_summary:
             # Clear the console for a clean, live view
-            os.system('cls' if os.name == 'nt' else 'clear')
+            os.system("cls" if os.name == "nt" else "clear")
 
             print("--- Live Log Summary (5-second window) ---")
             print(f"Time: {datetime.now().strftime('%H:%M:%S')}")
