@@ -1,7 +1,7 @@
 ---
 number: 22
 title: "Add Context Manager support and robust process-wide cleanup to BeaverDB"
-state: open
+state: closed
 labels:
 ---
 
