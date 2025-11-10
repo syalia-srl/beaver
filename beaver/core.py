@@ -14,7 +14,7 @@ from .locks import LockManager
 from .logs import LogManager
 from .manager import ManagerBase
 from .queues import QueueManager
-from .types import IDatabase, ICache
+from .types import IDatabase, ICache, IResourceManager
 from typing import List, Type
 
 
@@ -70,6 +70,10 @@ class BeaverDB(IDatabase):
         self._pragma_synchronous = pragma_synchronous
         self._pragma_temp_memory = pragma_temp_memory
         self._pragma_mmap_size = pragma_mmap_size
+
+        # Track all active connections for cleanup on close
+        self._connections = set[sqlite3.Connection]()
+        self._connections_lock = threading.Lock()
 
         # Initialize the schemas. This will implicitly create the first
         # connection for the main thread via the `connection` property.
@@ -175,6 +179,11 @@ class BeaverDB(IDatabase):
                 conn.execute(f"PRAGMA mmap_size = {self._pragma_mmap_size};")
 
             conn.row_factory = sqlite3.Row
+
+            # Register the new connection
+            with self._connections_lock:
+                self._connections.add(conn)
+
             self._thread_local.conn = conn
 
         return conn
@@ -447,22 +456,22 @@ class BeaverDB(IDatabase):
 
     def close(self):
         """
-        Closes the database connection for the current thread and shuts down
-        all background polling threads (e.g., for pub/sub channels).
+        Closes all database connections for this BeaverDB instance across all
+        threads and shuts down all background polling threads (e.g., for
+        pub/sub channels and live logs).
 
-        Once closed, any attempt to access the connection will raise an error.
+        Once closed, any attempt to access a connection will raise an error.
         """
         if self._closed.is_set():
             return  # Already closed
 
         self._closed.set()
 
-        # Shut down all background services (like Channel pollers)
-        # We must lock the cache to safely iterate over it
+        # 1. Shut down all managers (stops Channels, Logs, Event Listeners)
         with self._manager_cache_lock:
             for instance in self._manager_cache.values():
                 # Check if the instance has a 'close' method and call it
-                if hasattr(instance, "close") and callable(instance.close):
+                if isinstance(instance, IResourceManager):
                     try:
                         instance.close()
                     except Exception as e:
@@ -473,17 +482,36 @@ class BeaverDB(IDatabase):
 
             self._manager_cache.clear()
 
-        # Close the connection for the *current* thread
+        # 2. Force-close ALL tracked connections for this instance
+        with self._connections_lock:
+            for conn in self._connections:
+                try:
+                    conn.close()
+                except Exception as e:
+                    warnings.warn(
+                        f"Error closing tracked connection. Exception ignored: {str(e)}.",
+                        stacklevel=2,
+                    )
+            self._connections.clear()
+
+        # 3. Clear the current thread's connection just in case
         conn = getattr(self._thread_local, "conn", None)
         if conn is not None:
             try:
-                conn.close()
                 del self._thread_local.conn
-            except Exception as e:
-                warnings.warn(
-                    f"Error closing connection. Exception ignored: {str(e)}.",
-                    stacklevel=2,
-                )
+            except Exception:
+                pass
+
+    def __enter__(self) -> "BeaverDB":
+        """Enables context manager support."""
+        if self._closed.is_set():
+            raise ConnectionError("BeaverDB instance is closed.")
+
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Calls close() when exiting a 'with' statement."""
+        self.close()
 
     # --- Factory and Passthrough Methods ---
 

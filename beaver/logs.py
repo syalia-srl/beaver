@@ -1,8 +1,8 @@
 import asyncio
 import collections
 import json
-import sqlite3
 import threading
+import weakref
 import time
 from datetime import datetime, timedelta, timezone
 from queue import Empty, Queue
@@ -106,19 +106,33 @@ class LiveIterator[T, R]:
 
     def __next__(self) -> R:
         result = self._queue.get()
+
         if result is _SHUTDOWN_SENTINEL:
             raise StopIteration
+
         if isinstance(result, Exception):
             # If the background thread put an exception in the queue, re-raise it
             raise result
+
         return result
 
     def close(self):
         """Stops the background polling thread."""
+        if self._stop_event.is_set():
+            return
+
         self._stop_event.set()
         self._queue.put(_SHUTDOWN_SENTINEL)
+
         if self._thread:
             self._thread.join()
+            self._thread = None
+
+    def __enter__(self) -> "LiveIterator[T,R]":
+        return self.__iter__()
+
+    def __exit__(self, *args):
+        self.close()
 
 
 class AsyncLiveIterator[T, R]:
@@ -173,6 +187,11 @@ class LogManager[T: BaseModel](ManagerBase[T]):
     A wrapper for interacting with a named, time-indexed log, providing
     type-safe and async-compatible methods.
     """
+
+    def __init__(self, name: str, db: IDatabase, model: Type[T] | None = None):
+        super().__init__(name, db, model)
+        # Use WeakSet so we don't keep iterators alive if the user drops them
+        self._active_iterators = weakref.WeakSet[LiveIterator]()
 
     @synced
     def log(self, data: T, timestamp: datetime | None = None) -> None:
@@ -236,7 +255,7 @@ class LogManager[T: BaseModel](ManagerBase[T]):
         Returns:
             An iterator that yields the results of the aggregator.
         """
-        return LiveIterator(
+        iterator = LiveIterator(
             db=self._db,
             log_name=self._name,
             window=window,
@@ -244,6 +263,8 @@ class LogManager[T: BaseModel](ManagerBase[T]):
             aggregator=aggregator,
             deserializer=self._deserialize,
         )
+        self._active_iterators.add(iterator)
+        return iterator
 
     def as_async(self) -> AsyncLogManager[T]:
         """Returns an async-compatible version of the log manager."""
@@ -333,3 +354,13 @@ class LogManager[T: BaseModel](ManagerBase[T]):
             "DELETE FROM beaver_logs WHERE log_name = ?",
             (self._name,),
         )
+
+    def close(self):
+        """Stops all active background polling threads for this log."""
+        for iterator in self._active_iterators:
+            try:
+                iterator.close()
+            except Exception:
+                pass
+
+        self._active_iterators.clear()
