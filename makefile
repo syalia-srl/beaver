@@ -1,10 +1,18 @@
 default: test-unit
 
+.PHONY: format
+format:
+	black .
+
+.PHONY: format-check
+format-check:
+	black --check .
+
 .PHONY: test-unit test-all
-test-unit:
+test-unit: format-check
 	pytest -m "unit" --cov=beaver
 
-test-all:
+test-all: format-check
 	pytest --cov=beaver
 
 .PHONY: docker-build
