@@ -7,25 +7,25 @@ labels:
 
 ## 1. Concept
 
-Currently, BeaverDB.close() only closes the SQLite connection for the current thread due to the use of threading.local. This means that in a multi-threaded application, calling db.close() on the main thread might leave connections open in other threads, potentially leading to file locks or resource leaks until the process terminates.
+Currently, `BeaverDB.close()` only closes the SQLite connection for the current thread due to the use of `threading.local`. This means that in a multi-threaded application, calling `db.close()` on the main thread might leave connections open in other threads, potentially leading to file locks or resource leaks until the process terminates.
 
-Furthermore, while ChannelManager has cleanup logic, LogManager does not currently track active .live() iterators, meaning their background threads might keep running after db.close().
+Furthermore, while `ChannelManager` has cleanup logic, `LogManager` does not currently track active `.live()` iterators, meaning their background threads might keep running after `db.close()`.
 
 This feature addresses this by:
 
-Implementing a Connection Registry: Using a weakref.WeakSet to track every active SQLite connection created by a BeaverDB instance across all threads.
+- **Implementing a Connection Registry**: Using a `weakref.WeakSet` to track every active SQLite connection created by a BeaverDB `instance` across all threads.
 
-Improving .close(): Updating db.close() to iterate through this registry and forcibly close all tracked connections, AND ensure all background threads (Channels, Logs, future Event Listeners) are stopped.
+- **Improving `.close()`**: Updating `db.close()` to iterate through this registry and forcibly close all tracked connections, AND ensure all background threads (Channels, Logs, future Event Listeners) are stopped.
 
-Adding Context Manager Support: Implementing __enter__ and __exit__ on BeaverDB so users can easily leverage this robust cleanup via the with statement.
+- **Adding Context Manager Support**: Implementing `__enter__` and `__exit__` on `BeaverDB` so users can easily leverage this robust cleanup via the with statement.
 
 ## 2. Justification
 
-Robust Resource Management: Ensures that db.close() truly means "close this database instance entirely for this process," adhering to the principle of least surprise.
+- **Robust Resource Management**: Ensures that db.close() truly means "close this database instance entirely for this process," adhering to the principle of least surprise.
 
-Prevents Resource Leaks: Critical for long-running applications (like web servers) where threads might come and go; we don't want zombie connections or orphaned polling threads hanging around.
+- **Prevents Resource Leaks**: Critical for long-running applications (like web servers) where threads might come and go; we don't want zombie connections or orphaned polling threads hanging around.
 
-Pythonic API: The with BeaverDB(...) as db: syntax is the standard, expected way to handle resources that require cleanup.
+- **Pythonic API**: The `with BeaverDB(...) as db:` syntax is the standard, expected way to handle resources that require cleanup.
 
 ## 3. Proposed API
 
@@ -142,7 +142,7 @@ def __exit__(self, exc_type, exc_val, exc_tb):
     self.close()
 ```
 
-5. Documentation & Warnings
+## 5. Documentation & Warnings
 
 The documentation for `BeaverDB.close()` and the with statement must include a clear warning about this new behavior.
 
