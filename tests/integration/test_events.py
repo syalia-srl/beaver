@@ -9,6 +9,7 @@ pytestmark = pytest.mark.integration
 
 # --- Test Helpers ---
 
+
 def create_event_handler():
     """
     Creates a thread-safe queue and a handler function.
@@ -21,6 +22,7 @@ def create_event_handler():
 
     return q, handler
 
+
 def assert_event_received(q: queue.Queue, expected_payload: dict, timeout: float = 0.1):
     """
     Asserts that a specific payload is received in the queue within the timeout.
@@ -31,14 +33,19 @@ def assert_event_received(q: queue.Queue, expected_payload: dict, timeout: float
     except queue.Empty:
         pytest.fail(f"Did not receive event within {timeout}s")
     except AssertionError:
-        pytest.fail(f"Received unexpected payload. Got: {payload}, Expected: {expected_payload}")
+        pytest.fail(
+            f"Received unexpected payload. Got: {payload}, Expected: {expected_payload}"
+        )
+
 
 def assert_no_event(q: queue.Queue, timeout: float = 0.1):
     """Asserts that no event is received."""
     with pytest.raises(queue.Empty):
         q.get(timeout=timeout)
 
+
 # --- Test Cases ---
+
 
 def test_manager_custom_event_emit(db: BeaverDB):
     """
@@ -67,6 +74,7 @@ def test_manager_custom_event_emit(db: BeaverDB):
     db.emit("topic", "event", {"data": "should_not_receive"})
     assert_no_event(q)
 
+
 def test_dict_events(db: BeaverDB):
     """Tests the built-in events for DictManager."""
     q, handler = create_event_handler()
@@ -75,7 +83,7 @@ def test_dict_events(db: BeaverDB):
 
     # Test set
     handle_set = d.on("set", handler)
-    time.sleep(0.1) # Allow subscription to register
+    time.sleep(0.1)  # Allow subscription to register
     d["my_key"] = "my_value"
     assert_event_received(q, {"key": "my_key"})
     handle_set.off()
@@ -89,11 +97,12 @@ def test_dict_events(db: BeaverDB):
 
     # Test clear
     handle_clear = d.on("clear", handler)
-    d["another_key"] = 1 # Add data to clear
+    d["another_key"] = 1  # Add data to clear
     time.sleep(0.1)
     d.clear()
     assert_event_received(q, {})
     handle_clear.off()
+
 
 def test_list_events(db: BeaverDB):
     """Tests the built-in events for ListManager."""
@@ -104,7 +113,7 @@ def test_list_events(db: BeaverDB):
     # Test push
     handle_push = l.on("push", handler)
     time.sleep(0.1)
-    l.push("a") # index 0
+    l.push("a")  # index 0
     assert_event_received(q, {})
     handle_push.off()
 
@@ -116,7 +125,7 @@ def test_list_events(db: BeaverDB):
     handle_pop.off()
 
     # Test setitem
-    l.push("a") # index 0
+    l.push("a")  # index 0
     handle_set = l.on("set", handler)
     time.sleep(0.1)
     l[0] = "b"
@@ -136,6 +145,7 @@ def test_list_events(db: BeaverDB):
     l.insert(0, "new_front")
     assert_event_received(q, {"index": 0})
     handle_insert.off()
+
 
 def test_queue_events(db: BeaverDB):
     """Tests the built-in events for QueueManager."""
@@ -157,6 +167,7 @@ def test_queue_events(db: BeaverDB):
     assert item.data == "task1"
     assert_event_received(q, {})
     handle_get.off()
+
 
 def test_collection_events(db: BeaverDB):
     """Tests the built-in events for CollectionManager."""
@@ -187,7 +198,7 @@ def test_collection_events(db: BeaverDB):
     handle_drop.off()
 
     # Test connect
-    c.index(doc1) # Re-index doc1
+    c.index(doc1)  # Re-index doc1
     c.index(doc2)
     handle_connect = c.on("connect", handler)
     time.sleep(0.1)

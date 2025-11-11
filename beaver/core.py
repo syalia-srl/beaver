@@ -132,9 +132,7 @@ class BeaverDB:
                 except TimeoutError:
                     continue  # Normal timeout, just check stop_event
 
-    def on(
-        self, topic: str, event:str, callback: Callable[[dict], Any]
-    ):
+    def on(self, topic: str, event: str, callback: Callable[[dict], Any]):
         """
         Adds a callback to a custom event.
 
@@ -154,10 +152,7 @@ class BeaverDB:
                 global_count = registry.get(full_topic_key, 0)
                 registry[full_topic_key] = global_count + 1
 
-
-    def off(
-        self, topic: str, event: str, callback: Callable[[dict], Any]
-    ):
+    def off(self, topic: str, event: str, callback: Callable[[dict], Any]):
         """
         Removes a callback from the central event system.
         """
