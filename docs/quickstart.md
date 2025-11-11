@@ -4,117 +4,189 @@ This is where the fun begins. Let's get BeaverDB installed and run your first mu
 
 ## Installation
 
-BeaverDB is a Python library, so you can install it right from your terminal using pip.
+BeaverDB is a Python library, so you can install it right from your terminal using `uv` or `pip`.
 
 **The Core Install**
 
-If you just want the core features—like key-value dictionaries, lists, and queues—you can install the zero-dependency package.
+The core `beaver-db` package includes everything you need for local development, including the CLI, vector search, and all data structures.
 
 ```bash
-# This has NO external dependencies
+# This includes the core library, vector search, and the CLI
 pip install beaver-db
 ```
 
-This gives you all the core data structures and is perfect for many simple applications.
-
 **Installing Optional Features**
 
-BeaverDB keeps its core light by making advanced features optional. You can install them as "extras" as needed.
+The only optional feature is the REST API server, which allows you to run BeaverDB as a networked service.
 
-- `beaver-db[vector]`: Adds AI-powered vector search (using faiss).
-- `beaver-db[server,cli]`: Adds the fastapi-based REST server and the beaver command-line tool.
-
-For this guide, we recommend installing the `beaver-db[full]` package, which includes everything, so you can follow along with all the examples.
+  - `beaver-db[remote]`: Adds the `fastapi`-based REST server, which you can run with the `beaver serve` command.
+  - `beaver-db[full]`: A convenience extra that includes `remote` and all future optional features.
 
 ```bash
-# To install all features, including vector search and the server
+# To install all features, including the REST server
 pip install "beaver-db[full]"
 ```
 
-With that, you're ready to write some code.
+## Docker
 
-## Your First Example in 10 Lines
+You can also run the BeaverDB REST API server using Docker. This is the recommended way to deploy BeaverDB as a service.
 
-Let's create a single Python script that shows off BeaverDB's "multi-modal" power. We'll use three different data types—a dictionary, a list, and a document collection—all in the same database file.
+```bash
+# Pull the latest image from the GitHub Container Registry
+docker pull ghcr.io/syalia-srl/beaver:latest
 
-Create a new file named `quickstart.py` and add the following:
+# Run the server, mounting a local directory to persist data
+docker run -p 8000:8000 \
+  -v $(pwd)/my-beaver-data:/app/data \
+  -e "DATABASE=data/production.db" \
+  ghcr.io/syalia-srl/beaver:latest
+```
+
+This command:
+
+  - Runs the server on port 8000.
+  - Mounts a local folder named `my-beaver-data` into the container.
+  - Tells the server to create its database file at `/app/data/production.db` (which will persist in your `my-beaver-data` folder).
+
+## A Step-by-Step Example
+
+Let's create a single Python script that shows off BeaverDB's "multi-modal" power.
+
+Create a new file named `quickstart.py`.
+
+### 1. Initialize the Database
+
+First, import `BeaverDB` and `Document`. The `BeaverDB` class is your main entry point, and `Document` is the object we'll use for storing rich data. This line creates a single file, `my_data.db`, if it doesn't already exist.
 
 ```python
 from beaver import BeaverDB, Document
 
-# 1. Initialize the database
 # This creates a single file "my_data.db" if it doesn't exist
 # and sets it up for safe, concurrent access.
 db = BeaverDB("my_data.db")
+```
 
-# 2. Use a namespaced dictionary (like a Python dict)
+### 2. Use a Dictionary
+
+Now let's use a namespaced dictionary. This is perfect for storing app configuration or user settings. We get it by calling `db.dict("app_config")`. The object it returns behaves just like a standard Python `dict`.
+
+```python
 # This is perfect for storing app configuration or user settings.
 config = db.dict("app_config")
+
+# Assigning a value saves it instantly to the database file.
 config["theme"] = "dark"
 config["user_id"] = 123
 
 # You can read the value back just as easily:
 print(f"App theme is: {config['theme']}")
+```
 
-# 3. Use a persistent list (like a Python list)
+### 3. Use a Persistent List
+
+Next, let's store some ordered data. A persistent list (`db.list()`) is great for a to-do list, a job queue, or a chat history. It supports methods like `push`, `pop`, and standard index access.
+
+```python
 # This is great for a to-do list, a job queue, or a chat history.
 tasks = db.list("daily_tasks")
+
+# Use .push() to append items
 tasks.push({"id": "task-001", "desc": "Write project report"})
 tasks.push({"id": "task-002", "desc": "Deploy new feature"})
 
 # You can access items by index, just like a normal list:
 print(f"First task is: {tasks[0]['desc']}")
+```
 
-# 4. Use a collection for rich documents and search
+### 4. Use a Collection
+
+The "collection" is the most powerful feature. It stores rich `Document` objects and allows you to search them using vectors, text, or graph relationships.
+
+Let's get a collection and create a `Document` to store. The `body` field holds all of our text and metadata.
+
+```python
 # This is the most powerful feature, combining data and search.
 articles = db.collection("articles")
 
 # Create a Document to store.
-# We give it a unique ID and some text content.
+# We give it a unique ID and some text content in the 'body'.
 doc = Document(
     id="sqlite-001",
-    content="SQLite is a powerful embedded database ideal for local apps."
+    body="SQLite is a powerful embedded database ideal for local apps."
 )
+```
 
-# 5. Index the document
+### 5. Index for Search
+
+Now, we'll save the document using `.index()`. By setting `fts=True`, we tell BeaverDB to *also* automatically add the text in `body` to a Full-Text Search index. We'll add `fuzzy=True` to tolerate typos.
+
+```python
 # This not only saves the document but also automatically
 # makes its text content searchable via a Full-Text Search (FTS) index
 # with optional fuzzy matching.
 articles.index(doc, fts=True, fuzzy=True)
+```
 
-# 6. Perform a full-text search
-# This isn't a simple string find; it's a real search engine with fuzzy matching!
+### 6. Perform a Fuzzy Search
+
+Finally, let's query our collection. We'll use `.match()` to perform a text search. Notice the intentional typo in **"datbase"**. Because we indexed with `fuzziness=1`, BeaverDB finds the correct document anyway\!
+
+```python
+# This isn't a simple string find; it's a real search engine!
+# Note the typo in "datbase"
 results = articles.match(query="datbase", fuzziness=1)
 
 # The result is a list of tuples: (document, score)
 top_doc, rank = results[0]
-print(f"Search found: '{top_doc.content}' (Score: {rank:.2f})")
+print(f"Search found: '{top_doc.body}' (Score: {rank:.2f})")
 ```
 
-Here’s a line-by-line explanation of what you just did:
+When you run your `quickstart.py` script, you'll have a single `my_data.db` file containing your config, your task list, and your searchable articles.
 
-* **`from beaver import BeaverDB, Document`**
-    `BeaverDB` is the main class, your entry point to the database. A `Document` is a special data object used when you're working with `db.collection()`.
+## Using the CLI
 
-* **`db = BeaverDB("my_data.db")`**
-    This is the most important line. It finds `my_data.db` or creates it if it's not there. It also automatically enables all the high-performance and safety features (like Write-Ahead Logging) so it's ready for use.
+The `beaver` CLI is included in the core installation and is a great way to inspect or manage your database from the terminal.
 
-* **`config = db.dict("app_config")`**
-    Here, you're asking BeaverDB for a dictionary. `"app_config"` is the "namespace." This means you can have *many* different dictionaries (`app_config`, `user_prefs`, `cache`, etc.) that won't interfere with each other. The `config` object you get back behaves just like a standard Python `dict`. When you do `config["theme"] = "dark"`, that change is instantly saved to the `my_data.db` file.
+Let's interact with the `my_data.db` file we just created.
 
-* **`tasks = db.list("daily_tasks")`**
-    Same idea, but for a list. You get back a `tasks` object that acts like a Python `list`. You can `push` (append) items, get items by index (`tasks[i]`), or `pop` them. You can also insert and remove items at an arbitrary index, and it all works instantaneously (in CS terms, it's O(1) for all operations).
+```bash
+# Get the 'theme' key from the 'app_config' dictionary
+$ beaver --database my_data.db dict app_config get theme
+"dark"
 
-* **`articles = db.collection("articles")`**
-    This gets you a "collection," which is the most powerful data structure. A collection is designed to hold rich data, like articles, user profiles, or AI embeddings.
+# Run the same fuzzy search from our script
+$ beaver --database my_data.db collection articles match "datbase" --fuzziness 1
+[
+  {
+    "document": {
+      "id": "sqlite-001",
+      "embedding": null,
+      "body": "SQLite is a powerful embedded database ideal for local apps."
+    },
+    "score": 0.0
+  }
+]
+```
 
-* **`doc = Document(...)`**
-    To put something in a collection, you wrap it in a `Document`. Here, we give it a unique `id` and some `content`. You can add any other fields you want just by passing them as keyword arguments.
+## Running the REST API Server
 
-* **`articles.index(doc, ...)`**
-    This is where the magic happens. When you call `.index()`, BeaverDB saves your document. But it *also* reads the `content` field and automatically puts all the words into a Full-Text Search (FTS) index and a clever fuzzy index, which are optional.
+You can start a REST API server for your database using the `beaver serve` command. This allows you to interact with your BeaverDB instance over HTTP, making it easy to build web or mobile applications.
 
-* **`results = articles.match(query="database")`**
-    This line runs a search. Because `index()` already did the work, this query is fast. It searches the FTS index for the word "database" and finds your document.
+```bash
+$ beaver serve --database my_data.db --port 8000
+INFO:     Started server process [12345]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+```
 
-When you run the script, you've created a single `my_data.db` file that now contains your config, your task list, and your searchable articles.
+Now you can access your database via HTTP requests. For example, to get the `theme` from the `app_config` dictionary:
+
+```bash
+$ curl http://localhost:8000/dict/app_config/theme
+"dark"
+```
+
+That's it! You've successfully installed BeaverDB, created a multi-modal database, and interacted with it both programmatically and via the CLI and REST API.
+
+Happy coding!
