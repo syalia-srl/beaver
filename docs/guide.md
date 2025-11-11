@@ -8,6 +8,7 @@ This guide provides a comprehensive set of practical, code-first examples for ev
 
 Use a namespaced dictionary for storing simple key-value data like application configuration or user profiles.
 
+First, let's import `BeaverDB` and get a handle to a namespaced dictionary called `"app_config"`.
 ```python
 from beaver import BeaverDB
 
@@ -15,21 +16,33 @@ db = BeaverDB("demo.db")
 
 # Get a handle to a namespaced dictionary
 config = db.dict("app_config")
+```
 
+Now you can use the `config` object just like a standard Python dictionary. Operations are saved to the database file instantly.
+
+```python
 # --- 1. Setting Values ---
 config["theme"] = "dark"
 config["retries"] = 3
+
+# You can also use the .set() method
 config.set("user_ids", [101, 205, 301])
 
 print(f"Configuration dictionary has {len(config)} items.")
 
 # --- 2. Retrieving Values ---
+# Use standard dict access
 theme = config["theme"]
 print(f"Retrieved theme: {theme}")
 
+# Or use .get() with a default value
 non_existent = config.get("non_existent_key", "default_value")
 print(f"Result for non_existent_key: {non_existent}")
+```
 
+Iterating and deleting items also follows standard Python syntax.
+
+```python
 # --- 3. Iterating Over the Dictionary ---
 print("\nIterating over config items:")
 for key, value in config.items():
@@ -46,6 +59,8 @@ db.close()
 
 Leverage a dictionary with a **Time-To-Live (TTL)** to cache the results of slow network requests.
 
+Let's define a mock function that simulates a slow API call and get a handle to a dictionary we'll use as our cache.
+
 ```python
 import time
 from beaver import BeaverDB
@@ -59,7 +74,11 @@ def expensive_api_call(prompt: str):
 db = BeaverDB("demo.db")
 api_cache = db.dict("api_cache")
 prompt = "capital of Ecuador"
+```
 
+On our first attempt, the cache is empty, so we get a "cache miss." We call our expensive function and then use `.set()` with `ttl_seconds=10` to store the result for 10 seconds.
+
+```python
 # --- 1. First Call (Cache Miss) ---
 print("\nAttempt 1: Key is not in cache.")
 response = api_cache.get(prompt)
@@ -70,7 +89,11 @@ if response is None:
     api_cache.set(prompt, response, ttl_seconds=10)
 
 print(f"Response: {response}")
+```
 
+Now, if we request the same data within the 10-second window, we get a "cache hit." The data is returned instantly from the cache, and our expensive function is never called.
+
+```python
 # --- 2. Second Call (Cache Hit) ---
 print("\nAttempt 2: Making the same request within 5 seconds.")
 time.sleep(5)
@@ -82,7 +105,11 @@ else:
     print("Cache hit!")
 
 print(f"Response: {response}")
+```
 
+Finally, we wait 12 seconds, which is longer than our TTL. The cache key has automatically expired. When we request the data, it's a "cache miss" again, forcing us to re-run the expensive function and update the cache for another 10 seconds.
+
+```python
 # --- 3. Third Call (Cache Expired) ---
 print("\nAttempt 3: Waiting for 12 seconds for the cache to expire.")
 time.sleep(12)
@@ -107,12 +134,20 @@ from beaver import BeaverDB
 
 db = BeaverDB("demo.db")
 tasks = db.list("project_tasks")
+```
 
+You can add items to the beginning or end using `push` (like `append`) and `prepend`.
+
+```python
 # --- 1. Pushing and Prepending Items ---
 tasks.push({"id": "task-002", "desc": "Write documentation"})
 tasks.push({"id": "task-003", "desc": "Deploy to production"})
 tasks.prepend({"id": "task-001", "desc": "Design the feature"})
+```
 
+Accessing, iterating, and slicing work exactly as you'd expect.
+
+```python
 # --- 2. Iterating Over the List ---
 print("\nCurrent tasks in order:")
 for task in tasks:
@@ -122,7 +157,11 @@ for task in tasks:
 print(f"\nThe first task is: {tasks[0]}")
 print(f"The last task is: {tasks[-1]}")
 print(f"A slice of the first two tasks: {tasks[0:2]}")
+```
 
+You can also modify the list in place with standard `__setitem__` and `__delitem__` syntax, or use stack/queue methods like `pop` and `deque`.
+
+```python
 # --- 4. Updating an Item in Place ---
 print("\nUpdating the second task...")
 tasks[1] = {"id": "task-002", "desc": "Write and review documentation"}
@@ -143,6 +182,8 @@ db.close()
 ### Priority Queues (`db.queue`)
 
 Use a persistent priority queue to manage tasks for an AI agent or any worker system. This ensures the most important tasks are always processed first.
+
+Items are added with a `priority` (lower numbers are processed first). The `.get()` method is atomic and blocks until an item is available, making it perfect for worker processes.
 
 ```python
 from beaver import BeaverDB
@@ -172,31 +213,45 @@ db.close()
 
 Use the blob store to save binary data like user avatars, attachments, or generated reports directly in the database.
 
+First, we'll get a handle to our blob store and prepare some sample binary data.
+
 ```python
 from beaver import BeaverDB
 
 db = BeaverDB("demo.db")
-attachments = db.blob("user_uploads")
+attachments = db.blobs("user_uploads")
 
 # Create some sample binary data
 file_content = "This is the content of a virtual text file."
 file_bytes = file_content.encode("utf-8")
 file_key = "emails/user123/attachment_01.txt"
+```
 
+Now, we store the data using `.put()` with a unique key and some JSON metadata.
+
+```python
 # Store a user's avatar with metadata
 attachments.put(
     key=file_key,
     data=file_bytes,
     metadata={"mimetype": "text/plain", "sender": "alice@example.com"}
 )
+```
 
+We can retrieve the blob using `.get()`, which returns a `Blob` object containing the key, data, and metadata.
+
+```python
 # Retrieve it later
 blob = attachments.get(file_key)
 if blob:
     print(f"Retrieved Blob: {blob.key}")
     print(f"Metadata: {blob.metadata}")
     print(f"Data (decoded): '{blob.data.decode('utf-8')}'")
+```
 
+Finally, we can clean up the blob using `.delete()`.
+
+```python
 # Delete the blob
 attachments.delete(file_key)
 print(f"\nVerified deletion: {file_key not in attachments}")
@@ -210,7 +265,7 @@ The collection is the most powerful data structure, combining document storage w
 
 ### RAG System (Hybrid Search)
 
-Combine **vector search** and **full-text search** to build a powerful RAG pipeline. The `rerank` helper function merges results from both.
+This example shows how to combine keyword and vector search for a simple RAG pipeline.
 
 ```python
 from beaver import BeaverDB, Document
@@ -218,7 +273,11 @@ from beaver.collections import rerank
 
 db = BeaverDB("rag_demo.db")
 articles = db.collection("articles")
+```
 
+First, we index our documents. Each `Document` contains text for FTS (in `body`) and a vector (`embedding`). We enable FTS by setting `fts=True`.
+
+```python
 # Index documents with both text and embeddings
 docs_to_index = [
     Document(
@@ -239,14 +298,22 @@ docs_to_index = [
 ]
 for doc in docs_to_index:
     articles.index(doc, fts=True) # Enable FTS
+```
 
+Now, we perform two separate searches. One is a keyword search for "python," and the other is a semantic vector search for a query representing "high-performance code."
+
+```python
 # 1. Vector Search for "high-performance code"
 query_vector = [0.15, 0.85, 0.15] # A vector close to "fast"
 vector_results = [doc for doc, _ in articles.search(vector=query_vector)]
 
 # 2. Full-Text Search for "python"
 text_results = [doc for doc, _ in articles.match(query="python")]
+```
 
+Finally, we use the `rerank` helper to merge these two lists. It promotes documents that appear high in *both* result sets, giving us the most relevant answer.
+
+```python
 # 3. Combine and rerank to get the best context
 best_context = rerank(text_results, vector_results)
 
@@ -259,32 +326,48 @@ db.close()
 
 ### Knowledge Graphs (`db.collection`)
 
-Connect documents together to form a graph, then find neighbors or perform multi-hop traversals.
+A collection also serves as a graph. We can connect documents to build a network of relationships.
 
 ```python
 from beaver import BeaverDB, Document
 
 db = BeaverDB("graph_demo.db")
 net = db.collection("social_network")
+```
 
+First, we index our documents, which will act as the **nodes** in our graph.
+
+```python
 # 1. Create Documents (nodes)
 alice = Document(id="alice", body={"name": "Alice"})
 bob = Document(id="bob", body={"name": "Bob"})
 charlie = Document(id="charlie", body={"name": "Charlie"})
 diana = Document(id="diana", body={"name": "Diana"})
 net.index(alice); net.index(bob); net.index(charlie); net.index(diana)
+```
 
+Next, we create relationships (or **edges**) between them using the `.connect()` method. We can give each connection a `label` to define the relationship type.
+
+```python
 # 2. Create Edges (relationships)
 net.connect(alice, bob, label="FOLLOWS")
 net.connect(alice, charlie, label="FOLLOWS")
 net.connect(bob, diana, label="FOLLOWS")
 net.connect(charlie, bob, label="FOLLOWS")
+```
 
+We can now query these relationships. `.neighbors()` finds all nodes one hop away.
+
+```python
 # 3. Find 1-hop neighbors
 print("--- Testing `neighbors` (1-hop) ---")
 following = net.neighbors(alice, label="FOLLOWS")
 print(f"Alice follows: {[p.id for p in following]}")
+```
 
+For multi-hop traversals (like "friends of friends"), we use the `.walk()` method.
+
+```python
 # 4. Find multi-hop connections (e.g., "friends of friends")
 print("\n--- Testing `walk` (multi-hop) ---")
 foaf = net.walk(
@@ -297,12 +380,11 @@ print(f"Alice's extended network (friends of friends): {[p.id for p in foaf]}")
 db.close()
 ```
 
-
 ## Real-Time & Concurrency
 
 ### Inter-Process Locks (`db.lock`)
 
-Run multiple scripts in parallel and use `db.lock()` to coordinate them. This example ensures only one process refreshes a shared resource, preventing race conditions.
+Run multiple scripts in parallel and use `db.lock()` to coordinate them. This example simulates two scrapers trying to refresh a shared sitemap. The `db.lock()` ensures that only one process can enter the critical section, preventing a "thundering herd" race condition. The `timeout=1` causes other processes to skip rather than wait.
 
 ```python
 import time
@@ -333,7 +415,7 @@ db.close()
 
 ### Atomic Batch Operations (`manager.acquire`)
 
-Ensure a worker process can safely pull a *batch* of items from a queue without another worker interfering, using the built-in manager lock.
+Ensure a worker process can safely pull a *batch* of items from a queue without another worker interfering, using the built-in manager lock. By wrapping the operation in `with db.queue(...).acquire()`, we guarantee that this process can pull 10 items from the queue atomically, without another worker process stealing items in the middle of the batch.
 
 ```python
 from beaver import BeaverDB
@@ -359,7 +441,9 @@ db.close()
 
 ### Pub/Sub Channels (`db.channel`)
 
-Use the high-efficiency pub/sub system to build applications where components react to events in real-time.
+BeaverDB's pub/sub system allows for real-time, multi-process communication. Here is how two separate processes can communicate.
+
+In one process (or thread), a publisher sends a message to a named channel. This is a fast, single `INSERT` operation.
 
 ```python
 # --- In one process or thread (e.g., a monitoring service) ---
@@ -372,7 +456,11 @@ system_events = db.channel("system_events")
 print("[Publisher] Publishing message...")
 system_events.publish({"event": "user_login", "user_id": "alice"})
 db.close()
+```
 
+In another process, a subscriber "listens" to that same channel. The `with ...subscribe()` block handles registration, and `listener.listen()` blocks until a message arrives.
+
+```python
 # --- In another process or thread (e.g., a UI updater or logger) ---
 #
 from beaver import BeaverDB
@@ -390,6 +478,8 @@ db.close()
 ### Live-Aggregating Logs (`db.log`)
 
 Monitor your application's health in real-time. The `.live()` method provides a continuously updating, aggregated view of your log data, perfect for terminal dashboards.
+
+First, we define an 'aggregator' function that takes a list of log entries and returns a single summary dictionary.
 
 ```python
 from datetime import timedelta
@@ -409,14 +499,22 @@ def summarize(window: list[dict]) -> dict:
 
 # Start a background thread to write logs (see examples/logs.py for full code)
 # ...
+```
 
+Next, we get the live iterator. We tell it to maintain a 5-second rolling window of data and to compute a new summary every 1 second using our function.
+
+```python
 # Get the live iterator over a 5-second rolling window, updating every 1 sec
 live_summary = logs.live(
     window=timedelta(seconds=5),
     period=timedelta(seconds=1),
     aggregator=summarize
 )
+```
 
+Finally, we just iterate over `live_summary`. This loop will block and yield a new summary object every 1 second, giving us a real-time view of our data.
+
+```python
 print("[Main Thread] Starting live view. Press Ctrl+C to stop.")
 try:
     for summary in live_summary:
@@ -432,6 +530,8 @@ finally:
 
 Listen for database changes in real-time. You can subscribe to events on specific managers (e.g., `db.dict("config").on("set", ...)` to trigger workflows or update UIs).
 
+First, let's define a callback function that will be triggered when a change occurs.
+
 ```python
 import time
 from beaver import BeaverDB
@@ -443,14 +543,22 @@ config.clear()
 def on_config_change(payload):
     """This callback is triggered when a key is set or deleted."""
     print(f"EVENT RECEIVED: Key '{payload['key']}' was changed!")
+```
 
+Now, we subscribe to the 'set' and 'del' events on our `config` dictionary using the `.on()` method. This returns a handle that we can use to unsubscribe later.
+
+```python
 # Subscribe to 'set' events on this specific dict
 set_handle = config.on("set", on_config_change)
 del_handle = config.on("del", on_config_change)
 
 # Give the listener thread time to start
 time.sleep(0.1)
+```
 
+When we modify the dictionary, the callback is triggered automatically in a background thread.
+
+```python
 print("Setting 'theme'...")
 config["theme"] = "dark"  # Triggers the 'on_config_change' callback
 time.sleep(0.1) # Wait for event to process
@@ -458,7 +566,11 @@ time.sleep(0.1) # Wait for event to process
 print("Deleting 'theme'...")
 del config["theme"] # Triggers the 'on_config_change' callback
 time.sleep(0.1)
+```
 
+To stop listening, we call `.off()` on the handles. Subsequent changes will be silent.
+
+```python
 # Clean up the listeners
 set_handle.off()
 del_handle.off()
@@ -470,12 +582,13 @@ time.sleep(0.1)
 db.close()
 ```
 
-
 ## Advanced Features
 
 ### Type-Safe Models with Pydantic
 
 BeaverDB has first-class support for Pydantic. By associating a `BaseModel` with a data structure, you get automatic, recursive (de)serialization and data validation.
+
+By passing `model=User` to the `db.dict()` factory, BeaverDB will automatically validate data on write and, more importantly, deserialize the stored JSON back into a full `User` object on read, giving you type safety and editor autocompletion.
 
 ```python
 from pydantic import BaseModel
@@ -524,12 +637,12 @@ beaver serve --database data.db --port 8000
 
 ```bash
 # Set a value in the 'app_config' dictionary
-curl -X PUT http://127.0.0.1:8000/dicts/app_config/api_key \
+curl -X PUT [http://127.0.0.1:8000/dicts/app_config/api_key](http://127.0.0.1:8000/dicts/app_config/api_key) \
      -H "Content-Type: application/json" \
      -d '"your-secret-api-key"'
 
 # Get the value back
-curl http://127.0.0.1:8000/dicts/app_config/api_key
+curl [http://127.0.0.1:8000/dicts/app_config/api_key](http://127.0.0.1:8000/dicts/app_config/api_key)
 # Output: "your-secret-api-key"
 ```
 
@@ -580,3 +693,14 @@ You can also use the CLI to dump data:
 ```bash
 beaver --database data.db collection my_documents dump > my_documents.json
 ```
+
+## Further Reading
+
+Keep exploring BeaverDB with these in-depth guides:
+
+- [Key-Value Dictionaries and Blob Storage](guide-dicts-blobs.md)
+- [Persistent Lists and Priority Queues](guide-lists-queues.md)
+- [Document Collections (Vectors, FTS, Graphs)](guide-collections.md)
+- [Real-Time Data (Pub/Sub and Live Logs)](guide-realtime.md)
+- [Concurrency and Inter-Process Locking](guide-concurrency.md)
+- [Deployment with the REST Server and CLI](guide-deployment.md)
