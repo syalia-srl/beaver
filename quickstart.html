@@ -255,7 +255,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
    
   <ul>
   <li><a href="#installation" id="toc-installation" class="nav-link active" data-scroll-target="#installation"><span class="header-section-number">2.1</span> Installation</a></li>
-  <li><a href="#your-first-example-in-10-lines" id="toc-your-first-example-in-10-lines" class="nav-link" data-scroll-target="#your-first-example-in-10-lines"><span class="header-section-number">2.2</span> Your First Example in 10 Lines</a></li>
+  <li><a href="#docker" id="toc-docker" class="nav-link" data-scroll-target="#docker"><span class="header-section-number">2.2</span> Docker</a></li>
+  <li><a href="#a-step-by-step-example" id="toc-a-step-by-step-example" class="nav-link" data-scroll-target="#a-step-by-step-example"><span class="header-section-number">2.3</span> A Step-by-Step Example</a>
+  <ul class="collapse">
+  <li><a href="#initialize-the-database" id="toc-initialize-the-database" class="nav-link" data-scroll-target="#initialize-the-database"><span class="header-section-number">2.3.1</span> 1. Initialize the Database</a></li>
+  <li><a href="#use-a-dictionary" id="toc-use-a-dictionary" class="nav-link" data-scroll-target="#use-a-dictionary"><span class="header-section-number">2.3.2</span> 2. Use a Dictionary</a></li>
+  <li><a href="#use-a-persistent-list" id="toc-use-a-persistent-list" class="nav-link" data-scroll-target="#use-a-persistent-list"><span class="header-section-number">2.3.3</span> 3. Use a Persistent List</a></li>
+  <li><a href="#use-a-collection" id="toc-use-a-collection" class="nav-link" data-scroll-target="#use-a-collection"><span class="header-section-number">2.3.4</span> 4. Use a Collection</a></li>
+  <li><a href="#index-for-search" id="toc-index-for-search" class="nav-link" data-scroll-target="#index-for-search"><span class="header-section-number">2.3.5</span> 5. Index for Search</a></li>
+  <li><a href="#perform-a-fuzzy-search" id="toc-perform-a-fuzzy-search" class="nav-link" data-scroll-target="#perform-a-fuzzy-search"><span class="header-section-number">2.3.6</span> 6. Perform a Fuzzy Search</a></li>
+  </ul></li>
+  <li><a href="#using-the-cli" id="toc-using-the-cli" class="nav-link" data-scroll-target="#using-the-cli"><span class="header-section-number">2.4</span> Using the CLI</a></li>
+  <li><a href="#running-the-rest-api-server" id="toc-running-the-rest-api-server" class="nav-link" data-scroll-target="#running-the-rest-api-server"><span class="header-section-number">2.5</span> Running the REST API Server</a></li>
   </ul>
 </nav>
     </div>
@@ -284,88 +295,146 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>This is where the fun begins. Let’s get BeaverDB installed and run your first multi-modal script. You’ll be up and running in about 30 seconds.</p>
 <section id="installation" class="level2" data-number="2.1">
 <h2 data-number="2.1" class="anchored" data-anchor-id="installation"><span class="header-section-number">2.1</span> Installation</h2>
-<p>BeaverDB is a Python library, so you can install it right from your terminal using pip.</p>
+<p>BeaverDB is a Python library, so you can install it right from your terminal using <code>uv</code> or <code>pip</code>.</p>
 <p><strong>The Core Install</strong></p>
-<p>If you just want the core features—like key-value dictionaries, lists, and queues—you can install the zero-dependency package.</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># This has NO external dependencies</span></span>
+<p>The core <code>beaver-db</code> package includes everything you need for local development, including the CLI, vector search, and all data structures.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># This includes the core library, vector search, and the CLI</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install beaver-db</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>This gives you all the core data structures and is perfect for many simple applications.</p>
 <p><strong>Installing Optional Features</strong></p>
-<p>BeaverDB keeps its core light by making advanced features optional. You can install them as “extras” as needed.</p>
+<p>The only optional feature is the REST API server, which allows you to run BeaverDB as a networked service.</p>
 <ul>
-<li><code>beaver-db[vector]</code>: Adds AI-powered vector search (using faiss).</li>
-<li><code>beaver-db[server,cli]</code>: Adds the fastapi-based REST server and the beaver command-line tool.</li>
+<li><code>beaver-db[remote]</code>: Adds the <code>fastapi</code>-based REST server, which you can run with the <code>beaver serve</code> command.</li>
+<li><code>beaver-db[full]</code>: A convenience extra that includes <code>remote</code> and all future optional features.</li>
 </ul>
-<p>For this guide, we recommend installing the <code>beaver-db[full]</code> package, which includes everything, so you can follow along with all the examples.</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># To install all features, including vector search and the server</span></span>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># To install all features, including the REST server</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install <span class="st">"beaver-db[full]"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>With that, you’re ready to write some code.</p>
 </section>
-<section id="your-first-example-in-10-lines" class="level2" data-number="2.2">
-<h2 data-number="2.2" class="anchored" data-anchor-id="your-first-example-in-10-lines"><span class="header-section-number">2.2</span> Your First Example in 10 Lines</h2>
-<p>Let’s create a single Python script that shows off BeaverDB’s “multi-modal” power. We’ll use three different data types—a dictionary, a list, and a document collection—all in the same database file.</p>
-<p>Create a new file named <code>quickstart.py</code> and add the following:</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver <span class="im">import</span> BeaverDB, Document</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Initialize the database</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co"># This creates a single file "my_data.db" if it doesn't exist</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="co"># and sets it up for safe, concurrent access.</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>db <span class="op">=</span> BeaverDB(<span class="st">"my_data.db"</span>)</span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Use a namespaced dictionary (like a Python dict)</span></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co"># This is perfect for storing app configuration or user settings.</span></span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>config <span class="op">=</span> db.<span class="bu">dict</span>(<span class="st">"app_config"</span>)</span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>config[<span class="st">"theme"</span>] <span class="op">=</span> <span class="st">"dark"</span></span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>config[<span class="st">"user_id"</span>] <span class="op">=</span> <span class="dv">123</span></span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="co"># You can read the value back just as easily:</span></span>
-<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"App theme is: </span><span class="sc">{</span>config[<span class="st">'theme'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Use a persistent list (like a Python list)</span></span>
-<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a><span class="co"># This is great for a to-do list, a job queue, or a chat history.</span></span>
-<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>tasks <span class="op">=</span> db.<span class="bu">list</span>(<span class="st">"daily_tasks"</span>)</span>
-<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>tasks.push({<span class="st">"id"</span>: <span class="st">"task-001"</span>, <span class="st">"desc"</span>: <span class="st">"Write project report"</span>})</span>
-<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>tasks.push({<span class="st">"id"</span>: <span class="st">"task-002"</span>, <span class="st">"desc"</span>: <span class="st">"Deploy new feature"</span>})</span>
-<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a><span class="co"># You can access items by index, just like a normal list:</span></span>
-<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"First task is: </span><span class="sc">{</span>tasks[<span class="dv">0</span>][<span class="st">'desc'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. Use a collection for rich documents and search</span></span>
-<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a><span class="co"># This is the most powerful feature, combining data and search.</span></span>
-<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>articles <span class="op">=</span> db.collection(<span class="st">"articles"</span>)</span>
-<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a Document to store.</span></span>
-<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a><span class="co"># We give it a unique ID and some text content.</span></span>
-<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>doc <span class="op">=</span> Document(</span>
-<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>    <span class="bu">id</span><span class="op">=</span><span class="st">"sqlite-001"</span>,</span>
-<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>    content<span class="op">=</span><span class="st">"SQLite is a powerful embedded database ideal for local apps."</span></span>
-<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a><span class="co"># 5. Index the document</span></span>
-<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a><span class="co"># This not only saves the document but also automatically</span></span>
-<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a><span class="co"># makes its text content searchable via a Full-Text Search (FTS) index</span></span>
-<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a><span class="co"># with optional fuzzy matching.</span></span>
-<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>articles.index(doc, fts<span class="op">=</span><span class="va">True</span>, fuzzy<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a><span class="co"># 6. Perform a full-text search</span></span>
-<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a><span class="co"># This isn't a simple string find; it's a real search engine with fuzzy matching!</span></span>
-<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> articles.match(query<span class="op">=</span><span class="st">"datbase"</span>, fuzziness<span class="op">=</span><span class="dv">1</span>)</span>
-<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a><span class="co"># The result is a list of tuples: (document, score)</span></span>
-<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>top_doc, rank <span class="op">=</span> results[<span class="dv">0</span>]</span>
-<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Search found: '</span><span class="sc">{</span>top_doc<span class="sc">.</span>content<span class="sc">}</span><span class="ss">' (Score: </span><span class="sc">{</span>rank<span class="sc">:.2f}</span><span class="ss">)"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Here’s a line-by-line explanation of what you just did:</p>
+<section id="docker" class="level2" data-number="2.2">
+<h2 data-number="2.2" class="anchored" data-anchor-id="docker"><span class="header-section-number">2.2</span> Docker</h2>
+<p>You can also run the BeaverDB REST API server using Docker. This is the recommended way to deploy BeaverDB as a service.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Pull the latest image from the GitHub Container Registry</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> pull ghcr.io/syalia-srl/beaver:latest</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Run the server, mounting a local directory to persist data</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> run <span class="at">-p</span> 8000:8000 <span class="dt">\</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">-v</span> <span class="va">$(</span><span class="bu">pwd</span><span class="va">)</span>/my-beaver-data:/app/data <span class="dt">\</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">-e</span> <span class="st">"DATABASE=data/production.db"</span> <span class="dt">\</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  ghcr.io/syalia-srl/beaver:latest</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>This command:</p>
 <ul>
-<li><p><strong><code>from beaver import BeaverDB, Document</code></strong> <code>BeaverDB</code> is the main class, your entry point to the database. A <code>Document</code> is a special data object used when you’re working with <code>db.collection()</code>.</p></li>
-<li><p><strong><code>db = BeaverDB("my_data.db")</code></strong> This is the most important line. It finds <code>my_data.db</code> or creates it if it’s not there. It also automatically enables all the high-performance and safety features (like Write-Ahead Logging) so it’s ready for use.</p></li>
-<li><p><strong><code>config = db.dict("app_config")</code></strong> Here, you’re asking BeaverDB for a dictionary. <code>"app_config"</code> is the “namespace.” This means you can have <em>many</em> different dictionaries (<code>app_config</code>, <code>user_prefs</code>, <code>cache</code>, etc.) that won’t interfere with each other. The <code>config</code> object you get back behaves just like a standard Python <code>dict</code>. When you do <code>config["theme"] = "dark"</code>, that change is instantly saved to the <code>my_data.db</code> file.</p></li>
-<li><p><strong><code>tasks = db.list("daily_tasks")</code></strong> Same idea, but for a list. You get back a <code>tasks</code> object that acts like a Python <code>list</code>. You can <code>push</code> (append) items, get items by index (<code>tasks[i]</code>), or <code>pop</code> them. You can also insert and remove items at an arbitrary index, and it all works instantaneously (in CS terms, it’s O(1) for all operations).</p></li>
-<li><p><strong><code>articles = db.collection("articles")</code></strong> This gets you a “collection,” which is the most powerful data structure. A collection is designed to hold rich data, like articles, user profiles, or AI embeddings.</p></li>
-<li><p><strong><code>doc = Document(...)</code></strong> To put something in a collection, you wrap it in a <code>Document</code>. Here, we give it a unique <code>id</code> and some <code>content</code>. You can add any other fields you want just by passing them as keyword arguments.</p></li>
-<li><p><strong><code>articles.index(doc, ...)</code></strong> This is where the magic happens. When you call <code>.index()</code>, BeaverDB saves your document. But it <em>also</em> reads the <code>content</code> field and automatically puts all the words into a Full-Text Search (FTS) index and a clever fuzzy index, which are optional.</p></li>
-<li><p><strong><code>results = articles.match(query="database")</code></strong> This line runs a search. Because <code>index()</code> already did the work, this query is fast. It searches the FTS index for the word “database” and finds your document.</p></li>
+<li>Runs the server on port 8000.</li>
+<li>Mounts a local folder named <code>my-beaver-data</code> into the container.</li>
+<li>Tells the server to create its database file at <code>/app/data/production.db</code> (which will persist in your <code>my-beaver-data</code> folder).</li>
 </ul>
-<p>When you run the script, you’ve created a single <code>my_data.db</code> file that now contains your config, your task list, and your searchable articles.</p>
+</section>
+<section id="a-step-by-step-example" class="level2" data-number="2.3">
+<h2 data-number="2.3" class="anchored" data-anchor-id="a-step-by-step-example"><span class="header-section-number">2.3</span> A Step-by-Step Example</h2>
+<p>Let’s create a single Python script that shows off BeaverDB’s “multi-modal” power.</p>
+<p>Create a new file named <code>quickstart.py</code>.</p>
+<section id="initialize-the-database" class="level3" data-number="2.3.1">
+<h3 data-number="2.3.1" class="anchored" data-anchor-id="initialize-the-database"><span class="header-section-number">2.3.1</span> 1. Initialize the Database</h3>
+<p>First, import <code>BeaverDB</code> and <code>Document</code>. The <code>BeaverDB</code> class is your main entry point, and <code>Document</code> is the object we’ll use for storing rich data. This line creates a single file, <code>my_data.db</code>, if it doesn’t already exist.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver <span class="im">import</span> BeaverDB, Document</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co"># This creates a single file "my_data.db" if it doesn't exist</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co"># and sets it up for safe, concurrent access.</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>db <span class="op">=</span> BeaverDB(<span class="st">"my_data.db"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="use-a-dictionary" class="level3" data-number="2.3.2">
+<h3 data-number="2.3.2" class="anchored" data-anchor-id="use-a-dictionary"><span class="header-section-number">2.3.2</span> 2. Use a Dictionary</h3>
+<p>Now let’s use a namespaced dictionary. This is perfect for storing app configuration or user settings. We get it by calling <code>db.dict("app_config")</code>. The object it returns behaves just like a standard Python <code>dict</code>.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># This is perfect for storing app configuration or user settings.</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>config <span class="op">=</span> db.<span class="bu">dict</span>(<span class="st">"app_config"</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Assigning a value saves it instantly to the database file.</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>config[<span class="st">"theme"</span>] <span class="op">=</span> <span class="st">"dark"</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>config[<span class="st">"user_id"</span>] <span class="op">=</span> <span class="dv">123</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="co"># You can read the value back just as easily:</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"App theme is: </span><span class="sc">{</span>config[<span class="st">'theme'</span>]<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="use-a-persistent-list" class="level3" data-number="2.3.3">
+<h3 data-number="2.3.3" class="anchored" data-anchor-id="use-a-persistent-list"><span class="header-section-number">2.3.3</span> 3. Use a Persistent List</h3>
+<p>Next, let’s store some ordered data. A persistent list (<code>db.list()</code>) is great for a to-do list, a job queue, or a chat history. It supports methods like <code>push</code>, <code>pop</code>, and standard index access.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># This is great for a to-do list, a job queue, or a chat history.</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>tasks <span class="op">=</span> db.<span class="bu">list</span>(<span class="st">"daily_tasks"</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Use .push() to append items</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>tasks.push({<span class="st">"id"</span>: <span class="st">"task-001"</span>, <span class="st">"desc"</span>: <span class="st">"Write project report"</span>})</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>tasks.push({<span class="st">"id"</span>: <span class="st">"task-002"</span>, <span class="st">"desc"</span>: <span class="st">"Deploy new feature"</span>})</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="co"># You can access items by index, just like a normal list:</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"First task is: </span><span class="sc">{</span>tasks[<span class="dv">0</span>][<span class="st">'desc'</span>]<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="use-a-collection" class="level3" data-number="2.3.4">
+<h3 data-number="2.3.4" class="anchored" data-anchor-id="use-a-collection"><span class="header-section-number">2.3.4</span> 4. Use a Collection</h3>
+<p>The “collection” is the most powerful feature. It stores rich <code>Document</code> objects and allows you to search them using vectors, text, or graph relationships.</p>
+<p>Let’s get a collection and create a <code>Document</code> to store. The <code>body</code> field holds all of our text and metadata.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># This is the most powerful feature, combining data and search.</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>articles <span class="op">=</span> db.collection(<span class="st">"articles"</span>)</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a Document to store.</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="co"># We give it a unique ID and some text content in the 'body'.</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>doc <span class="op">=</span> Document(</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    <span class="bu">id</span><span class="op">=</span><span class="st">"sqlite-001"</span>,</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    body<span class="op">=</span><span class="st">"SQLite is a powerful embedded database ideal for local apps."</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="index-for-search" class="level3" data-number="2.3.5">
+<h3 data-number="2.3.5" class="anchored" data-anchor-id="index-for-search"><span class="header-section-number">2.3.5</span> 5. Index for Search</h3>
+<p>Now, we’ll save the document using <code>.index()</code>. By setting <code>fts=True</code>, we tell BeaverDB to <em>also</em> automatically add the text in <code>body</code> to a Full-Text Search index. We’ll add <code>fuzzy=True</code> to tolerate typos.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># This not only saves the document but also automatically</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="co"># makes its text content searchable via a Full-Text Search (FTS) index</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co"># with optional fuzzy matching.</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>articles.index(doc, fts<span class="op">=</span><span class="va">True</span>, fuzzy<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="perform-a-fuzzy-search" class="level3" data-number="2.3.6">
+<h3 data-number="2.3.6" class="anchored" data-anchor-id="perform-a-fuzzy-search"><span class="header-section-number">2.3.6</span> 6. Perform a Fuzzy Search</h3>
+<p>Finally, let’s query our collection. We’ll use <code>.match()</code> to perform a text search. Notice the intentional typo in <strong>“datbase”</strong>. Because we indexed with <code>fuzziness=1</code>, BeaverDB finds the correct document anyway!</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># This isn't a simple string find; it's a real search engine!</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Note the typo in "datbase"</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> articles.match(query<span class="op">=</span><span class="st">"datbase"</span>, fuzziness<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="co"># The result is a list of tuples: (document, score)</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>top_doc, rank <span class="op">=</span> results[<span class="dv">0</span>]</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Search found: '</span><span class="sc">{</span>top_doc<span class="sc">.</span>body<span class="sc">}</span><span class="ss">' (Score: </span><span class="sc">{</span>rank<span class="sc">:.2f}</span><span class="ss">)"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>When you run your <code>quickstart.py</code> script, you’ll have a single <code>my_data.db</code> file containing your config, your task list, and your searchable articles.</p>
+</section>
+</section>
+<section id="using-the-cli" class="level2" data-number="2.4">
+<h2 data-number="2.4" class="anchored" data-anchor-id="using-the-cli"><span class="header-section-number">2.4</span> Using the CLI</h2>
+<p>The <code>beaver</code> CLI is included in the core installation and is a great way to inspect or manage your database from the terminal.</p>
+<p>Let’s interact with the <code>my_data.db</code> file we just created.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get the 'theme' key from the 'app_config' dictionary</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> beaver <span class="at">--database</span> my_data.db dict app_config get theme</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="st">"dark"</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Run the same fuzzy search from our script</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> beaver <span class="at">--database</span> my_data.db collection articles match <span class="st">"datbase"</span> <span class="at">--fuzziness</span> 1</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="bu">[</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>  {</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"document"</span>: {</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>      <span class="er">"id":</span> <span class="er">"sqlite-001",</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>      <span class="st">"embedding"</span><span class="ex">:</span> null,</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>      <span class="st">"body"</span><span class="ex">:</span> <span class="st">"SQLite is a powerful embedded database ideal for local apps."</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>    <span class="er">}</span><span class="ex">,</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">"score"</span><span class="ex">:</span> 0.0</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  <span class="er">}</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="ex">]</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="running-the-rest-api-server" class="level2" data-number="2.5">
+<h2 data-number="2.5" class="anchored" data-anchor-id="running-the-rest-api-server"><span class="header-section-number">2.5</span> Running the REST API Server</h2>
+<p>You can start a REST API server for your database using the <code>beaver serve</code> command. This allows you to interact with your BeaverDB instance over HTTP, making it easy to build web or mobile applications.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> beaver serve <span class="at">--database</span> my_data.db <span class="at">--port</span> 8000</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="ex">INFO:</span>     Started server process <span class="pp">[</span><span class="ss">12345</span><span class="pp">]</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="ex">INFO:</span>     Waiting for application startup.</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="ex">INFO:</span>     Application startup complete.</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="ex">INFO:</span>     Uvicorn running on http://127.0.0.1:8000 <span class="er">(</span><span class="ex">Press</span> CTRL+C to quit<span class="kw">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Now you can access your database via HTTP requests. For example, to get the <code>theme</code> from the <code>app_config</code> dictionary:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> curl http://localhost:8000/dict/app_config/theme</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="st">"dark"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>That’s it! You’ve successfully installed BeaverDB, created a multi-modal database, and interacted with it both programmatically and via the CLI and REST API.</p>
+<p>Happy coding!</p>
 
 
 </section>
