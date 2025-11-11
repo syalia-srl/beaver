@@ -1,5 +1,6 @@
 import sqlite3
 import threading
+import time
 import warnings
 
 from pydantic import BaseModel
@@ -24,7 +25,7 @@ class Event(BaseModel):
     payload: dict
 
 
-class BeaverDB(IDatabase):
+class BeaverDB:
     """
     An embedded, multi-modal database in a single SQLite file.
     This class manages thread-safe database connections and table schemas.
@@ -131,13 +132,20 @@ class BeaverDB(IDatabase):
                 except TimeoutError:
                     continue  # Normal timeout, just check stop_event
 
-    def _register_event_listener(
-        self, full_topic_key: str, callback: Callable[[dict], Any]
+    def on(
+        self, topic: str, event:str, callback: Callable[[dict], Any]
     ):
         """
-        Adds a callback to the central registry and increments
-        the global counter if this is the first local listener.
+        Adds a callback to a custom event.
+
+        Starts the central event listener thread if not already running.
         """
+        full_topic_key = f"{topic}:{event}"
+
+        if not self._event_listener_thread.is_alive():
+            self._event_listener_thread.start()
+            time.sleep(0.1)  # Give time to start
+
         with self._event_callback_lock:
             # Add the callback to the local dispatch table
             self._event_callbacks.setdefault(full_topic_key, []).append(callback)
@@ -146,13 +154,15 @@ class BeaverDB(IDatabase):
                 global_count = registry.get(full_topic_key, 0)
                 registry[full_topic_key] = global_count + 1
 
-    def _unregister_event_listener(
-        self, full_topic_key: str, callback: Callable[[dict], Any]
+
+    def off(
+        self, topic: str, event: str, callback: Callable[[dict], Any]
     ):
         """
-        Removes a callback from the central registry and decrements
-        the global counter if this is the last local listener.
+        Removes a callback from the central event system.
         """
+        full_topic_key = f"{topic}:{event}"
+
         with self._event_callback_lock:
             try:
                 self._event_callbacks[full_topic_key].remove(callback)

@@ -670,7 +670,7 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
 
         # 2. Clear vector-specific tables
         cursor.execute(
-            "DELETE FROM _vector_change_log WHERE collection_name = ?",
+            "DELETE FROM beaver_vector_change_log WHERE collection_name = ?",
             (self._name,),
         )
         cursor.execute(

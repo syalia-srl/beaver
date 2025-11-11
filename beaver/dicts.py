@@ -67,7 +67,7 @@ class DictManager[T: BaseModel](ManagerBase[T]):
 
     def set(self, key: str, value: T, ttl_seconds: float | None = None):
         """Sets a value for a key, with an optional TTL."""
-        DictManager.__setitem__(self, key, value, ttl_seconds=ttl_seconds)
+        self.__setitem__(key, value, ttl_seconds=ttl_seconds)
 
     @emits("set", payload=lambda key, *args, **kwargs: dict(key=key))
     @synced
@@ -155,7 +155,7 @@ class DictManager[T: BaseModel](ManagerBase[T]):
         """Deletes an item if it exists and returns its value."""
         try:
             value = self[key]
-            DictManager.__delitem__(self, key)
+            self.__delitem__(key)
             return value
         except KeyError:
             return default

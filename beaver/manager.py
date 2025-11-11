@@ -229,12 +229,12 @@ def emits(event: str | None = None, payload: Callable | None = None):
     method name as the event type.
     """
 
-    def decorator(func: Callable):
+    def decorator(func):
         event_name = event or func.__name__
         payload_func = payload or (lambda *args, **kwargs: dict(args=args, **kwargs))
 
         @functools.wraps(func)
-        def wrapper(self: ManagerBase, *args, **kwargs):
+        def wrapper(self, *args, **kwargs):
             """Wraps the function to emit an event after execution."""
 
             payload_data = payload_func(*args, **kwargs)
