@@ -1,6 +1,5 @@
 from datetime import datetime, timezone
 import json
-import threading
 import uuid
 from enum import Enum
 from typing import (
@@ -18,7 +17,7 @@ from typing import (
 from .types import IDatabase
 from .locks import LockManager
 from .vectors import NumpyVectorIndex as VectorIndex
-from .manager import ManagerBase, synced
+from .manager import ManagerBase, synced, emits
 
 import numpy as np
 
@@ -152,6 +151,7 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
     def _needs_compactation(self):
         return self._vector_index.delta_size >= 100
 
+    @synced
     def compact(self):
         """
         Triggers a compaction of the vector index for all processes.
@@ -159,15 +159,12 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
         If a compaction is already running for this collection, this method returns
         immediately without starting a new one.
         """
-        with self._internal_lock:
-            # Attempt to acquire compact lock, if this fails, someone is compacting
-            if self._compact_lock.acquire():
-                # Do compact
-                cursor = self._db.connection.cursor()
-                self._vector_index.compact(cursor)
-                # And release the lock
-                self._compact_lock.release()
+        if self._compact_lock.acquire(block=False):
+            cursor = self._db.connection.cursor()
+            self._vector_index.compact(cursor)
+            self._compact_lock.release()
 
+    @emits("index", payload=lambda document, *args, **kwargs: dict(id=document.id))
     @synced
     def index(
         self,
@@ -247,6 +244,7 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
         if self._needs_compactation():
             self.compact()
 
+    @emits("drop", payload=lambda document, *args, **kwargs: dict(id=document.id))
     @synced
     def drop(self, document: Document[B]):
         """Removes a document and all its associated data from the collection."""
@@ -296,6 +294,7 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
             )
         cursor.close()
 
+    @synced
     def search(
         self, vector: list[float], top_k: int = 10
     ) -> List[Tuple[Document[B], float]]:
@@ -326,6 +325,7 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
         }
 
         final_results = []
+
         for doc_id in result_ids:
             if doc_id in doc_map:
                 doc = doc_map[doc_id]
@@ -334,6 +334,7 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
 
         return final_results
 
+    @synced
     def match(
         self,
         query: str,
@@ -494,28 +495,41 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
                 final_results.append((doc_map[doc_id], float(distance_map[doc_id])))
         return final_results
 
+    @emits(
+        "connect",
+        payload=lambda src, tgt, *args, **kwargs: dict(src_id=src.id, tgt_id=tgt.id),
+    )
+    @synced
     def connect(self, source: Document, target: Document, label: str):
         """Creates a directed edge between two documents."""
         if not isinstance(source, Document) or not isinstance(target, Document):
             raise TypeError("Source and target must be Document objects.")
 
-        with self._db.connection:
-            self._db.connection.execute(
-                "INSERT OR REPLACE INTO beaver_edges (collection, source_item_id, target_item_id, label, metadata) VALUES (?, ?, ?, ?, ?)",
-                (
-                    self._name,
-                    source.id,
-                    target.id,
-                    label,
-                    None,
-                ),
-            )
+        self._db.connection.execute(
+            """INSERT OR REPLACE INTO beaver_edges
+            (collection, source_item_id, target_item_id, label, metadata)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                self._name,
+                source.id,
+                target.id,
+                label,
+                None,
+            ),
+        )
 
     def neighbors(
         self, doc: Document[B], label: str | None = None
     ) -> list[Document[B]]:
         """Retrieves the neighboring documents connected to a given document."""
-        sql = "SELECT DISTINCT t1.item_id, t1.item_vector, t1.metadata FROM beaver_collections AS t1 JOIN beaver_edges AS t2 ON t1.item_id = t2.target_item_id AND t1.collection = t2.collection WHERE t2.collection = ? AND t2.source_item_id = ?"
+        sql = """
+        SELECT DISTINCT t1.item_id, t1.item_vector, t1.metadata
+        FROM beaver_collections AS t1
+        JOIN beaver_edges AS t2
+        ON t1.item_id = t2.target_item_id AND t1.collection = t2.collection
+        WHERE t2.collection = ? AND t2.source_item_id = ?
+        """
         params = [self._name, doc.id]
         if label:
             sql += " AND t2.label = ?"
@@ -552,16 +566,16 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
             else ("target_item_id", "source_item_id")
         )
         sql = f"""
-            WITH RECURSIVE walk_bfs(item_id, current_depth) AS (
-                SELECT ?, 0
-                UNION ALL
-                SELECT edges.{target_col}, bfs.current_depth + 1
-                FROM beaver_edges AS edges JOIN walk_bfs AS bfs ON edges.{source_col} = bfs.item_id
-                WHERE edges.collection = ? AND bfs.current_depth < ? AND edges.label IN ({','.join('?' for _ in labels)})
-            )
-            SELECT DISTINCT t1.item_id, t1.item_vector, t1.metadata
-            FROM beaver_collections AS t1 JOIN walk_bfs AS bfs ON t1.item_id = bfs.item_id
-            WHERE t1.collection = ? AND bfs.current_depth > 0
+        WITH RECURSIVE walk_bfs(item_id, current_depth) AS (
+            SELECT ?, 0
+            UNION ALL
+            SELECT edges.{target_col}, bfs.current_depth + 1
+            FROM beaver_edges AS edges JOIN walk_bfs AS bfs ON edges.{source_col} = bfs.item_id
+            WHERE edges.collection = ? AND bfs.current_depth < ? AND edges.label IN ({','.join('?' for _ in labels)})
+        )
+        SELECT DISTINCT t1.item_id, t1.item_vector, t1.metadata
+        FROM beaver_collections AS t1 JOIN walk_bfs AS bfs ON t1.item_id = bfs.item_id
+        WHERE t1.collection = ? AND bfs.current_depth > 0
         """
         params = [source.id, self._name, depth] + labels + [self._name]
 
@@ -633,6 +647,7 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
 
         return dump_object
 
+    @synced
     def clear(self):
         """
         Atomically removes all documents and associated data (vectors,
@@ -641,36 +656,32 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
         This operation is protected by the manager's inter-process lock
         and will reset the vector index.
         """
-        with self:  # Acquires self._lock
-            with self._db.connection:
-                cursor = self._db.connection.cursor()
+        cursor = self._db.connection.cursor()
 
-                # 1. Delete from all related tables
-                tables_to_clear = [
-                    "beaver_collections",
-                    "beaver_fts_index",
-                    "beaver_trigrams",
-                    "beaver_edges",
-                ]
-                for table in tables_to_clear:
-                    cursor.execute(
-                        f"DELETE FROM {table} WHERE collection = ?", (self._name,)
-                    )
+        # 1. Delete from all related tables
+        tables_to_clear = [
+            "beaver_collections",
+            "beaver_fts_index",
+            "beaver_trigrams",
+            "beaver_edges",
+        ]
+        for table in tables_to_clear:
+            cursor.execute(f"DELETE FROM {table} WHERE collection = ?", (self._name,))
 
-                # 2. Clear vector-specific tables
-                cursor.execute(
-                    "DELETE FROM _vector_change_log WHERE collection_name = ?",
-                    (self._name,),
-                )
-                cursor.execute(
-                    "DELETE FROM beaver_collection_versions WHERE collection_name = ?",
-                    (self._name,),
-                )
+        # 2. Clear vector-specific tables
+        cursor.execute(
+            "DELETE FROM _vector_change_log WHERE collection_name = ?",
+            (self._name,),
+        )
+        cursor.execute(
+            "DELETE FROM beaver_collection_versions WHERE collection_name = ?",
+            (self._name,),
+        )
 
-            # 3. Reset the in-memory vector index
-            # Re-initializing the VectorIndex is the cleanest way
-            # to reset its internal state.
-            self._vector_index = VectorIndex(self._name, self._db)
+        # 3. Reset the in-memory vector index
+        # Re-initializing the VectorIndex is the cleanest way
+        # to reset its internal state.
+        self._vector_index = VectorIndex(self._name, self._db)
 
 
 def rerank[B: BaseModel](

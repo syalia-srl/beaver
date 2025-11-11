@@ -7,7 +7,7 @@ from typing import IO, Iterator, Literal, NamedTuple, overload
 from pydantic import BaseModel
 
 from beaver.cache import cached, invalidates_cache
-from .manager import ManagerBase, synced
+from .manager import ManagerBase, synced, emits
 
 
 class QueueItem[T](NamedTuple):
@@ -57,6 +57,7 @@ class QueueManager[T: BaseModel](ManagerBase[T]):
     producer-consumer priority queue.
     """
 
+    @emits("put", payload=lambda *args, **kwargs: dict())
     @synced
     @invalidates_cache
     def put(self, data: T, priority: float):
@@ -120,6 +121,7 @@ class QueueManager[T: BaseModel](ManagerBase[T]):
     @overload
     def get(self, block: Literal[False]) -> QueueItem[T]: ...
 
+    @emits("get", payload=lambda *args, **kwargs: dict())
     @synced
     @invalidates_cache
     def get(self, block: bool = True, timeout: float | None = None) -> QueueItem[T]:
@@ -265,6 +267,7 @@ class QueueManager[T: BaseModel](ManagerBase[T]):
 
         return dump_object
 
+    @emits("clear", payload=lambda *args, **kwargs: dict())
     @synced
     @invalidates_cache
     def clear(self):

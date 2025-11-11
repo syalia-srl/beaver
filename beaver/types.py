@@ -1,6 +1,6 @@
 import json
 import sqlite3
-from typing import Any, Optional, Protocol, Type, Self, runtime_checkable
+from typing import Any, Callable, Optional, Protocol, Type, Self, runtime_checkable
 
 from .cache import ICache
 
@@ -12,6 +12,19 @@ class IDatabase(Protocol):
     def singleton[T, M](
         self, cls: Type[M], name: str, model: Type[T] | None = None, **kwargs
     ) -> M: ...
+    def emit(self, topic: str, event: str, payload: dict) -> bool: ...
+    def on(
+        self,
+        topic: str,
+        event: str,
+        callback: Callable,
+    ): ...
+    def off(
+        self,
+        topic: str,
+        event: str,
+        callback: Callable,
+    ): ...
 
 
 @runtime_checkable

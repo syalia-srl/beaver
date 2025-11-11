@@ -1,11 +1,45 @@
 import json
 import functools
 import sqlite3
-from typing import Type, Optional, Self
+from typing import Callable, Type, Optional, Self
+import weakref
 from pydantic import BaseModel
 from .types import IDatabase
 from .locks import LockManager
 from .cache import ICache
+
+
+class EventHandle:
+    """
+    Public-facing handle returned by `ManagerBase.on()`.
+
+    Allows the user to close their specific callback listener
+    by calling the central _unregister method on the DB instance.
+    """
+
+    def __init__(
+        self,
+        db: IDatabase,
+        topic: str,
+        event: str,
+        callback: Callable,
+    ):
+        # Use weakref to prevent circular dependencies
+        self._db_ref = weakref.ref(db)
+        self._topic = topic
+        self._event = event
+        self._callback = callback
+        self._closed = False
+
+    def off(self):
+        """Removes the callback from the central registry. Cannot be undone."""
+        if self._closed:
+            return
+
+        if db := self._db_ref():
+            db.off(self._topic, self._event, self._callback)
+
+        self._closed = True
 
 
 class ManagerBase[T: BaseModel]:
@@ -35,7 +69,7 @@ class ManagerBase[T: BaseModel]:
         self._name = name
         self._db = db
         self._model = model
-        self._cache_key = f"{manager_type_prefix}:{self._name}"
+        self._topic = f"{manager_type_prefix}:{self._name}"
 
         # Public lock for batch operations (from Issue #10)
         public_lock_name = f"__lock__{manager_type_prefix}__{name}"
@@ -69,7 +103,7 @@ class ManagerBase[T: BaseModel]:
         """
         Returns the thread-local cache for this manager.
         """
-        return self._db.cache(self._cache_key)
+        return self._db.cache(self._topic)
 
     def _serialize(self, value: T) -> str:
         """
@@ -143,6 +177,29 @@ class ManagerBase[T: BaseModel]:
         """
         self.release()
 
+    # Events
+
+    def on(self, event: str, callback: Callable) -> EventHandle:
+        """
+        Subscribes to an event on this data structure.
+
+        The callback will be executed in the single, shared background
+        thread owned by the BeaverDB instance. A slow callback will
+        block all other event callbacks.
+
+        Args:
+            event: The type of event to listen for
+                        (e.g., "set", "del", "push", "index").
+            callback: A function to execute when the event occurs.
+                      It will receive the event payload dictionary.
+
+        Returns:
+            An EventListenerHandle object with a .close() method to
+            stop listening.
+        """
+        self._db.on(self._topic, event, callback)
+        return EventHandle(self._db, self._topic, event, callback)
+
 
 def synced(func):
     """
@@ -156,12 +213,37 @@ def synced(func):
     @functools.wraps(func)
     def wrapper(self: ManagerBase, *args, **kwargs):
         """Wraps the function in the internal lock and a transaction."""
-
-        # 1. Acquire the inter-process lock
         with self._internal_lock:
-            # 2. Begin an ACID database transaction
             with self.connection:
-                # 3. Execute the original method
                 return func(self, *args, **kwargs)
 
     return wrapper
+
+
+def emits(event: str | None = None, payload: Callable | None = None):
+    """
+    A decorator to emit an event after a manager method completes.
+
+    The decorated method must return the event payload dictionary.
+    The event will be emitted on the manager's topic with the
+    method name as the event type.
+    """
+
+    def decorator(func: Callable):
+        event_name = event or func.__name__
+        payload_func = payload or (lambda *args, **kwargs: dict(args=args, **kwargs))
+
+        @functools.wraps(func)
+        def wrapper(self: ManagerBase, *args, **kwargs):
+            """Wraps the function to emit an event after execution."""
+
+            payload_data = payload_func(*args, **kwargs)
+            result = func(self, *args, **kwargs)
+
+            # Emit event after successful operation
+            self._db.emit(self._topic, event_name, payload_data)
+            return result
+
+        return wrapper
+
+    return decorator

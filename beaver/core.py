@@ -15,7 +15,13 @@ from .logs import LogManager
 from .manager import ManagerBase
 from .queues import QueueManager
 from .types import IDatabase, ICache, IResourceManager
-from typing import List, Type
+from typing import Any, Callable, List, Type
+
+
+class Event(BaseModel):
+    topic: str
+    event: str
+    payload: dict
 
 
 class BeaverDB(IDatabase):
@@ -34,7 +40,7 @@ class BeaverDB(IDatabase):
         pragma_wal: bool = True,
         pragma_synchronous: bool = False,
         pragma_temp_memory: bool = True,
-        pragma_mmap_size: int = 0,
+        pragma_mmap_size: int = 256 * 1024 * 1024,
     ):
         """
         Initializes the database connection and creates all necessary tables.
@@ -75,12 +81,94 @@ class BeaverDB(IDatabase):
         self._connections = set[sqlite3.Connection]()
         self._connections_lock = threading.Lock()
 
+        # This is the central registry for *this process's* callbacks.
+        # Key: "dict:config:set", Value: [list_of_callbacks]
+        self._event_callbacks: dict[str, list[Callable]] = {}
+        self._event_callback_lock = threading.Lock()
+
+        # The single, central event-listening thread
+        self._event_listener_stop_event = threading.Event()
+        self._event_listener_thread = threading.Thread(
+            target=self._subscriber_loop,
+            args=(self._event_listener_stop_event,),
+            daemon=True,
+        )
+
         # Initialize the schemas. This will implicitly create the first
         # connection for the main thread via the `connection` property.
         self._create_all_tables()
 
         # check current version against the version stored
         self._check_version()
+
+    def _subscriber_loop(self, stop_event: threading.Event):
+        """
+        The single, central background thread for this BeaverDB instance.
+
+        Listens to the __beaver_events__ channel and dispatches
+        payloads to local callbacks.
+        """
+        with self.channel("__beaver_events__", model=Event).subscribe() as listener:
+            while not stop_event.is_set():
+                try:
+                    # Poll with a timeout to remain responsive to stop_event
+                    for message in listener.listen(timeout=0.2):
+                        # Reconstruct the full key to find callbacks
+                        full_topic_key = f"{message.topic}:{message.event}"
+
+                        with self._event_callback_lock:
+                            # Get a copy of the list to run
+                            callbacks_to_run = list(
+                                self._event_callbacks.get(full_topic_key, [])
+                            )
+
+                        # Run callbacks
+                        for callback in callbacks_to_run:
+                            try:
+                                callback(message.payload)
+                            except Exception:
+                                pass  # Suppress user callback errors
+                except TimeoutError:
+                    continue  # Normal timeout, just check stop_event
+
+    def _register_event_listener(
+        self, full_topic_key: str, callback: Callable[[dict], Any]
+    ):
+        """
+        Adds a callback to the central registry and increments
+        the global counter if this is the first local listener.
+        """
+        with self._event_callback_lock:
+            # Add the callback to the local dispatch table
+            self._event_callbacks.setdefault(full_topic_key, []).append(callback)
+
+            with self.dict("__beaver_event_registry__") as registry:
+                global_count = registry.get(full_topic_key, 0)
+                registry[full_topic_key] = global_count + 1
+
+    def _unregister_event_listener(
+        self, full_topic_key: str, callback: Callable[[dict], Any]
+    ):
+        """
+        Removes a callback from the central registry and decrements
+        the global counter if this is the last local listener.
+        """
+        with self._event_callback_lock:
+            try:
+                self._event_callbacks[full_topic_key].remove(callback)
+                if not self._event_callbacks[full_topic_key]:
+                    self._event_callbacks.pop(full_topic_key)
+            except (ValueError, KeyError):
+                return  # Already removed
+
+            # We MUST decrement the global count
+            with self.dict("__beaver_event_registry__") as registry:
+                global_count = registry.get(full_topic_key, 1)
+
+                if global_count <= 1:
+                    registry.pop(full_topic_key, None)
+                else:
+                    registry[full_topic_key] = global_count - 1
 
     def singleton[T: BaseModel, M: ManagerBase](  # type: ignore
         self, cls: Type[M], name: str, model: Type[T] | None = None, **kwargs
@@ -467,7 +555,13 @@ class BeaverDB(IDatabase):
 
         self._closed.set()
 
-        # 1. Shut down all managers (stops Channels, Logs, Event Listeners)
+        # Stop the central event listener
+        self._event_listener_stop_event.set()
+
+        if self._event_listener_thread.is_alive():
+            self._event_listener_thread.join(timeout=1.0)
+
+        # Shut down all managers (stops Channels, Logs, Event Listeners)
         with self._manager_cache_lock:
             for instance in self._manager_cache.values():
                 # Check if the instance has a 'close' method and call it
@@ -482,25 +576,45 @@ class BeaverDB(IDatabase):
 
             self._manager_cache.clear()
 
-        # 2. Force-close ALL tracked connections for this instance
-        with self._connections_lock:
-            for conn in self._connections:
-                try:
-                    conn.close()
-                except Exception as e:
-                    warnings.warn(
-                        f"Error closing tracked connection. Exception ignored: {str(e)}.",
-                        stacklevel=2,
-                    )
-            self._connections.clear()
+        # Force-close ALL tracked connections for this instance
+        # with self._connections_lock:
+        #     for conn in self._connections:
+        #         try:
+        #             conn.close()
+        #         except Exception as e:
+        #             pass
+        #     self._connections.clear()
 
         # 3. Clear the current thread's connection just in case
         conn = getattr(self._thread_local, "conn", None)
         if conn is not None:
-            try:
-                del self._thread_local.conn
-            except Exception:
-                pass
+            conn.close()
+
+    def emit(self, topic: str, event: str, payload: dict) -> bool:
+        """
+        Internal event emitter with a single, global check for efficiency.
+
+        This is called by managers (e.g., DictManager) on a mutation.
+        Returns True if the event was published, False if no listeners exist.
+        """
+        full_topic_key = f"{topic}:{event}"
+
+        # Check the global, cross-process registry.
+        registry = self.dict("__beaver_event_registry__")
+
+        if registry.get(full_topic_key, 0) <= 0:
+            return False  # No one is listening anywhere, so do nothing.
+
+        # Someone is listening, so publish to the single global channel.
+        event_data = Event(
+            topic=topic,
+            event=event,
+            payload=payload,
+        )
+
+        # This is the single, central channel.
+        self.channel("__beaver_events__", model=Event).publish(event_data)
+        return True
 
     def __enter__(self) -> "BeaverDB":
         """Enables context manager support."""

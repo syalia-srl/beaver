@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pydantic import BaseModel
 
 from .cache import cached, invalidates_cache
-from .manager import ManagerBase, synced
+from .manager import ManagerBase, synced, emits
 
 
 class ListManager[T: BaseModel](ManagerBase[T]):
@@ -135,18 +135,19 @@ class ListManager[T: BaseModel](ManagerBase[T]):
         else:
             raise TypeError("List indices must be integers or slices.")
 
+    @emits("set", payload=lambda index, *args, **kwargs: dict(index=index))
     @synced
     @invalidates_cache
-    def __setitem__(self, key: int, value: T):
+    def __setitem__(self, index: int, value: T):
         """Sets the value of an item at a specific index (e.g., `my_list[0] = 'new'`)."""
-        if not isinstance(key, int):
+        if not isinstance(index, int):
             raise TypeError("List indices must be integers.")
 
         list_len = len(self)
-        if key < -list_len or key >= list_len:
+        if index < -list_len or index >= list_len:
             raise IndexError("List index out of range.")
 
-        offset = key if key >= 0 else list_len + key
+        offset = index if index >= 0 else list_len + index
 
         cursor = self.connection.cursor()
         # Find the rowid of the item to update
@@ -165,18 +166,19 @@ class ListManager[T: BaseModel](ManagerBase[T]):
             (self._serialize(value), rowid_to_update),
         )
 
+    @emits("del", payload=lambda index, *args, **kwargs: dict(index=index))
     @synced
     @invalidates_cache
-    def __delitem__(self, key: int):
+    def __delitem__(self, index: int):
         """Deletes an item at a specific index (e.g., `del my_list[0]`)."""
-        if not isinstance(key, int):
+        if not isinstance(index, int):
             raise TypeError("List indices must be integers.")
 
         list_len = len(self)
-        if key < -list_len or key >= list_len:
+        if index < -list_len or index >= list_len:
             raise IndexError("List index out of range.")
 
-        offset = key if key >= 0 else list_len + key
+        offset = index if index >= 0 else list_len + index
 
         cursor = self.connection.cursor()
         # Find the rowid of the item to delete
@@ -234,6 +236,7 @@ class ListManager[T: BaseModel](ManagerBase[T]):
 
         raise IndexError(f"{index} out of range.")
 
+    @emits("push", payload=lambda *args, **kwargs: dict())
     @synced
     @invalidates_cache
     def push(self, value: T):
@@ -251,6 +254,7 @@ class ListManager[T: BaseModel](ManagerBase[T]):
             (self._name, new_order, self._serialize(value)),
         )
 
+    @emits("prepend", payload=lambda *args, **kwargs: dict())
     @synced
     @invalidates_cache
     def prepend(self, value: T):
@@ -268,6 +272,7 @@ class ListManager[T: BaseModel](ManagerBase[T]):
             (self._name, new_order, self._serialize(value)),
         )
 
+    @emits("insert", payload=lambda index, *args, **kwargs: dict(index=index))
     @synced
     @invalidates_cache
     def insert(self, index: int, value: T):
@@ -290,6 +295,7 @@ class ListManager[T: BaseModel](ManagerBase[T]):
             (self._name, new_order, self._serialize(value)),
         )
 
+    @emits("pop", payload=lambda *args, **kwargs: dict())
     @synced
     @invalidates_cache
     def pop(self) -> T | None:
@@ -307,6 +313,7 @@ class ListManager[T: BaseModel](ManagerBase[T]):
         cursor.execute("DELETE FROM beaver_lists WHERE rowid = ?", (rowid_to_delete,))
         return self._deserialize(value_to_return)
 
+    @emits("deque", payload=lambda *args, **kwargs: dict())
     @synced
     @invalidates_cache
     def deque(self) -> T | None:
@@ -324,6 +331,7 @@ class ListManager[T: BaseModel](ManagerBase[T]):
         cursor.execute("DELETE FROM beaver_lists WHERE rowid = ?", (rowid_to_delete,))
         return self._deserialize(value_to_return)
 
+    @emits("clear", payload=lambda *args, **kwargs: dict())
     @synced
     @invalidates_cache
     def clear(self):
