@@ -2,7 +2,7 @@ default: test-unit
 
 .PHONY: format
 format:
-	black .
+	black . && git commit -am "Apply code formatting"
 
 .PHONY: format-check
 format-check:
