@@ -1,7 +1,7 @@
 ---
 number: 23
 title: "Global Event Listeners API"
-state: open
+state: closed
 labels:
 ---
 
