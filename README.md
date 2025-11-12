@@ -7,9 +7,9 @@
 <!-- Project badges -->
 ![PyPI - Version](https://img.shields.io/pypi/v/beaver-db)
 ![PyPi - Python Version](https://img.shields.io/pypi/pyversions/beaver-db)
-![Github - Open Issues](https://img.shields.io/github/issues-raw/apiad/beaver)
+![Github - Open Issues](https://img.shields.io/github/issues-raw/syalia-srl/beaver)
 ![PyPi - Downloads (Monthly)](https://img.shields.io/pypi/dm/beaver-db)
-![Github - Commits](https://img.shields.io/github/commit-activity/m/apiad/beaver)
+![Github - Commits](https://img.shields.io/github/commit-activity/m/syalia-srl/beaver)
 
 -----
 
