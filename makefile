@@ -63,7 +63,7 @@ release:
 
 	@echo "Committing version bump..."
 	@git add pyproject.toml beaver/__init__.py
-	@echo git commit -m "Bump version to $(NEW_VERSION)"
+	@git commit -m "Bump version to $(NEW_VERSION)"
 
 	@echo "Tagging new version..."
 	@git tag "v$(NEW_VERSION)"
