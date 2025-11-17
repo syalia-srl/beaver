@@ -1,46 +1,56 @@
-# Main configuration for the BeaverDB Quarto book
-
+# Main configuration for the BeaverDB Quarto website
 project:
-  type: book
-  output-dir: _book
+  type: website
+  output-dir: _site
 
-# Book-level metadata
-book:
-  title: "BeaverDB: The Complete Guide"
-  author: "SYALIA S.R.L."
-  license: "CC BY-NC-SA 4.0"
+# Website-level metadata
+website:
+  title: "BeaverDB"
+  # author: "SYALIA S.R.L."
+  # license: "CC BY-NC-SA 4.0"
 
-  chapters:
-    - index.md
-    - quickstart.md
-    - guide.md
 
-    - part: "The User Guide"
-      chapters:
-        - guide-dicts-blobs.md
-        - guide-lists-queues.md
-        - guide-collections.md
-        - guide-realtime.md
-        - guide-concurrency.md
-        - guide-deployment.md
-
-    - part: "The Developer Guide"
-      chapters:
-        - dev-architecture.md
-        - dev-concurrency.md
-        - dev-search.md
-        - dev-contributing.md
-
-  # Sidebar navigation options
-  sidebar:
+  # --- Navigation Bar ---
+  navbar:
     logo: "logo.png"
     pinned: true
     search: true
-    style: "docked"
-    collapse-level: 1
+    left:
+      - href: index.html
+        text: Home
+      - href: intro.md
+        text: Introduction
+      - href: quickstart.md
+        text: Quickstart
+      - text: "User Guide"
+        menu:
+          - href: guide.md
+            text: Feature Summary
+          - href: guide-dicts-blobs.md
+            text: Dictionaries & Blobs
+          - href: guide-lists-queues.md
+            text: Lists & Queues
+          - href: guide-collections.md
+            text: Collections (Vector/FTS/Graph)
+          - href: guide-realtime.md
+            text: Real-Time Data (Pub/Sub)
+          - href: guide-concurrency.md
+            text: Concurrency & Locking
+          - href: guide-deployment.md
+            text: Deployment & API
+      - text: "Developer Guide"
+        menu:
+          - href: dev-architecture.md
+            text: Core Architecture
+          - href: dev-concurrency.md
+            text: Concurrency Model
+          - href: dev-search.md
+            text: Search Internals
+          - href: dev-contributing.md
+            text: Contributing
 
+# --- HTML Output Format ---
 format:
-  # HTML output format (the website)
   html:
     theme:
       light: cosmo
@@ -49,14 +59,14 @@ format:
     toc-depth: 3
     code-fold: true
     code-copy: true
-    # code-line-numbers: true
     mainfont: "Inter"
 
-  # PDF output format
-  pdf:
-    documentclass: scrreprt
-    papersize: a4
-    toc: true
-    toc-depth: 3
-    number-sections: true
-    colorlinks: true
+# # --- PDF Output Format (Optional) ---
+# # This format can still be used to generate a PDF of individual pages
+#   pdf:
+#     documentclass: scrreprt
+#     papersize: a4
+#     toc: true
+#     toc-depth: 3
+#     number-sections: true
+#     colorlinks: true

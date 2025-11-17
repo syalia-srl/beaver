@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en" class=""> <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BeaverDB - Your Local-First Database</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Base font */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Removed language toggle styles */
+    </style>
+    <script>
+        // On page load, check stored theme and apply it
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+</head>
+
+<body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 antialiased">
+
+    <nav class="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex-shrink-0 flex items-center">
+                    <a href="#">
+                        <img class="h-10 w-auto" src="logo.png" alt="BeaverDB Logo">
+                    </a>
+                </div>
+
+                <div class="hidden md:flex md:space-x-8 ml-10">
+                    <a href="#features" class="font-medium text-gray-600 dark:text-gray-300 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">Features</a>
+                    <a href="#use-cases" class="font-medium text-gray-600 dark:text-gray-300 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">Use Cases</a>
+                    <a href="#philosophy" class="font-medium text-gray-600 dark:text-gray-300 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">Philosophy</a>
+                    <a href="#deployment" class="font-medium text-gray-600 dark:text-gray-300 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">Deployment</a>
+                    <a href="#faq" class="font-medium text-gray-600 dark:text-gray-300 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">FAQ</a>
+                </div>
+
+                <div class="flex items-center space-x-4">
+                    <a href="https://github.com/syalia-srl/beaver" target="_blank" class="hidden md:inline-flex items-center bg-gray-700 text-white font-semibold px-4 py-2 rounded-lg shadow-md hover:bg-gray-800 dark:bg-gray-200 dark:text-gray-900 dark:hover:bg-white transition duration-300 text-sm">
+                        View on GitHub
+                    </a>
+
+                    <button id="theme-toggle" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors duration-200 rounded-full p-1">
+                        <span class="material-icons" id="theme-icon">light_mode</span>
+                    </button>
+
+                    <button id="mobile-menu-button" class="md:hidden text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors duration-200 rounded-full p-1">
+                        <span class="material-icons" id="mobile-menu-icon">menu</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="mobile-menu" class="hidden md:hidden">
+                <div class="py-4 space-y-3 border-t border-gray-200 dark:border-gray-700">
+                    <a href="#features" class="mobile-menu-link block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Features</a>
+                    <a href="#use-cases" class="mobile-menu-link block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Use Cases</a>
+                    <a href="#philosophy" class="mobile-menu-link block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Philosophy</a>
+                    <a href="#deployment" class="mobile-menu-link block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Deployment</a>
+                    <a href="#faq" class="mobile-menu-link block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">FAQ</a>
+
+                    <a href="https://github.com/syalia-srl/beaver" target="_blank" class="block w-full text-center bg-gray-700 text-white font-semibold px-4 py-2 rounded-lg shadow-md hover:bg-gray-800 dark:bg-gray-200 dark:text-gray-900 dark:hover:bg-white transition duration-300">
+                        View on GitHub
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <header class="bg-white dark:bg-gray-800 pt-16 pb-12 sm:pt-24 sm:pb-16">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <div>
+                <h1 class="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 dark:text-white leading-tight">
+                    Meet <span class="text-emerald-500 dark:text-emerald-400">BeaverDB</span>
+                </h1>
+                <p class="mt-4 text-lg sm:text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+                    A simple, local-first, and embedded database for modern data, built on SQLite.
+                </p>
+                <div class="mt-8 flex flex-col sm:flex-row justify-center items-center gap-4">
+                    <a href="#features"
+                        class="inline-flex items-center justify-center bg-emerald-500 text-white font-semibold px-8 py-3 rounded-lg shadow-md hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-700 transition duration-300 w-full sm:w-auto">
+                        <span class="material-icons mr-2">explore</span>
+                        <span>Discover Features</span>
+                    </a>
+                    <a href="intro.html"
+                        class="inline-flex items-center justify-center bg-gray-200 text-gray-800 font-semibold px-8 py-3 rounded-lg shadow-md hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 transition duration-300 w-full sm:w-auto">
+                        <span class="material-icons mr-2">rocket_launch</span>
+                        <span>View Docs</span>
+                    </a>
+                </div>
+            </div>
+            </div>
+    </header>
+
+    <section id="features" class="py-16 sm:py-24 bg-gray-50 dark:bg-gray-900">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center">
+                <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
+                    Multi-Modal Power in a Single File
+                </h2>
+                <p class="mt-4 text-lg text-gray-600 dark:text-gray-300">
+                    Everything you need for modern AI and data applications.
+                </p>
+            </div>
+
+            <div class="mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+
+                <div
+                    class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg dark:shadow-2xl transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center h-12 w-12 rounded-md bg-emerald-500 dark:bg-emerald-600 text-white">
+                            <span class="material-icons">search</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Document & Vector Search</h3>
+                        <p class="mt-2 text-base text-gray-600 dark:text-gray-300">Store documents with vector embeddings. Perform fast vector search, full-text search (FTS), and typo-tolerant fuzzy search.</p>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg dark:shadow-2xl transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center h-12 w-12 rounded-md bg-emerald-500 dark:bg-emerald-600 text-white">
+                            <span class="material-icons">data_object</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Pythonic Data Structures</h3>
+                        <p class="mt-2 text-base text-gray-600 dark:text-gray-300">Use persistent data structures that feel just like native Python: Dictionaries (`db.dict`), Lists (`db.list`), and Priority Queues (`db.queue`).</p>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg dark:shadow-2xl transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center h-12 w-12 rounded-md bg-emerald-500 dark:bg-emerald-600 text-white">
+                            <span class="material-icons">hub</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Knowledge Graph</h3>
+                        <p class="mt-2 text-base text-gray-600 dark:text-gray-300">Create directed, labeled relationships between documents. Traverse your data with `.neighbors()` or multi-hop `.walk()` queries.</p>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg dark:shadow-2xl transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center h-12 w-12 rounded-md bg-emerald-500 dark:bg-emerald-600 text-white">
+                            <span class="material-icons">rss_feed</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Real-time Pub/Sub</h3>
+                        <p class="mt-2 text-base text-gray-600 dark:text-gray-300">Use `db.channel` for high-efficiency, multi-process messaging. Publish events and subscribe to them in real-time from other processes.</p>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg dark:shadow-2xl transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center h-12 w-12 rounded-md bg-emerald-500 dark:bg-emerald-600 text-white">
+                            <span class="material-icons">lock</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Inter-Process Locking</h3>
+                        <p class="mt-2 text-base text-gray-600 dark:text-gray-300">Safely coordinate multiple processes. Use `db.lock()` to prevent race conditions or `with db.list(...)` for atomic batch operations.</p>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg dark:shadow-2xl transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center h-12 w-12 rounded-md bg-emerald-500 dark:bg-emerald-600 text-white">
+                            <span class="material-icons">verified</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Type-Safe with Pydantic</h3>
+                        <p class="mt-2 text-base text-gray-600 dark:text-gray-300">Pass a `model=...` parameter to any data structure for automatic, recursive data validation and (de)serialization with Pydantic.</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <section id="use-cases" class="py-16 sm:py-24 bg-white dark:bg-gray-800">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center">
+                <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
+                    Ideal Use Cases
+                </h2>
+                <p class="mt-4 text-lg text-gray-600 dark:text-gray-300">
+                    BeaverDB shines where simplicity and local performance matter most.
+                </p>
+            </div>
+
+            <div class="mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+
+                <div
+                    class="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg shadow-lg dark:shadow-2xl transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:bg-white dark:hover:bg-gray-800">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center h-12 w-12 rounded-md bg-emerald-500 dark:bg-emerald-600 text-white">
+                            <span class="material-icons">psychology</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Local AI & RAG</h3>
+                        <ul class="mt-2 text-base text-gray-600 dark:text-gray-300 space-y-2 list-disc list-inside text-left">
+                            <li>Build RAG apps that run on-device.</li>
+                            <li>Store vector embeddings and text together.</li>
+                            <li>Use hybrid search (vector + FTS).</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg shadow-lg dark:shadow-2xl transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:bg-white dark:hover:bg-gray-800">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center h-12 w-12 rounded-md bg-emerald-500 dark:bg-emerald-600 text-white">
+                            <span class="material-icons">construction</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Desktop & CLI Tools</h3>
+                        <ul class="mt-2 text-base text-gray-600 dark:text-gray-300 space-y-2 list-disc list-inside text-left">
+                            <li>Remember user preferences.</li>
+                            <li>Manage task history.</li>
+                            <li>Cache results from slow APIs.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg shadow-lg dark:shadow-2xl transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:bg-white dark:hover:bg-gray-800">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center h-12 w-12 rounded-md bg-emerald-500 dark:bg-emerald-600 text-white">
+                            <span class="material-icons">bolt</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Rapid Prototyping</h3>
+                        <ul class="mt-2 text-base text-gray-600 dark:text-gray-300 space-y-2 list-disc list-inside text-left">
+                            <li>Get started in seconds with zero config.</li>
+                            <li>Use a single `.db` file for all data.</li>
+                            <li>Scale to a server with `beaver serve`.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg shadow-lg dark:shadow-2xl transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:bg-white dark:hover:bg-gray-800">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center h-12 w-12 rounded-md bg-emerald-500 dark:bg-emerald-600 text-white">
+                            <span class="material-icons">chat</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Chatbots & Agents</h3>
+                        <ul class="mt-2 text-base text-gray-600 dark:text-gray-300 space-y-2 list-disc list-inside text-left">
+                            <li>Store conversation history in a `db.list`.</li>
+                            <li>Manage agent tasks with a `db.queue`.</li>
+                            <li>Use `db.channel` for real-time UI updates.</li>
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+
+    <section id="philosophy" class="py-16 sm:py-24 bg-gray-50 dark:bg-gray-900">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center">
+                <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
+                    A Simple, Robust Philosophy
+                </h2>
+                <p class="mt-4 text-lg text-gray-600 dark:text-gray-300">
+                    Designed for a great developer experience.
+                </p>
+            </div>
+
+            <div class="mt-16 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div class="space-y-8">
+                    <div>
+                        <div class="flex items-center">
+                            <span class="material-icons text-emerald-500 dark:text-emerald-400 text-3xl">save</span>
+                            <h3 class="ml-3 text-xl font-semibold text-gray-900 dark:text-white">Local-First & Embedded</h3>
+                        </div>
+                        <p class="mt-2 text-base text-gray-600 dark:text-gray-300">
+                            The default mode is a single SQLite file. It's fast, portable, and requires zero configuration.
+                        </p>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center">
+                            <span class="material-icons text-emerald-500 dark:text-emerald-400 text-3xl">build_circle</span>
+                            <h3 class="ml-3 text-xl font-semibold text-gray-900 dark:text-white">Standard SQLite</h3>
+                        </div>
+                        <p class="mt-2 text-base text-gray-600 dark:text-gray-300">
+                            The `.db` file is 100% compatible with any standard SQLite tool. No magic, no proprietary formats.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="space-y-8">
+                    <div>
+                        <div class="flex items-center">
+                            <span class="material-icons text-emerald-500 dark:text-emerald-400 text-3xl">extension</span>
+                            <h3 class="ml-3 text-xl font-semibold text-gray-900 dark:text-white">Minimal Dependencies</h3>
+                        </div>
+                        <p class="mt-2 text-base text-gray-600 dark:text-gray-300">
+                            The core library is small. Advanced features like the REST server are optional extras, so you only install what you need.
+                        </p>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center">
+                            <span class="material-icons text-emerald-500 dark:text-emerald-400 text-3xl">sync_lock</span>
+                            <h3 class="ml-3 text-xl font-semibold text-gray-900 dark:text-white">Safe Concurrency</h3>
+                        </div>
+                        <p class="mt-2 text-base text-gray-600 dark:text-gray-300">
+                            Thread-safe and multi-process-safe by default, with robust inter-process locking for complex operations.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <section id="deployment" class="py-16 sm:py-24 bg-white dark:bg-gray-800">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center">
+                <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
+                    Use Locally, Deploy as a Server
+                </h2>
+                <p class="mt-4 text-lg text-gray-600 dark:text-gray-300">
+                    Run BeaverDB where you need it most.
+                </p>
+            </div>
+
+            <div class="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8">
+
+                <div
+                    class="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg shadow-lg dark:shadow-2xl text-center transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:bg-white dark:hover:bg-gray-800">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center h-12 w-12 rounded-md bg-emerald-500 dark:bg-emerald-600 text-white mx-auto">
+                            <span class="material-icons">computer</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Embedded (Local-First)</h3>
+                        <p class="mt-2 text-base text-gray-600 dark:text-gray-300">The default mode. Your data lives in a single `.db` file in your project directory. Perfect for local apps, utilities, and prototypes.</p>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg shadow-lg dark:shadow-2xl text-center transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:bg-white dark:hover:bg-gray-800">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center h-12 w-12 rounded-md bg-emerald-500 dark:bg-emerald-600 text-white mx-auto">
+                            <span class="material-icons">dns</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">REST API Server</h3>
+                        <p class="mt-2 text-base text-gray-600 dark:text-gray-300">Instantly expose your database over HTTP. Run `beaver serve` to start a FastAPI server for remote access from any client.</p>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg shadow-lg dark:shadow-2xl text-center transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:bg-white dark:hover:bg-gray-800">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center h-12 w-12 rounded-md bg-emerald-500 dark:bg-emerald-600 text-white mx-auto">
+                            <span class="material-icons">deployed_code</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Docker Container</h3>
+                        <p class="mt-2 text-base text-gray-600 dark:text-gray-300">Pull the official Docker image for a stable, containerized deployment. Mount a volume to persist your data and run as a service.</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <section id="cta" class="py-16 sm:py-24 bg-gray-50 dark:bg-gray-900">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center">
+                <div>
+                    <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
+                        Ready to get started?
+                    </h2>
+                    <p class="mt-4 text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+                        Check out the Quickstart guide or browse the full documentation.
+                    </p>
+                    <br>
+                    <a href="quickstart.md"
+                        class="inline-flex items-center justify-center bg-emerald-500 text-white font-semibold px-8 py-3 rounded-lg shadow-md hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-700 transition duration-300 w-full sm:w-auto">
+                        <span class="material-icons mr-2">rocket_launch</span>
+                        <span>Read the Quickstart</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="faq" class="py-16 sm:py-24 bg-white dark:bg-gray-800">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center">
+                <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
+                    Frequently Asked Questions
+                </h2>
+                <p class="mt-4 text-lg text-gray-600 dark:text-gray-300">
+                    Have questions? We have answers.
+                </p>
+            </div>
+
+            <div class="mt-16 max-w-3xl mx-auto space-y-4">
+
+                <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                    <button class="faq-trigger flex justify-between items-center w-full p-6 text-left"
+                        aria-expanded="false">
+                        <span class="font-semibold text-lg text-gray-900 dark:text-white">How is this different from just using `sqlite3`?</span>
+                        <span
+                            class="material-icons text-gray-600 dark:text-gray-400 transform transition-transform duration-300">expand_more</span>
+                    </button>
+                    <div class="faq-content max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
+                        <div class="p-6 pt-0">
+                            <p class="text-base text-gray-600 dark:text-gray-300">
+                                `sqlite3` is a low-level driver. BeaverDB is a high-level, "Pythonic" API on top of it. It provides out-of-the-box solutions for modern data (vectors, graphs, full-text search, pub/sub), robust multi-process and thread-safe access (including `db.lock`), and a `pydantic` integration for type-safe (de)serialization.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                    <button class="faq-trigger flex justify-between items-center w-full p-6 text-left"
+                        aria-expanded="false">
+                        <span class="font-semibold text-lg text-gray-900 dark:text-white">What are the performance limits?</span>
+                        <span
+                            class="material-icons text-gray-600 dark:text-gray-400 transform transition-transform duration-300">expand_more</span>
+                    </button>
+                    <div class="faq-content max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
+                        <div class="p-6 pt-0">
+                            <p class="text-base text-gray-600 dark:text-gray-300">
+                                BeaverDB is extremely fast for local, embedded use cases (zero network latency). It's designed for projects in the "small to medium" range (e.g., thousands to tens-of-thousands of documents). It is *not* designed to replace web-scale databases like PostgreSQL or distributed systems for handling millions of simultaneous users.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                    <button class="faq-trigger flex justify-between items-center w-full p-6 text-left"
+                        aria-expanded="false">
+                        <span class="font-semibold text-lg text-gray-900 dark:text-white">What are "optional dependencies"?</span>
+                        <span
+                            class="material-icons text-gray-600 dark:text-gray-400 transform transition-transform duration-300">expand_more</span>
+                    </button>
+                    <div class="faq-content max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
+                        <div class="p-6 pt-0">
+                            <p class="text-base text-gray-600 dark:text-gray-300">
+                                This keeps the core library minimal. The core `beaver-db` package has minimal dependencies (like `numpy` and `pydantic`). Features that require heavy libraries are "opt-in." For example, to run the REST API server (`beaver serve`), you must install `fastapi` by running `pip install "beaver-db[remote]"`.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <footer class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <p class="text-center text-base text-gray-500 dark:text-gray-400">
+                &copy; 2025 SYALIA, SRL. Licensed under MIT.
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Theme Toggle ---
+            const themeToggle = document.getElementById('theme-toggle');
+            const themeIcon = document.getElementById('theme-icon');
+
+            function updateThemeIcon(theme) {
+                if (themeIcon) {
+                    themeIcon.textContent = theme === 'dark' ? 'dark_mode' : 'light_mode';
+                }
+            }
+
+            // Set initial icon state
+            const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+            updateThemeIcon(currentTheme);
+
+            // Add click listener for the theme toggle
+            if (themeToggle) {
+                themeToggle.addEventListener('click', () => {
+                    // toggle the theme
+                    const isDark = document.documentElement.classList.toggle('dark');
+                    const newTheme = isDark ? 'dark' : 'light';
+
+                    // save preference
+                    localStorage.theme = newTheme;
+
+                    // update icon
+                    updateThemeIcon(newTheme);
+                });
+            }
+
+            // --- FAQ Accordion ---
+            const faqTriggers = document.querySelectorAll('.faq-trigger');
+
+            faqTriggers.forEach(trigger => {
+                trigger.addEventListener('click', () => {
+                    const content = trigger.nextElementSibling; // The .faq-content div
+                    const icon = trigger.querySelector('.material-icons');
+                    const isExpanded = trigger.getAttribute('aria-expanded') === 'true';
+
+                    // Toggle icon rotation
+                    icon.classList.toggle('rotate-180');
+
+                    // Toggle ARIA attribute
+                    trigger.setAttribute('aria-expanded', !isExpanded);
+
+                    // Toggle content visibility
+                    if (content.style.maxHeight) {
+                        // It's open, so close it
+                        content.style.maxHeight = null;
+                    } else {
+                        // It's closed, so open it
+                        // Set max-height to the content's scrollHeight
+                        content.style.maxHeight = content.scrollHeight + 'px';
+                    }
+                });
+            });
+
+            // --- Mobile Menu Toggle ---
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenuIcon = document.getElementById('mobile-menu-icon');
+            const mobileMenu = document.getElementById('mobile-menu');
+            const mobileMenuLinks = document.querySelectorAll('.mobile-menu-link');
+
+            if (mobileMenuButton && mobileMenu && mobileMenuIcon) {
+                mobileMenuButton.addEventListener('click', () => {
+                    const isHidden = mobileMenu.classList.toggle('hidden');
+                    // Toggle icon
+                    mobileMenuIcon.textContent = isHidden ? 'menu' : 'close';
+                });
+
+                // Add click listener to all mobile menu links to close the menu
+                mobileMenuLinks.forEach(link => {
+                    link.addEventListener('click', () => {
+                        mobileMenu.classList.add('hidden');
+                        mobileMenuIcon.textContent = 'menu';
+                    });
+                });
+            }
+
+        });
+    </script>
+</body>
+
+</html>

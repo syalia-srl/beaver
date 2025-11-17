@@ -12,3 +12,4 @@ wheels/
 .env
 .issues-sync-state
 .coverage
+_site
