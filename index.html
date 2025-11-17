@@ -1,740 +1,599 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+<html lang="en" class=""> <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BeaverDB - Your Local-First Database</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        html {
+            scroll-behavior: smooth;
+        }
 
-<meta charset="utf-8">
-<meta name="generator" content="quarto-1.7.30">
+        /* Base font */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-
-<meta name="author" content="SYALIA S.R.L.">
-
-<title>BeaverDB: The Complete Guide</title>
-<style>
-code{white-space: pre-wrap;}
-span.smallcaps{font-variant: small-caps;}
-div.columns{display: flex; gap: min(4vw, 1.5em);}
-div.column{flex: auto; overflow-x: auto;}
-div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
-ul.task-list{list-style: none;}
-ul.task-list li input[type="checkbox"] {
-  width: 0.8em;
-  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
-  vertical-align: middle;
-}
-</style>
-
-
-<script src="site_libs/quarto-nav/quarto-nav.js"></script>
-<script src="site_libs/clipboard/clipboard.min.js"></script>
-<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
-<script src="site_libs/quarto-search/fuse.min.js"></script>
-<script src="site_libs/quarto-search/quarto-search.js"></script>
-<meta name="quarto:offset" content="./">
-<link href="./quickstart.html" rel="next">
-<script src="site_libs/quarto-html/quarto.js" type="module"></script>
-<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
-<script src="site_libs/quarto-html/popper.min.js"></script>
-<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
-<script src="site_libs/quarto-html/anchor.min.js"></script>
-<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-de070a7b0ab54f8780927367ac907214.css" rel="stylesheet" id="quarto-text-highlighting-styles">
-<script src="site_libs/bootstrap/bootstrap.min.js"></script>
-<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-5d653dd4d7566aed16f42eb06e547978.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
-<script id="quarto-search-options" type="application/json">{
-  "location": "sidebar",
-  "copy-button": false,
-  "collapse-after": 3,
-  "panel-placement": "start",
-  "type": "textbox",
-  "limit": 50,
-  "keyboard-shortcut": [
-    "f",
-    "/",
-    "s"
-  ],
-  "show-item-context": false,
-  "language": {
-    "search-no-results-text": "No results",
-    "search-matching-documents-text": "matching documents",
-    "search-copy-link-title": "Copy link to search",
-    "search-hide-matches-text": "Hide additional matches",
-    "search-more-match-text": "more match in this document",
-    "search-more-matches-text": "more matches in this document",
-    "search-clear-button-title": "Clear",
-    "search-text-placeholder": "",
-    "search-detached-cancel-button-title": "Cancel",
-    "search-submit-button-title": "Submit",
-    "search-label": "Search"
-  }
-}</script>
-
-
+        /* Removed language toggle styles */
+    </style>
+    <script>
+        // On page load, check stored theme and apply it
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
 </head>
 
-<body class="nav-sidebar docked quarto-light">
+<body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 antialiased">
 
-<div id="quarto-search-results"></div>
-  <header id="quarto-header" class="headroom fixed-top">
-  <nav class="quarto-secondary-nav">
-    <div class="container-fluid d-flex">
-      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
-        <i class="bi bi-layout-text-sidebar-reverse"></i>
-      </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./index.html"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></a></li></ol></nav>
-        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
-        </a>
-      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
-        <i class="bi bi-search"></i>
-      </button>
-    </div>
-  </nav>
-</header>
-<!-- content -->
-<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
-<!-- sidebar -->
-  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
-    <div class="pt-lg-2 mt-2 text-left sidebar-header sidebar-header-stacked">
-      <a href="./index.html" class="sidebar-logo-link">
-      <img src="./logo.png" alt="" class="sidebar-logo py-0 d-lg-inline d-none">
-      </a>
-    <div class="sidebar-title mb-0 py-0">
-      <a href="./">BeaverDB: The Complete Guide</a> 
-    </div>
-      </div>
-        <div class="mt-2 flex-shrink-0 align-items-center">
-        <div class="sidebar-search">
-        <div id="quarto-search" class="" title="Search"></div>
+    <nav class="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex-shrink-0 flex items-center">
+                    <a href="#">
+                        <img class="h-10 w-auto" src="logo.png" alt="BeaverDB Logo">
+                    </a>
+                </div>
+
+                <div class="hidden md:flex md:space-x-8 ml-10">
+                    <a href="#features" class="font-medium text-gray-600 dark:text-gray-300 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">Features</a>
+                    <a href="#use-cases" class="font-medium text-gray-600 dark:text-gray-300 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">Use Cases</a>
+                    <a href="#philosophy" class="font-medium text-gray-600 dark:text-gray-300 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">Philosophy</a>
+                    <a href="#deployment" class="font-medium text-gray-600 dark:text-gray-300 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">Deployment</a>
+                    <a href="#faq" class="font-medium text-gray-600 dark:text-gray-300 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">FAQ</a>
+                </div>
+
+                <div class="flex items-center space-x-4">
+                    <a href="https://github.com/syalia-srl/beaver" target="_blank" class="hidden md:inline-flex items-center bg-gray-700 text-white font-semibold px-4 py-2 rounded-lg shadow-md hover:bg-gray-800 dark:bg-gray-200 dark:text-gray-900 dark:hover:bg-white transition duration-300 text-sm">
+                        View on GitHub
+                    </a>
+
+                    <button id="theme-toggle" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors duration-200 rounded-full p-1">
+                        <span class="material-icons" id="theme-icon">light_mode</span>
+                    </button>
+
+                    <button id="mobile-menu-button" class="md:hidden text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors duration-200 rounded-full p-1">
+                        <span class="material-icons" id="mobile-menu-icon">menu</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="mobile-menu" class="hidden md:hidden">
+                <div class="py-4 space-y-3 border-t border-gray-200 dark:border-gray-700">
+                    <a href="#features" class="mobile-menu-link block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Features</a>
+                    <a href="#use-cases" class="mobile-menu-link block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Use Cases</a>
+                    <a href="#philosophy" class="mobile-menu-link block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Philosophy</a>
+                    <a href="#deployment" class="mobile-menu-link block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Deployment</a>
+                    <a href="#faq" class="mobile-menu-link block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">FAQ</a>
+
+                    <a href="https://github.com/syalia-srl/beaver" target="_blank" class="block w-full text-center bg-gray-700 text-white font-semibold px-4 py-2 rounded-lg shadow-md hover:bg-gray-800 dark:bg-gray-200 dark:text-gray-900 dark:hover:bg-white transition duration-300">
+                        View on GitHub
+                    </a>
+                </div>
+            </div>
         </div>
+    </nav>
+
+    <header class="bg-white dark:bg-gray-800 pt-16 pb-12 sm:pt-24 sm:pb-16">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <div>
+                <h1 class="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 dark:text-white leading-tight">
+                    Meet <span class="text-emerald-500 dark:text-emerald-400">BeaverDB</span>
+                </h1>
+                <p class="mt-4 text-lg sm:text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+                    A simple, local-first, and embedded database for modern data, built on SQLite.
+                </p>
+                <div class="mt-8 flex flex-col sm:flex-row justify-center items-center gap-4">
+                    <a href="#features"
+                        class="inline-flex items-center justify-center bg-emerald-500 text-white font-semibold px-8 py-3 rounded-lg shadow-md hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-700 transition duration-300 w-full sm:w-auto">
+                        <span class="material-icons mr-2">explore</span>
+                        <span>Discover Features</span>
+                    </a>
+                    <a href="intro.html"
+                        class="inline-flex items-center justify-center bg-gray-200 text-gray-800 font-semibold px-8 py-3 rounded-lg shadow-md hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 transition duration-300 w-full sm:w-auto">
+                        <span class="material-icons mr-2">rocket_launch</span>
+                        <span>View Docs</span>
+                    </a>
+                </div>
+            </div>
+            </div>
+    </header>
+
+    <section id="features" class="py-16 sm:py-24 bg-gray-50 dark:bg-gray-900">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center">
+                <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
+                    Multi-Modal Power in a Single File
+                </h2>
+                <p class="mt-4 text-lg text-gray-600 dark:text-gray-300">
+                    Everything you need for modern AI and data applications.
+                </p>
+            </div>
+
+            <div class="mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+
+                <div
+                    class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg dark:shadow-2xl transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center h-12 w-12 rounded-md bg-emerald-500 dark:bg-emerald-600 text-white">
+                            <span class="material-icons">search</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Document & Vector Search</h3>
+                        <p class="mt-2 text-base text-gray-600 dark:text-gray-300">Store documents with vector embeddings. Perform fast vector search, full-text search (FTS), and typo-tolerant fuzzy search.</p>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg dark:shadow-2xl transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center h-12 w-12 rounded-md bg-emerald-500 dark:bg-emerald-600 text-white">
+                            <span class="material-icons">data_object</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Pythonic Data Structures</h3>
+                        <p class="mt-2 text-base text-gray-600 dark:text-gray-300">Use persistent data structures that feel just like native Python: Dictionaries (`db.dict`), Lists (`db.list`), and Priority Queues (`db.queue`).</p>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg dark:shadow-2xl transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center h-12 w-12 rounded-md bg-emerald-500 dark:bg-emerald-600 text-white">
+                            <span class="material-icons">hub</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Knowledge Graph</h3>
+                        <p class="mt-2 text-base text-gray-600 dark:text-gray-300">Create directed, labeled relationships between documents. Traverse your data with `.neighbors()` or multi-hop `.walk()` queries.</p>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg dark:shadow-2xl transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center h-12 w-12 rounded-md bg-emerald-500 dark:bg-emerald-600 text-white">
+                            <span class="material-icons">rss_feed</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Real-time Pub/Sub</h3>
+                        <p class="mt-2 text-base text-gray-600 dark:text-gray-300">Use `db.channel` for high-efficiency, multi-process messaging. Publish events and subscribe to them in real-time from other processes.</p>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg dark:shadow-2xl transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center h-12 w-12 rounded-md bg-emerald-500 dark:bg-emerald-600 text-white">
+                            <span class="material-icons">lock</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Inter-Process Locking</h3>
+                        <p class="mt-2 text-base text-gray-600 dark:text-gray-300">Safely coordinate multiple processes. Use `db.lock()` to prevent race conditions or `with db.list(...)` for atomic batch operations.</p>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg dark:shadow-2xl transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center h-12 w-12 rounded-md bg-emerald-500 dark:bg-emerald-600 text-white">
+                            <span class="material-icons">verified</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Type-Safe with Pydantic</h3>
+                        <p class="mt-2 text-base text-gray-600 dark:text-gray-300">Pass a `model=...` parameter to any data structure for automatic, recursive data validation and (de)serialization with Pydantic.</p>
+                    </div>
+                </div>
+
+            </div>
         </div>
-    <div class="sidebar-menu-container"> 
-    <ul class="list-unstyled mt-1">
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./index.html" class="sidebar-item-text sidebar-link active">
- <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></span></a>
-  </div>
-</li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./quickstart.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Quickstart Guide</span></span></a>
-  </div>
-</li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./guide.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Feature Summary</span></span></a>
-  </div>
-</li>
-        <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false">
- <span class="menu-text">The User Guide</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./guide-dicts-blobs.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Key-Value and Blob Storage</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./guide-lists-queues.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Lists and Queues</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./guide-collections.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">The Document Collection (<code>db.collection</code>)</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./guide-realtime.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Real-Time Data</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./guide-concurrency.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Concurrency</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./guide-deployment.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Deployment &amp; Access</span></span></a>
-  </div>
-</li>
-      </ul>
-  </li>
-        <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false">
- <span class="menu-text">The Developer Guide</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./dev-architecture.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Core Architecture &amp; Design</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./dev-concurrency.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">11</span>&nbsp; <span class="chapter-title">Concurrency Model</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./dev-search.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">12</span>&nbsp; <span class="chapter-title">Search Architecture</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./dev-contributing.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">13</span>&nbsp; <span class="chapter-title">Future Roadmap &amp; Contributing</span></span></a>
-  </div>
-</li>
-      </ul>
-  </li>
-    </ul>
-    </div>
-</nav>
-<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
-<!-- margin-sidebar -->
-    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-        <nav id="TOC" role="doc-toc" class="toc-active">
-    <h2 id="toc-title">Table of contents</h2>
-   
-  <ul>
-  <li><a href="#introduction" id="toc-introduction" class="nav-link active" data-scroll-target="#introduction"><span class="header-section-number">1</span> Introduction</a>
-  <ul class="collapse">
-  <li><a href="#what-is-beaverdb" id="toc-what-is-beaverdb" class="nav-link" data-scroll-target="#what-is-beaverdb"><span class="header-section-number">1.1</span> What is BeaverDB?</a></li>
-  <li><a href="#the-beaverdb-philosophy" id="toc-the-beaverdb-philosophy" class="nav-link" data-scroll-target="#the-beaverdb-philosophy"><span class="header-section-number">1.2</span> The BeaverDB Philosophy</a></li>
-  <li><a href="#ideal-use-cases" id="toc-ideal-use-cases" class="nav-link" data-scroll-target="#ideal-use-cases"><span class="header-section-number">1.3</span> Ideal Use Cases</a></li>
-  <li><a href="#how-this-guide-is-structured" id="toc-how-this-guide-is-structured" class="nav-link" data-scroll-target="#how-this-guide-is-structured"><span class="header-section-number">1.4</span> How This Guide is Structured</a></li>
-  </ul></li>
-  </ul>
-</nav>
-    </div>
-<!-- main -->
-<main class="content" id="quarto-document-content">
+    </section>
 
-<header id="title-block-header" class="quarto-title-block default">
-<div class="quarto-title">
-<h1 class="title">BeaverDB: The Complete Guide</h1>
-</div>
+    <section id="use-cases" class="py-16 sm:py-24 bg-white dark:bg-gray-800">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center">
+                <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
+                    Ideal Use Cases
+                </h2>
+                <p class="mt-4 text-lg text-gray-600 dark:text-gray-300">
+                    BeaverDB shines where simplicity and local performance matter most.
+                </p>
+            </div>
+
+            <div class="mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+
+                <div
+                    class="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg shadow-lg dark:shadow-2xl transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:bg-white dark:hover:bg-gray-800">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center h-12 w-12 rounded-md bg-emerald-500 dark:bg-emerald-600 text-white">
+                            <span class="material-icons">psychology</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Local AI & RAG</h3>
+                        <ul class="mt-2 text-base text-gray-600 dark:text-gray-300 space-y-2 list-disc list-inside text-left">
+                            <li>Build RAG apps that run on-device.</li>
+                            <li>Store vector embeddings and text together.</li>
+                            <li>Use hybrid search (vector + FTS).</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg shadow-lg dark:shadow-2xl transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:bg-white dark:hover:bg-gray-800">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center h-12 w-12 rounded-md bg-emerald-500 dark:bg-emerald-600 text-white">
+                            <span class="material-icons">construction</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Desktop & CLI Tools</h3>
+                        <ul class="mt-2 text-base text-gray-600 dark:text-gray-300 space-y-2 list-disc list-inside text-left">
+                            <li>Remember user preferences.</li>
+                            <li>Manage task history.</li>
+                            <li>Cache results from slow APIs.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg shadow-lg dark:shadow-2xl transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:bg-white dark:hover:bg-gray-800">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center h-12 w-12 rounded-md bg-emerald-500 dark:bg-emerald-600 text-white">
+                            <span class="material-icons">bolt</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Rapid Prototyping</h3>
+                        <ul class="mt-2 text-base text-gray-600 dark:text-gray-300 space-y-2 list-disc list-inside text-left">
+                            <li>Get started in seconds with zero config.</li>
+                            <li>Use a single `.db` file for all data.</li>
+                            <li>Scale to a server with `beaver serve`.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg shadow-lg dark:shadow-2xl transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:bg-white dark:hover:bg-gray-800">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center h-12 w-12 rounded-md bg-emerald-500 dark:bg-emerald-600 text-white">
+                            <span class="material-icons">chat</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Chatbots & Agents</h3>
+                        <ul class="mt-2 text-base text-gray-600 dark:text-gray-300 space-y-2 list-disc list-inside text-left">
+                            <li>Store conversation history in a `db.list`.</li>
+                            <li>Manage agent tasks with a `db.queue`.</li>
+                            <li>Use `db.channel` for real-time UI updates.</li>
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
 
 
+    <section id="philosophy" class="py-16 sm:py-24 bg-gray-50 dark:bg-gray-900">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center">
+                <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
+                    A Simple, Robust Philosophy
+                </h2>
+                <p class="mt-4 text-lg text-gray-600 dark:text-gray-300">
+                    Designed for a great developer experience.
+                </p>
+            </div>
 
-<div class="quarto-title-meta">
+            <div class="mt-16 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div class="space-y-8">
+                    <div>
+                        <div class="flex items-center">
+                            <span class="material-icons text-emerald-500 dark:text-emerald-400 text-3xl">save</span>
+                            <h3 class="ml-3 text-xl font-semibold text-gray-900 dark:text-white">Local-First & Embedded</h3>
+                        </div>
+                        <p class="mt-2 text-base text-gray-600 dark:text-gray-300">
+                            The default mode is a single SQLite file. It's fast, portable, and requires zero configuration.
+                        </p>
+                    </div>
 
-    <div>
-    <div class="quarto-title-meta-heading">Author</div>
-    <div class="quarto-title-meta-contents">
-             <p>SYALIA S.R.L. </p>
-          </div>
-  </div>
-    
-  
-    
-  </div>
-  
+                    <div>
+                        <div class="flex items-center">
+                            <span class="material-icons text-emerald-500 dark:text-emerald-400 text-3xl">build_circle</span>
+                            <h3 class="ml-3 text-xl font-semibold text-gray-900 dark:text-white">Standard SQLite</h3>
+                        </div>
+                        <p class="mt-2 text-base text-gray-600 dark:text-gray-300">
+                            The `.db` file is 100% compatible with any standard SQLite tool. No magic, no proprietary formats.
+                        </p>
+                    </div>
+                </div>
 
+                <div class="space-y-8">
+                    <div>
+                        <div class="flex items-center">
+                            <span class="material-icons text-emerald-500 dark:text-emerald-400 text-3xl">extension</span>
+                            <h3 class="ml-3 text-xl font-semibold text-gray-900 dark:text-white">Minimal Dependencies</h3>
+                        </div>
+                        <p class="mt-2 text-base text-gray-600 dark:text-gray-300">
+                            The core library is small. Advanced features like the REST server are optional extras, so you only install what you need.
+                        </p>
+                    </div>
 
-</header>
+                    <div>
+                        <div class="flex items-center">
+                            <span class="material-icons text-emerald-500 dark:text-emerald-400 text-3xl">sync_lock</span>
+                            <h3 class="ml-3 text-xl font-semibold text-gray-900 dark:text-white">Safe Concurrency</h3>
+                        </div>
+                        <p class="mt-2 text-base text-gray-600 dark:text-gray-300">
+                            Thread-safe and multi-process-safe by default, with robust inter-process locking for complex operations.
+                        </p>
+                    </div>
+                </div>
+            </div>
 
+        </div>
+    </section>
 
-<section id="introduction" class="level1" data-number="1">
-<h1 data-number="1"><span class="header-section-number">1</span> Introduction</h1>
-<p>Welcome to BeaverDB!</p>
-<p>If you’ve ever found yourself building a Python application that needs to save some data, but setting up a full-blown database server felt like massive overkill, you’re in the right place. BeaverDB is designed to be the “Swiss Army knife” for embedded Python data. It’s built for those exact “just right” scenarios: more powerful than a simple pickle file, but far less complex than a networked server like PostgreSQL or MySQL.</p>
-<section id="what-is-beaverdb" class="level2" data-number="1.1">
-<h2 data-number="1.1" class="anchored" data-anchor-id="what-is-beaverdb"><span class="header-section-number">1.1</span> What is BeaverDB?</h2>
-<p>At its heart, BeaverDB is a multi-modal database in a single SQLite file.</p>
-<p>It’s a Python library that lets you manage modern, complex data types without ever leaving the comfort of a local file. The name itself tells the story:</p>
-<p><strong>B.E.A.V.E.R.</strong> stands for <strong>B</strong>ackend for mbedded, <strong>A</strong>ll-in-one <strong>V</strong>ector, <strong>E</strong>ntity, and <strong>R</strong>elationship storage.</p>
-<p>This means that inside that one <code>.db</code> file, you can seamlessly store and query:</p>
-<ul>
-<li>Key-Value Pairs (like a dictionary for your app’s configuration)</li>
-<li>Lists (like a persistent to-do list)</li>
-<li>Vector Embeddings (for AI and semantic search)</li>
-<li>Documents &amp; Text (for full-text search)</li>
-<li>Graph Relationships (to connect your data together)</li>
-<li>…and much more.</li>
-</ul>
-<p>All this power comes from building on top of the world’s most deployed database engine: SQLite.</p>
-</section>
-<section id="the-beaverdb-philosophy" class="level2" data-number="1.2">
-<h2 data-number="1.2" class="anchored" data-anchor-id="the-beaverdb-philosophy"><span class="header-section-number">1.2</span> The BeaverDB Philosophy</h2>
-<p>BeaverDB is built on a few core principles. Understanding these will help you know when and why to choose it for your project.</p>
-<p><strong>Robust, Safe, and Durable</strong></p>
-<p>Your data should be safe, period. BeaverDB is built to be resilient. Thanks to SQLite’s atomic transactions and Write-Ahead Logging (WAL) mode, your database is crash-safe. If your program crashes mid-operation, your data is never lost or corrupted; the database simply rolls back the incomplete transaction.</p>
-<p>Furthermore, it’s designed for concurrency. It’s both thread-safe (different threads can share one BeaverDB object) and process-safe (multiple, independent Python scripts can read from and write to the same database file at the same time). For tasks that require true coordination, it even provides a simple, built-in distributed lock.</p>
-<p><strong>Performant by Default</strong></p>
-<p>BeaverDB is fast. It’s not just “fast for a small database”–it’s genuinely fast for the vast majority of medium-sized projects. Because it’s an embedded library, there is zero network latency for any query.</p>
-<p>Let’s be clear: if you’re building the next X (formerly Twitter) and need to handle millions of documents and thousands of queries per second, you’ll need a distributed, networked database. But for almost everything else? BeaverDB is more than fast enough. If your project is in the thousand to tens-of-thousands of documents range, you’ll find it’s incredibly responsive.</p>
-<p><strong>Local-First &amp; Embedded</strong></p>
-<p>The default, primary way to use BeaverDB is as a single file right next to your code. This means your entire database—users, vectors, chat logs, and all—is contained in one portable file (e.g., my_app.db). You can copy it, email it, or back it up. This “local-first” approach is what makes it so fast and simple to deploy.</p>
-<p><strong>Minimal &amp; Optional Dependencies</strong></p>
-<p>The core BeaverDB library has zero external dependencies. You can get started with key-value stores, lists, and queues right away.</p>
-<p>Want to add vector search? Great! Install the [vector] extra, and BeaverDB will activate its faiss integration. Need a web server? Install the [server] extra, and it unlocks a fastapi-based REST API. This “pay-as-you-go” approach keeps your project lightweight.</p>
-<p><strong>Pythonic API</strong></p>
-<p>BeaverDB is designed to feel like you’re just using standard Python data structures. You shouldn’t have to write complex SQL queries just to save a Python dict or list. The goal is to make the database feel like a natural extension of your code.</p>
-<p><strong>Standard SQLite Compatibility</strong></p>
-<p>This is the “no-magic” rule. The my_app.db file that BeaverDB creates is a 100% standard, valid SQLite file. You can open it with any database tool (like DB Browser for SQLite) and see your data in regular tables. This ensures your data is never locked into a proprietary format.</p>
-<p><strong>Synchronous Core with Async Potential</strong></p>
-<p>The core library is synchronous, which makes it simple and robust for multi-threaded applications. However, BeaverDB is fully aware of the modern asyncio world. For every data structure, you can call .as_async() to get a fully awaitable version that runs its blocking operations in a background thread, keeping your asyncio event loop from getting blocked.</p>
-</section>
-<section id="ideal-use-cases" class="level2" data-number="1.3">
-<h2 data-number="1.3" class="anchored" data-anchor-id="ideal-use-cases"><span class="header-section-number">1.3</span> Ideal Use Cases</h2>
-<p>BeaverDB shines in scenarios where simplicity, robustness, and local performance are more important than massive, web-scale concurrency.</p>
-<ul>
-<li><p><strong>Local AI &amp; RAG:</strong> Perfect for building Retrieval-Augmented Generation (RAG) applications that run on your local machine. You can store your vector embeddings and their corresponding text right next to each other.</p></li>
-<li><p><strong>Desktop Utilities &amp; CLI Tools:</strong> The ideal companion for a custom tool that needs to remember user preferences, manage a history, or cache results.</p></li>
-<li><p><strong>Chatbots:</strong> A persistent list is a perfect, simple way to store a chatbot’s conversation history for a user.</p></li>
-<li><p><strong>Rapid Prototyping:</strong> Get your idea up and running in minutes. Start with a local .db file, and if your project grows, you can deploy it as a REST API without changing your application logic.</p></li>
-</ul>
-</section>
-<section id="how-this-guide-is-structured" class="level2" data-number="1.4">
-<h2 data-number="1.4" class="anchored" data-anchor-id="how-this-guide-is-structured"><span class="header-section-number">1.4</span> How This Guide is Structured</h2>
-<p>We’ve designed this documentation to get you the information you need, whether you’re building your first script or contributing to the core.</p>
-<p>This guide is split into two main parts:</p>
-<ul>
-<li><p><strong>Part 1: The User Guide</strong></p>
-<p>This is your starting point. After the Quickstart, this is where you’ll find an in-depth guide that walks you through how to use every single feature of BeaverDB. We’ll explore each “modality” one by one with practical examples.</p></li>
-<li><p><strong>Part 2: The Developer Guide</strong></p>
-<p>This part is for power users and contributors. We’ll go under the hood to look at the why behind the design. This is where we do deep dives into the core architecture, the concurrency model (threading and locking), and the internals of how features like vector search are implemented.</p></li>
-</ul>
+    <section id="deployment" class="py-16 sm:py-24 bg-white dark:bg-gray-800">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center">
+                <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
+                    Use Locally, Deploy as a Server
+                </h2>
+                <p class="mt-4 text-lg text-gray-600 dark:text-gray-300">
+                    Run BeaverDB where you need it most.
+                </p>
+            </div>
 
+            <div class="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8">
 
-</section>
-</section>
+                <div
+                    class="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg shadow-lg dark:shadow-2xl text-center transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:bg-white dark:hover:bg-gray-800">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center h-12 w-12 rounded-md bg-emerald-500 dark:bg-emerald-600 text-white mx-auto">
+                            <span class="material-icons">computer</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Embedded (Local-First)</h3>
+                        <p class="mt-2 text-base text-gray-600 dark:text-gray-300">The default mode. Your data lives in a single `.db` file in your project directory. Perfect for local apps, utilities, and prototypes.</p>
+                    </div>
+                </div>
 
-</main> <!-- /main -->
-<script id="quarto-html-after-body" type="application/javascript">
-  window.document.addEventListener("DOMContentLoaded", function (event) {
-    const icon = "";
-    const anchorJS = new window.AnchorJS();
-    anchorJS.options = {
-      placement: 'right',
-      icon: icon
-    };
-    anchorJS.add('.anchored');
-    const isCodeAnnotation = (el) => {
-      for (const clz of el.classList) {
-        if (clz.startsWith('code-annotation-')) {                     
-          return true;
-        }
-      }
-      return false;
-    }
-    const onCopySuccess = function(e) {
-      // button target
-      const button = e.trigger;
-      // don't keep focus
-      button.blur();
-      // flash "checked"
-      button.classList.add('code-copy-button-checked');
-      var currentTitle = button.getAttribute("title");
-      button.setAttribute("title", "Copied!");
-      let tooltip;
-      if (window.bootstrap) {
-        button.setAttribute("data-bs-toggle", "tooltip");
-        button.setAttribute("data-bs-placement", "left");
-        button.setAttribute("data-bs-title", "Copied!");
-        tooltip = new bootstrap.Tooltip(button, 
-          { trigger: "manual", 
-            customClass: "code-copy-button-tooltip",
-            offset: [0, -8]});
-        tooltip.show();    
-      }
-      setTimeout(function() {
-        if (tooltip) {
-          tooltip.hide();
-          button.removeAttribute("data-bs-title");
-          button.removeAttribute("data-bs-toggle");
-          button.removeAttribute("data-bs-placement");
-        }
-        button.setAttribute("title", currentTitle);
-        button.classList.remove('code-copy-button-checked');
-      }, 1000);
-      // clear code selection
-      e.clearSelection();
-    }
-    const getTextToCopy = function(trigger) {
-        const codeEl = trigger.previousElementSibling.cloneNode(true);
-        for (const childEl of codeEl.children) {
-          if (isCodeAnnotation(childEl)) {
-            childEl.remove();
-          }
-        }
-        return codeEl.innerText;
-    }
-    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
-      text: getTextToCopy
-    });
-    clipboard.on('success', onCopySuccess);
-    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
-      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
-        text: getTextToCopy,
-        container: window.document.getElementById('quarto-embedded-source-code-modal')
-      });
-      clipboardModal.on('success', onCopySuccess);
-    }
-      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
-      var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp('/' + window.location.host + '/');
-      var isInternal = (href) => {
-          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
-      }
-      // Inspect non-navigation links and adorn them if external
-     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
-      for (var i=0; i<links.length; i++) {
-        const link = links[i];
-        if (!isInternal(link.href)) {
-          // undo the damage that might have been done by quarto-nav.js in the case of
-          // links that we want to consider external
-          if (link.dataset.originalHref !== undefined) {
-            link.href = link.dataset.originalHref;
-          }
-        }
-      }
-    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
-      const config = {
-        allowHTML: true,
-        maxWidth: 500,
-        delay: 100,
-        arrow: false,
-        appendTo: function(el) {
-            return el.parentElement;
-        },
-        interactive: true,
-        interactiveBorder: 10,
-        theme: 'quarto',
-        placement: 'bottom-start',
-      };
-      if (contentFn) {
-        config.content = contentFn;
-      }
-      if (onTriggerFn) {
-        config.onTrigger = onTriggerFn;
-      }
-      if (onUntriggerFn) {
-        config.onUntrigger = onUntriggerFn;
-      }
-      window.tippy(el, config); 
-    }
-    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
-    for (var i=0; i<noterefs.length; i++) {
-      const ref = noterefs[i];
-      tippyHover(ref, function() {
-        // use id or data attribute instead here
-        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
-        try { href = new URL(href).hash; } catch {}
-        const id = href.replace(/^#\/?/, "");
-        const note = window.document.getElementById(id);
-        if (note) {
-          return note.innerHTML;
-        } else {
-          return "";
-        }
-      });
-    }
-    const xrefs = window.document.querySelectorAll('a.quarto-xref');
-    const processXRef = (id, note) => {
-      // Strip column container classes
-      const stripColumnClz = (el) => {
-        el.classList.remove("page-full", "page-columns");
-        if (el.children) {
-          for (const child of el.children) {
-            stripColumnClz(child);
-          }
-        }
-      }
-      stripColumnClz(note)
-      if (id === null || id.startsWith('sec-')) {
-        // Special case sections, only their first couple elements
-        const container = document.createElement("div");
-        if (note.children && note.children.length > 2) {
-          container.appendChild(note.children[0].cloneNode(true));
-          for (let i = 1; i < note.children.length; i++) {
-            const child = note.children[i];
-            if (child.tagName === "P" && child.innerText === "") {
-              continue;
-            } else {
-              container.appendChild(child.cloneNode(true));
-              break;
+                <div
+                    class="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg shadow-lg dark:shadow-2xl text-center transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:bg-white dark:hover:bg-gray-800">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center h-12 w-12 rounded-md bg-emerald-500 dark:bg-emerald-600 text-white mx-auto">
+                            <span class="material-icons">dns</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">REST API Server</h3>
+                        <p class="mt-2 text-base text-gray-600 dark:text-gray-300">Instantly expose your database over HTTP. Run `beaver serve` to start a FastAPI server for remote access from any client.</p>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg shadow-lg dark:shadow-2xl text-center transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:bg-white dark:hover:bg-gray-800">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center h-12 w-12 rounded-md bg-emerald-500 dark:bg-emerald-600 text-white mx-auto">
+                            <span class="material-icons">deployed_code</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Docker Container</h3>
+                        <p class="mt-2 text-base text-gray-600 dark:text-gray-300">Pull the official Docker image for a stable, containerized deployment. Mount a volume to persist your data and run as a service.</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <section id="cta" class="py-16 sm:py-24 bg-gray-50 dark:bg-gray-900">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center">
+                <div>
+                    <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
+                        Ready to get started?
+                    </h2>
+                    <p class="mt-4 text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+                        Check out the Quickstart guide or browse the full documentation.
+                    </p>
+                    <br>
+                    <a href="quickstart.md"
+                        class="inline-flex items-center justify-center bg-emerald-500 text-white font-semibold px-8 py-3 rounded-lg shadow-md hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-700 transition duration-300 w-full sm:w-auto">
+                        <span class="material-icons mr-2">rocket_launch</span>
+                        <span>Read the Quickstart</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="faq" class="py-16 sm:py-24 bg-white dark:bg-gray-800">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center">
+                <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
+                    Frequently Asked Questions
+                </h2>
+                <p class="mt-4 text-lg text-gray-600 dark:text-gray-300">
+                    Have questions? We have answers.
+                </p>
+            </div>
+
+            <div class="mt-16 max-w-3xl mx-auto space-y-4">
+
+                <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                    <button class="faq-trigger flex justify-between items-center w-full p-6 text-left"
+                        aria-expanded="false">
+                        <span class="font-semibold text-lg text-gray-900 dark:text-white">How is this different from just using `sqlite3`?</span>
+                        <span
+                            class="material-icons text-gray-600 dark:text-gray-400 transform transition-transform duration-300">expand_more</span>
+                    </button>
+                    <div class="faq-content max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
+                        <div class="p-6 pt-0">
+                            <p class="text-base text-gray-600 dark:text-gray-300">
+                                `sqlite3` is a low-level driver. BeaverDB is a high-level, "Pythonic" API on top of it. It provides out-of-the-box solutions for modern data (vectors, graphs, full-text search, pub/sub), robust multi-process and thread-safe access (including `db.lock`), and a `pydantic` integration for type-safe (de)serialization.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                    <button class="faq-trigger flex justify-between items-center w-full p-6 text-left"
+                        aria-expanded="false">
+                        <span class="font-semibold text-lg text-gray-900 dark:text-white">What are the performance limits?</span>
+                        <span
+                            class="material-icons text-gray-600 dark:text-gray-400 transform transition-transform duration-300">expand_more</span>
+                    </button>
+                    <div class="faq-content max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
+                        <div class="p-6 pt-0">
+                            <p class="text-base text-gray-600 dark:text-gray-300">
+                                BeaverDB is extremely fast for local, embedded use cases (zero network latency). It's designed for projects in the "small to medium" range (e.g., thousands to tens-of-thousands of documents). It is *not* designed to replace web-scale databases like PostgreSQL or distributed systems for handling millions of simultaneous users.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                    <button class="faq-trigger flex justify-between items-center w-full p-6 text-left"
+                        aria-expanded="false">
+                        <span class="font-semibold text-lg text-gray-900 dark:text-white">What are "optional dependencies"?</span>
+                        <span
+                            class="material-icons text-gray-600 dark:text-gray-400 transform transition-transform duration-300">expand_more</span>
+                    </button>
+                    <div class="faq-content max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
+                        <div class="p-6 pt-0">
+                            <p class="text-base text-gray-600 dark:text-gray-300">
+                                This keeps the core library minimal. The core `beaver-db` package has minimal dependencies (like `numpy` and `pydantic`). Features that require heavy libraries are "opt-in." For example, to run the REST API server (`beaver serve`), you must install `fastapi` by running `pip install "beaver-db[remote]"`.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <footer class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <p class="text-center text-base text-gray-500 dark:text-gray-400">
+                &copy; 2025 SYALIA, SRL. Licensed under MIT.
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Theme Toggle ---
+            const themeToggle = document.getElementById('theme-toggle');
+            const themeIcon = document.getElementById('theme-icon');
+
+            function updateThemeIcon(theme) {
+                if (themeIcon) {
+                    themeIcon.textContent = theme === 'dark' ? 'dark_mode' : 'light_mode';
+                }
             }
-          }
-          if (window.Quarto?.typesetMath) {
-            window.Quarto.typesetMath(container);
-          }
-          return container.innerHTML
-        } else {
-          if (window.Quarto?.typesetMath) {
-            window.Quarto.typesetMath(note);
-          }
-          return note.innerHTML;
-        }
-      } else {
-        // Remove any anchor links if they are present
-        const anchorLink = note.querySelector('a.anchorjs-link');
-        if (anchorLink) {
-          anchorLink.remove();
-        }
-        if (window.Quarto?.typesetMath) {
-          window.Quarto.typesetMath(note);
-        }
-        if (note.classList.contains("callout")) {
-          return note.outerHTML;
-        } else {
-          return note.innerHTML;
-        }
-      }
-    }
-    for (var i=0; i<xrefs.length; i++) {
-      const xref = xrefs[i];
-      tippyHover(xref, undefined, function(instance) {
-        instance.disable();
-        let url = xref.getAttribute('href');
-        let hash = undefined; 
-        if (url.startsWith('#')) {
-          hash = url;
-        } else {
-          try { hash = new URL(url).hash; } catch {}
-        }
-        if (hash) {
-          const id = hash.replace(/^#\/?/, "");
-          const note = window.document.getElementById(id);
-          if (note !== null) {
-            try {
-              const html = processXRef(id, note.cloneNode(true));
-              instance.setContent(html);
-            } finally {
-              instance.enable();
-              instance.show();
+
+            // Set initial icon state
+            const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+            updateThemeIcon(currentTheme);
+
+            // Add click listener for the theme toggle
+            if (themeToggle) {
+                themeToggle.addEventListener('click', () => {
+                    // toggle the theme
+                    const isDark = document.documentElement.classList.toggle('dark');
+                    const newTheme = isDark ? 'dark' : 'light';
+
+                    // save preference
+                    localStorage.theme = newTheme;
+
+                    // update icon
+                    updateThemeIcon(newTheme);
+                });
             }
-          } else {
-            // See if we can fetch this
-            fetch(url.split('#')[0])
-            .then(res => res.text())
-            .then(html => {
-              const parser = new DOMParser();
-              const htmlDoc = parser.parseFromString(html, "text/html");
-              const note = htmlDoc.getElementById(id);
-              if (note !== null) {
-                const html = processXRef(id, note);
-                instance.setContent(html);
-              } 
-            }).finally(() => {
-              instance.enable();
-              instance.show();
+
+            // --- FAQ Accordion ---
+            const faqTriggers = document.querySelectorAll('.faq-trigger');
+
+            faqTriggers.forEach(trigger => {
+                trigger.addEventListener('click', () => {
+                    const content = trigger.nextElementSibling; // The .faq-content div
+                    const icon = trigger.querySelector('.material-icons');
+                    const isExpanded = trigger.getAttribute('aria-expanded') === 'true';
+
+                    // Toggle icon rotation
+                    icon.classList.toggle('rotate-180');
+
+                    // Toggle ARIA attribute
+                    trigger.setAttribute('aria-expanded', !isExpanded);
+
+                    // Toggle content visibility
+                    if (content.style.maxHeight) {
+                        // It's open, so close it
+                        content.style.maxHeight = null;
+                    } else {
+                        // It's closed, so open it
+                        // Set max-height to the content's scrollHeight
+                        content.style.maxHeight = content.scrollHeight + 'px';
+                    }
+                });
             });
-          }
-        } else {
-          // See if we can fetch a full url (with no hash to target)
-          // This is a special case and we should probably do some content thinning / targeting
-          fetch(url)
-          .then(res => res.text())
-          .then(html => {
-            const parser = new DOMParser();
-            const htmlDoc = parser.parseFromString(html, "text/html");
-            const note = htmlDoc.querySelector('main.content');
-            if (note !== null) {
-              // This should only happen for chapter cross references
-              // (since there is no id in the URL)
-              // remove the first header
-              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
-                note.children[0].remove();
-              }
-              const html = processXRef(null, note);
-              instance.setContent(html);
-            } 
-          }).finally(() => {
-            instance.enable();
-            instance.show();
-          });
-        }
-      }, function(instance) {
-      });
-    }
-        let selectedAnnoteEl;
-        const selectorForAnnotation = ( cell, annotation) => {
-          let cellAttr = 'data-code-cell="' + cell + '"';
-          let lineAttr = 'data-code-annotation="' +  annotation + '"';
-          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
-          return selector;
-        }
-        const selectCodeLines = (annoteEl) => {
-          const doc = window.document;
-          const targetCell = annoteEl.getAttribute("data-target-cell");
-          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
-          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
-          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
-          const lineIds = lines.map((line) => {
-            return targetCell + "-" + line;
-          })
-          let top = null;
-          let height = null;
-          let parent = null;
-          if (lineIds.length > 0) {
-              //compute the position of the single el (top and bottom and make a div)
-              const el = window.document.getElementById(lineIds[0]);
-              top = el.offsetTop;
-              height = el.offsetHeight;
-              parent = el.parentElement.parentElement;
-            if (lineIds.length > 1) {
-              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
-              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
-              height = bottom - top;
+
+            // --- Mobile Menu Toggle ---
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenuIcon = document.getElementById('mobile-menu-icon');
+            const mobileMenu = document.getElementById('mobile-menu');
+            const mobileMenuLinks = document.querySelectorAll('.mobile-menu-link');
+
+            if (mobileMenuButton && mobileMenu && mobileMenuIcon) {
+                mobileMenuButton.addEventListener('click', () => {
+                    const isHidden = mobileMenu.classList.toggle('hidden');
+                    // Toggle icon
+                    mobileMenuIcon.textContent = isHidden ? 'menu' : 'close';
+                });
+
+                // Add click listener to all mobile menu links to close the menu
+                mobileMenuLinks.forEach(link => {
+                    link.addEventListener('click', () => {
+                        mobileMenu.classList.add('hidden');
+                        mobileMenuIcon.textContent = 'menu';
+                    });
+                });
             }
-            if (top !== null && height !== null && parent !== null) {
-              // cook up a div (if necessary) and position it 
-              let div = window.document.getElementById("code-annotation-line-highlight");
-              if (div === null) {
-                div = window.document.createElement("div");
-                div.setAttribute("id", "code-annotation-line-highlight");
-                div.style.position = 'absolute';
-                parent.appendChild(div);
-              }
-              div.style.top = top - 2 + "px";
-              div.style.height = height + 4 + "px";
-              div.style.left = 0;
-              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
-              if (gutterDiv === null) {
-                gutterDiv = window.document.createElement("div");
-                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
-                gutterDiv.style.position = 'absolute';
-                const codeCell = window.document.getElementById(targetCell);
-                const gutter = codeCell.querySelector('.code-annotation-gutter');
-                gutter.appendChild(gutterDiv);
-              }
-              gutterDiv.style.top = top - 2 + "px";
-              gutterDiv.style.height = height + 4 + "px";
-            }
-            selectedAnnoteEl = annoteEl;
-          }
-        };
-        const unselectCodeLines = () => {
-          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
-          elementsIds.forEach((elId) => {
-            const div = window.document.getElementById(elId);
-            if (div) {
-              div.remove();
-            }
-          });
-          selectedAnnoteEl = undefined;
-        };
-          // Handle positioning of the toggle
-      window.addEventListener(
-        "resize",
-        throttle(() => {
-          elRect = undefined;
-          if (selectedAnnoteEl) {
-            selectCodeLines(selectedAnnoteEl);
-          }
-        }, 10)
-      );
-      function throttle(fn, ms) {
-      let throttle = false;
-      let timer;
-        return (...args) => {
-          if(!throttle) { // first call gets through
-              fn.apply(this, args);
-              throttle = true;
-          } else { // all the others get throttled
-              if(timer) clearTimeout(timer); // cancel #2
-              timer = setTimeout(() => {
-                fn.apply(this, args);
-                timer = throttle = false;
-              }, ms);
-          }
-        };
-      }
-        // Attach click handler to the DT
-        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
-        for (const annoteDlNode of annoteDls) {
-          annoteDlNode.addEventListener('click', (event) => {
-            const clickedEl = event.target;
-            if (clickedEl !== selectedAnnoteEl) {
-              unselectCodeLines();
-              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
-              if (activeEl) {
-                activeEl.classList.remove('code-annotation-active');
-              }
-              selectCodeLines(clickedEl);
-              clickedEl.classList.add('code-annotation-active');
-            } else {
-              // Unselect the line
-              unselectCodeLines();
-              clickedEl.classList.remove('code-annotation-active');
-            }
-          });
-        }
-    const findCites = (el) => {
-      const parentEl = el.parentElement;
-      if (parentEl) {
-        const cites = parentEl.dataset.cites;
-        if (cites) {
-          return {
-            el,
-            cites: cites.split(' ')
-          };
-        } else {
-          return findCites(el.parentElement)
-        }
-      } else {
-        return undefined;
-      }
-    };
-    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
-    for (var i=0; i<bibliorefs.length; i++) {
-      const ref = bibliorefs[i];
-      const citeInfo = findCites(ref);
-      if (citeInfo) {
-        tippyHover(citeInfo.el, function() {
-          var popup = window.document.createElement('div');
-          citeInfo.cites.forEach(function(cite) {
-            var citeDiv = window.document.createElement('div');
-            citeDiv.classList.add('hanging-indent');
-            citeDiv.classList.add('csl-entry');
-            var biblioDiv = window.document.getElementById('ref-' + cite);
-            if (biblioDiv) {
-              citeDiv.innerHTML = biblioDiv.innerHTML;
-            }
-            popup.appendChild(citeDiv);
-          });
-          return popup.innerHTML;
+
         });
-      }
-    }
-  });
-  </script>
-<nav class="page-navigation">
-  <div class="nav-page nav-page-previous">
-  </div>
-  <div class="nav-page nav-page-next">
-      <a href="./quickstart.html" class="pagination-link" aria-label="Quickstart Guide">
-        <span class="nav-page-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Quickstart Guide</span></span> <i class="bi bi-arrow-right-short"></i>
-      </a>
-  </div>
-</nav>
-</div> <!-- /content -->
+    </script>
+</body>
 
-
-
-
-</body></html>
+</html>

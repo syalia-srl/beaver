@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>3&nbsp; Feature Summary – BeaverDB: The Complete Guide</title>
+<title>guide – BeaverDB</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -64,8 +64,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-search/fuse.min.js"></script>
 <script src="site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="./">
-<link href="./guide-dicts-blobs.html" rel="next">
-<link href="./quickstart.html" rel="prev">
 <script src="site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
@@ -75,13 +73,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="site_libs/quarto-html/quarto-syntax-highlighting-de070a7b0ab54f8780927367ac907214.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-5d653dd4d7566aed16f42eb06e547978.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-e628450da95f84e11e7804e63d9c5e30.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
-  "location": "sidebar",
+  "location": "navbar",
   "copy-button": false,
   "collapse-after": 3,
-  "panel-placement": "start",
-  "type": "textbox",
+  "panel-placement": "end",
+  "type": "overlay",
   "limit": 50,
   "keyboard-shortcut": [
     "f",
@@ -107,211 +105,159 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 </head>
 
-<body class="nav-sidebar docked quarto-light">
+<body class="nav-fixed quarto-light">
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
-  <nav class="quarto-secondary-nav">
-    <div class="container-fluid d-flex">
-      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
-        <i class="bi bi-layout-text-sidebar-reverse"></i>
-      </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./guide.html"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Feature Summary</span></a></li></ol></nav>
-        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
-        </a>
-      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
-        <i class="bi bi-search"></i>
-      </button>
-    </div>
-  </nav>
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="./index.html" class="navbar-brand navbar-brand-logo">
+    <img src="./logo.png" alt="" class="navbar-logo">
+    </a>
+    <a class="navbar-brand" href="./index.html">
+    <span class="navbar-title">BeaverDB</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="./index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./intro.html"> 
+<span class="menu-text">Introduction</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./quickstart.html"> 
+<span class="menu-text">Quickstart</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-user-guide" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">User Guide</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-user-guide">    
+        <li>
+    <a class="dropdown-item" href="./guide.html">
+ <span class="dropdown-text">Feature Summary</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./guide-dicts-blobs.html">
+ <span class="dropdown-text">Dictionaries &amp; Blobs</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./guide-lists-queues.html">
+ <span class="dropdown-text">Lists &amp; Queues</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./guide-collections.html">
+ <span class="dropdown-text">Collections (Vector/FTS/Graph)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./guide-realtime.html">
+ <span class="dropdown-text">Real-Time Data (Pub/Sub)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./guide-concurrency.html">
+ <span class="dropdown-text">Concurrency &amp; Locking</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./guide-deployment.html">
+ <span class="dropdown-text">Deployment &amp; API</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-developer-guide" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Developer Guide</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-developer-guide">    
+        <li>
+    <a class="dropdown-item" href="./dev-architecture.html">
+ <span class="dropdown-text">Core Architecture</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./dev-concurrency.html">
+ <span class="dropdown-text">Concurrency Model</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./dev-search.html">
+ <span class="dropdown-text">Search Internals</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./dev-contributing.html">
+ <span class="dropdown-text">Contributing</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
 </header>
 <!-- content -->
-<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
 <!-- sidebar -->
-  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
-    <div class="pt-lg-2 mt-2 text-left sidebar-header sidebar-header-stacked">
-      <a href="./index.html" class="sidebar-logo-link">
-      <img src="./logo.png" alt="" class="sidebar-logo py-0 d-lg-inline d-none">
-      </a>
-    <div class="sidebar-title mb-0 py-0">
-      <a href="./">BeaverDB: The Complete Guide</a> 
-    </div>
-      </div>
-        <div class="mt-2 flex-shrink-0 align-items-center">
-        <div class="sidebar-search">
-        <div id="quarto-search" class="" title="Search"></div>
-        </div>
-        </div>
-    <div class="sidebar-menu-container"> 
-    <ul class="list-unstyled mt-1">
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./index.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></span></a>
-  </div>
-</li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./quickstart.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Quickstart Guide</span></span></a>
-  </div>
-</li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./guide.html" class="sidebar-item-text sidebar-link active">
- <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Feature Summary</span></span></a>
-  </div>
-</li>
-        <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false">
- <span class="menu-text">The User Guide</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./guide-dicts-blobs.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Key-Value and Blob Storage</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./guide-lists-queues.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Lists and Queues</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./guide-collections.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">The Document Collection (<code>db.collection</code>)</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./guide-realtime.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Real-Time Data</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./guide-concurrency.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Concurrency</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./guide-deployment.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Deployment &amp; Access</span></span></a>
-  </div>
-</li>
-      </ul>
-  </li>
-        <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false">
- <span class="menu-text">The Developer Guide</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./dev-architecture.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Core Architecture &amp; Design</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./dev-concurrency.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">11</span>&nbsp; <span class="chapter-title">Concurrency Model</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./dev-search.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">12</span>&nbsp; <span class="chapter-title">Search Architecture</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./dev-contributing.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">13</span>&nbsp; <span class="chapter-title">Future Roadmap &amp; Contributing</span></span></a>
-  </div>
-</li>
-      </ul>
-  </li>
-    </ul>
-    </div>
-</nav>
-<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
 <!-- margin-sidebar -->
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
         <nav id="TOC" role="doc-toc" class="toc-active">
-    <h2 id="toc-title">Table of contents</h2>
+    <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#core-data-structures" id="toc-core-data-structures" class="nav-link active" data-scroll-target="#core-data-structures"><span class="header-section-number">3.1</span> Core Data Structures</a>
+  <li><a href="#feature-summary" id="toc-feature-summary" class="nav-link active" data-scroll-target="#feature-summary">Feature Summary</a>
   <ul class="collapse">
-  <li><a href="#key-value-dictionaries-db.dict" id="toc-key-value-dictionaries-db.dict" class="nav-link" data-scroll-target="#key-value-dictionaries-db.dict"><span class="header-section-number">3.1.1</span> Key-Value Dictionaries (<code>db.dict</code>)</a></li>
-  <li><a href="#caching-with-ttl-db.dict" id="toc-caching-with-ttl-db.dict" class="nav-link" data-scroll-target="#caching-with-ttl-db.dict"><span class="header-section-number">3.1.2</span> Caching with TTL (<code>db.dict</code>)</a></li>
-  <li><a href="#persistent-lists-db.list" id="toc-persistent-lists-db.list" class="nav-link" data-scroll-target="#persistent-lists-db.list"><span class="header-section-number">3.1.3</span> Persistent Lists (<code>db.list</code>)</a></li>
-  <li><a href="#priority-queues-db.queue" id="toc-priority-queues-db.queue" class="nav-link" data-scroll-target="#priority-queues-db.queue"><span class="header-section-number">3.1.4</span> Priority Queues (<code>db.queue</code>)</a></li>
-  <li><a href="#blob-storage-db.blob" id="toc-blob-storage-db.blob" class="nav-link" data-scroll-target="#blob-storage-db.blob"><span class="header-section-number">3.1.5</span> Blob Storage (<code>db.blob</code>)</a></li>
-  </ul></li>
-  <li><a href="#the-document-collection-db.collection" id="toc-the-document-collection-db.collection" class="nav-link" data-scroll-target="#the-document-collection-db.collection"><span class="header-section-number">3.2</span> The Document Collection (<code>db.collection</code>)</a>
+  <li><a href="#core-data-structures" id="toc-core-data-structures" class="nav-link" data-scroll-target="#core-data-structures">Core Data Structures</a>
   <ul class="collapse">
-  <li><a href="#rag-system-hybrid-search" id="toc-rag-system-hybrid-search" class="nav-link" data-scroll-target="#rag-system-hybrid-search"><span class="header-section-number">3.2.1</span> RAG System (Hybrid Search)</a></li>
-  <li><a href="#knowledge-graphs-db.collection" id="toc-knowledge-graphs-db.collection" class="nav-link" data-scroll-target="#knowledge-graphs-db.collection"><span class="header-section-number">3.2.2</span> Knowledge Graphs (<code>db.collection</code>)</a></li>
+  <li><a href="#key-value-dictionaries-db.dict" id="toc-key-value-dictionaries-db.dict" class="nav-link" data-scroll-target="#key-value-dictionaries-db.dict">Key-Value Dictionaries (<code>db.dict</code>)</a></li>
+  <li><a href="#caching-with-ttl-db.dict" id="toc-caching-with-ttl-db.dict" class="nav-link" data-scroll-target="#caching-with-ttl-db.dict">Caching with TTL (<code>db.dict</code>)</a></li>
+  <li><a href="#persistent-lists-db.list" id="toc-persistent-lists-db.list" class="nav-link" data-scroll-target="#persistent-lists-db.list">Persistent Lists (<code>db.list</code>)</a></li>
+  <li><a href="#priority-queues-db.queue" id="toc-priority-queues-db.queue" class="nav-link" data-scroll-target="#priority-queues-db.queue">Priority Queues (<code>db.queue</code>)</a></li>
+  <li><a href="#blob-storage-db.blob" id="toc-blob-storage-db.blob" class="nav-link" data-scroll-target="#blob-storage-db.blob">Blob Storage (<code>db.blob</code>)</a></li>
   </ul></li>
-  <li><a href="#real-time-concurrency" id="toc-real-time-concurrency" class="nav-link" data-scroll-target="#real-time-concurrency"><span class="header-section-number">3.3</span> Real-Time &amp; Concurrency</a>
+  <li><a href="#the-document-collection-db.collection" id="toc-the-document-collection-db.collection" class="nav-link" data-scroll-target="#the-document-collection-db.collection">The Document Collection (<code>db.collection</code>)</a>
   <ul class="collapse">
-  <li><a href="#inter-process-locks-db.lock" id="toc-inter-process-locks-db.lock" class="nav-link" data-scroll-target="#inter-process-locks-db.lock"><span class="header-section-number">3.3.1</span> Inter-Process Locks (<code>db.lock</code>)</a></li>
-  <li><a href="#atomic-batch-operations-manager.acquire" id="toc-atomic-batch-operations-manager.acquire" class="nav-link" data-scroll-target="#atomic-batch-operations-manager.acquire"><span class="header-section-number">3.3.2</span> Atomic Batch Operations (<code>manager.acquire</code>)</a></li>
-  <li><a href="#pubsub-channels-db.channel" id="toc-pubsub-channels-db.channel" class="nav-link" data-scroll-target="#pubsub-channels-db.channel"><span class="header-section-number">3.3.3</span> Pub/Sub Channels (<code>db.channel</code>)</a></li>
-  <li><a href="#live-aggregating-logs-db.log" id="toc-live-aggregating-logs-db.log" class="nav-link" data-scroll-target="#live-aggregating-logs-db.log"><span class="header-section-number">3.3.4</span> Live-Aggregating Logs (<code>db.log</code>)</a></li>
-  <li><a href="#event-driven-callbacks-.on-.off" id="toc-event-driven-callbacks-.on-.off" class="nav-link" data-scroll-target="#event-driven-callbacks-.on-.off"><span class="header-section-number">3.3.5</span> Event-Driven Callbacks (<code>.on</code> / <code>.off</code>)</a></li>
+  <li><a href="#rag-system-hybrid-search" id="toc-rag-system-hybrid-search" class="nav-link" data-scroll-target="#rag-system-hybrid-search">RAG System (Hybrid Search)</a></li>
+  <li><a href="#knowledge-graphs-db.collection" id="toc-knowledge-graphs-db.collection" class="nav-link" data-scroll-target="#knowledge-graphs-db.collection">Knowledge Graphs (<code>db.collection</code>)</a></li>
   </ul></li>
-  <li><a href="#advanced-features" id="toc-advanced-features" class="nav-link" data-scroll-target="#advanced-features"><span class="header-section-number">3.4</span> Advanced Features</a>
+  <li><a href="#real-time-concurrency" id="toc-real-time-concurrency" class="nav-link" data-scroll-target="#real-time-concurrency">Real-Time &amp; Concurrency</a>
   <ul class="collapse">
-  <li><a href="#type-safe-models-with-pydantic" id="toc-type-safe-models-with-pydantic" class="nav-link" data-scroll-target="#type-safe-models-with-pydantic"><span class="header-section-number">3.4.1</span> Type-Safe Models with Pydantic</a></li>
-  <li><a href="#server-cli" id="toc-server-cli" class="nav-link" data-scroll-target="#server-cli"><span class="header-section-number">3.4.2</span> Server &amp; CLI</a></li>
-  <li><a href="#data-export-backups-.dump" id="toc-data-export-backups-.dump" class="nav-link" data-scroll-target="#data-export-backups-.dump"><span class="header-section-number">3.4.3</span> Data Export &amp; Backups (<code>.dump</code>)</a></li>
+  <li><a href="#inter-process-locks-db.lock" id="toc-inter-process-locks-db.lock" class="nav-link" data-scroll-target="#inter-process-locks-db.lock">Inter-Process Locks (<code>db.lock</code>)</a></li>
+  <li><a href="#atomic-batch-operations-manager.acquire" id="toc-atomic-batch-operations-manager.acquire" class="nav-link" data-scroll-target="#atomic-batch-operations-manager.acquire">Atomic Batch Operations (<code>manager.acquire</code>)</a></li>
+  <li><a href="#pubsub-channels-db.channel" id="toc-pubsub-channels-db.channel" class="nav-link" data-scroll-target="#pubsub-channels-db.channel">Pub/Sub Channels (<code>db.channel</code>)</a></li>
+  <li><a href="#live-aggregating-logs-db.log" id="toc-live-aggregating-logs-db.log" class="nav-link" data-scroll-target="#live-aggregating-logs-db.log">Live-Aggregating Logs (<code>db.log</code>)</a></li>
+  <li><a href="#event-driven-callbacks-.on-.off" id="toc-event-driven-callbacks-.on-.off" class="nav-link" data-scroll-target="#event-driven-callbacks-.on-.off">Event-Driven Callbacks (<code>.on</code> / <code>.off</code>)</a></li>
   </ul></li>
-  <li><a href="#further-reading" id="toc-further-reading" class="nav-link" data-scroll-target="#further-reading"><span class="header-section-number">3.5</span> Further Reading</a></li>
+  <li><a href="#advanced-features" id="toc-advanced-features" class="nav-link" data-scroll-target="#advanced-features">Advanced Features</a>
+  <ul class="collapse">
+  <li><a href="#type-safe-models-with-pydantic" id="toc-type-safe-models-with-pydantic" class="nav-link" data-scroll-target="#type-safe-models-with-pydantic">Type-Safe Models with Pydantic</a></li>
+  <li><a href="#server-cli" id="toc-server-cli" class="nav-link" data-scroll-target="#server-cli">Server &amp; CLI</a></li>
+  <li><a href="#data-export-backups-.dump" id="toc-data-export-backups-.dump" class="nav-link" data-scroll-target="#data-export-backups-.dump">Data Export &amp; Backups (<code>.dump</code>)</a></li>
+  </ul></li>
+  <li><a href="#further-reading" id="toc-further-reading" class="nav-link" data-scroll-target="#further-reading">Further Reading</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content">
-
-<header id="title-block-header" class="quarto-title-block default">
-<div class="quarto-title">
-<h1 class="title"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Feature Summary</span></h1>
-</div>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
 
 
 
-<div class="quarto-title-meta">
 
-    
-  
-    
-  </div>
-  
-
-
-</header>
-
-
+<section id="feature-summary" class="level1">
+<h1>Feature Summary</h1>
 <p>This guide provides a comprehensive set of practical, code-first examples for every major feature of BeaverDB.</p>
-<section id="core-data-structures" class="level2" data-number="3.1">
-<h2 data-number="3.1" class="anchored" data-anchor-id="core-data-structures"><span class="header-section-number">3.1</span> Core Data Structures</h2>
-<section id="key-value-dictionaries-db.dict" class="level3" data-number="3.1.1">
-<h3 data-number="3.1.1" class="anchored" data-anchor-id="key-value-dictionaries-db.dict"><span class="header-section-number">3.1.1</span> Key-Value Dictionaries (<code>db.dict</code>)</h3>
+<section id="core-data-structures" class="level2">
+<h2 class="anchored" data-anchor-id="core-data-structures">Core Data Structures</h2>
+<section id="key-value-dictionaries-db.dict" class="level3">
+<h3 class="anchored" data-anchor-id="key-value-dictionaries-db.dict">Key-Value Dictionaries (<code>db.dict</code>)</h3>
 <p>Use a namespaced dictionary for storing simple key-value data like application configuration or user profiles.</p>
 <p>First, let’s import <code>BeaverDB</code> and get a handle to a namespaced dictionary called <code>"app_config"</code>.</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver <span class="im">import</span> BeaverDB</span>
@@ -350,8 +296,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>db.close()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="caching-with-ttl-db.dict" class="level3" data-number="3.1.2">
-<h3 data-number="3.1.2" class="anchored" data-anchor-id="caching-with-ttl-db.dict"><span class="header-section-number">3.1.2</span> Caching with TTL (<code>db.dict</code>)</h3>
+<section id="caching-with-ttl-db.dict" class="level3">
+<h3 class="anchored" data-anchor-id="caching-with-ttl-db.dict">Caching with TTL (<code>db.dict</code>)</h3>
 <p>Leverage a dictionary with a <strong>Time-To-Live (TTL)</strong> to cache the results of slow network requests.</p>
 <p>Let’s define a mock function that simulates a slow API call and get a handle to a dictionary we’ll use as our cache.</p>
 <div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> time</span>
@@ -404,8 +350,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Response: </span><span class="sc">{</span>response<span class="sc">}</span><span class="ss">"</span>)</span>
 <span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>db.close()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="persistent-lists-db.list" class="level3" data-number="3.1.3">
-<h3 data-number="3.1.3" class="anchored" data-anchor-id="persistent-lists-db.list"><span class="header-section-number">3.1.3</span> Persistent Lists (<code>db.list</code>)</h3>
+<section id="persistent-lists-db.list" class="level3">
+<h3 class="anchored" data-anchor-id="persistent-lists-db.list">Persistent Lists (<code>db.list</code>)</h3>
 <p>A persistent list is perfect for storing ordered data, like the history of a conversation. It supports a full Python list API.</p>
 <div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver <span class="im">import</span> BeaverDB</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -443,8 +389,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>db.close()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="priority-queues-db.queue" class="level3" data-number="3.1.4">
-<h3 data-number="3.1.4" class="anchored" data-anchor-id="priority-queues-db.queue"><span class="header-section-number">3.1.4</span> Priority Queues (<code>db.queue</code>)</h3>
+<section id="priority-queues-db.queue" class="level3">
+<h3 class="anchored" data-anchor-id="priority-queues-db.queue">Priority Queues (<code>db.queue</code>)</h3>
 <p>Use a persistent priority queue to manage tasks for an AI agent or any worker system. This ensures the most important tasks are always processed first.</p>
 <p>Items are added with a <code>priority</code> (lower numbers are processed first). The <code>.get()</code> method is atomic and blocks until an item is available, making it perfect for worker processes.</p>
 <div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver <span class="im">import</span> BeaverDB</span>
@@ -469,8 +415,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>db.close()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="blob-storage-db.blob" class="level3" data-number="3.1.5">
-<h3 data-number="3.1.5" class="anchored" data-anchor-id="blob-storage-db.blob"><span class="header-section-number">3.1.5</span> Blob Storage (<code>db.blob</code>)</h3>
+<section id="blob-storage-db.blob" class="level3">
+<h3 class="anchored" data-anchor-id="blob-storage-db.blob">Blob Storage (<code>db.blob</code>)</h3>
 <p>Use the blob store to save binary data like user avatars, attachments, or generated reports directly in the database.</p>
 <p>First, we’ll get a handle to our blob store and prepare some sample binary data.</p>
 <div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver <span class="im">import</span> BeaverDB</span>
@@ -504,11 +450,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>db.close()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
 </section>
-<section id="the-document-collection-db.collection" class="level2" data-number="3.2">
-<h2 data-number="3.2" class="anchored" data-anchor-id="the-document-collection-db.collection"><span class="header-section-number">3.2</span> The Document Collection (<code>db.collection</code>)</h2>
+<section id="the-document-collection-db.collection" class="level2">
+<h2 class="anchored" data-anchor-id="the-document-collection-db.collection">The Document Collection (<code>db.collection</code>)</h2>
 <p>The collection is the most powerful data structure, combining document storage with vector, text, and graph search.</p>
-<section id="rag-system-hybrid-search" class="level3" data-number="3.2.1">
-<h3 data-number="3.2.1" class="anchored" data-anchor-id="rag-system-hybrid-search"><span class="header-section-number">3.2.1</span> RAG System (Hybrid Search)</h3>
+<section id="rag-system-hybrid-search" class="level3">
+<h3 class="anchored" data-anchor-id="rag-system-hybrid-search">RAG System (Hybrid Search)</h3>
 <p>This example shows how to combine keyword and vector search for a simple RAG pipeline.</p>
 <div class="sourceCode" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver <span class="im">import</span> BeaverDB, Document</span>
 <span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver.collections <span class="im">import</span> rerank</span>
@@ -553,8 +499,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>db.close()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="knowledge-graphs-db.collection" class="level3" data-number="3.2.2">
-<h3 data-number="3.2.2" class="anchored" data-anchor-id="knowledge-graphs-db.collection"><span class="header-section-number">3.2.2</span> Knowledge Graphs (<code>db.collection</code>)</h3>
+<section id="knowledge-graphs-db.collection" class="level3">
+<h3 class="anchored" data-anchor-id="knowledge-graphs-db.collection">Knowledge Graphs (<code>db.collection</code>)</h3>
 <p>A collection also serves as a graph. We can connect documents to build a network of relationships.</p>
 <div class="sourceCode" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver <span class="im">import</span> BeaverDB, Document</span>
 <span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -591,10 +537,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>db.close()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
 </section>
-<section id="real-time-concurrency" class="level2" data-number="3.3">
-<h2 data-number="3.3" class="anchored" data-anchor-id="real-time-concurrency"><span class="header-section-number">3.3</span> Real-Time &amp; Concurrency</h2>
-<section id="inter-process-locks-db.lock" class="level3" data-number="3.3.1">
-<h3 data-number="3.3.1" class="anchored" data-anchor-id="inter-process-locks-db.lock"><span class="header-section-number">3.3.1</span> Inter-Process Locks (<code>db.lock</code>)</h3>
+<section id="real-time-concurrency" class="level2">
+<h2 class="anchored" data-anchor-id="real-time-concurrency">Real-Time &amp; Concurrency</h2>
+<section id="inter-process-locks-db.lock" class="level3">
+<h3 class="anchored" data-anchor-id="inter-process-locks-db.lock">Inter-Process Locks (<code>db.lock</code>)</h3>
 <p>Run multiple scripts in parallel and use <code>db.lock()</code> to coordinate them. This example simulates two scrapers trying to refresh a shared sitemap. The <code>db.lock()</code> ensures that only one process can enter the critical section, preventing a “thundering herd” race condition. The <code>timeout=1</code> causes other processes to skip rather than wait.</p>
 <div class="sourceCode" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> time</span>
 <span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os</span>
@@ -621,8 +567,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb26-23"><a href="#cb26-23" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"PID </span><span class="sc">{</span>os<span class="sc">.</span>getpid()<span class="sc">}</span><span class="ss"> proceeding with sitemap: </span><span class="sc">{</span>sitemap<span class="sc">}</span><span class="ss">"</span>)</span>
 <span id="cb26-24"><a href="#cb26-24" aria-hidden="true" tabindex="-1"></a>db.close()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="atomic-batch-operations-manager.acquire" class="level3" data-number="3.3.2">
-<h3 data-number="3.3.2" class="anchored" data-anchor-id="atomic-batch-operations-manager.acquire"><span class="header-section-number">3.3.2</span> Atomic Batch Operations (<code>manager.acquire</code>)</h3>
+<section id="atomic-batch-operations-manager.acquire" class="level3">
+<h3 class="anchored" data-anchor-id="atomic-batch-operations-manager.acquire">Atomic Batch Operations (<code>manager.acquire</code>)</h3>
 <p>Ensure a worker process can safely pull a <em>batch</em> of items from a queue without another worker interfering, using the built-in manager lock. By wrapping the operation in <code>with db.queue(...).acquire()</code>, we guarantee that this process can pull 10 items from the queue atomically, without another worker process stealing items in the middle of the batch.</p>
 <div class="sourceCode" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver <span class="im">import</span> BeaverDB</span>
 <span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -644,8 +590,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb27-18"><a href="#cb27-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Processing batch of </span><span class="sc">{</span><span class="bu">len</span>(tasks_to_process)<span class="sc">}</span><span class="ss"> items."</span>)</span>
 <span id="cb27-19"><a href="#cb27-19" aria-hidden="true" tabindex="-1"></a>db.close()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="pubsub-channels-db.channel" class="level3" data-number="3.3.3">
-<h3 data-number="3.3.3" class="anchored" data-anchor-id="pubsub-channels-db.channel"><span class="header-section-number">3.3.3</span> Pub/Sub Channels (<code>db.channel</code>)</h3>
+<section id="pubsub-channels-db.channel" class="level3">
+<h3 class="anchored" data-anchor-id="pubsub-channels-db.channel">Pub/Sub Channels (<code>db.channel</code>)</h3>
 <p>BeaverDB’s pub/sub system allows for real-time, multi-process communication. Here is how two separate processes can communicate.</p>
 <p>In one process (or thread), a publisher sends a message to a named channel. This is a fast, single <code>INSERT</code> operation.</p>
 <div class="sourceCode" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="co"># --- In one process or thread (e.g., a monitoring service) ---</span></span>
@@ -672,8 +618,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a>        <span class="cf">break</span> <span class="co"># Exit after one message for this example</span></span>
 <span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a>db.close()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="live-aggregating-logs-db.log" class="level3" data-number="3.3.4">
-<h3 data-number="3.3.4" class="anchored" data-anchor-id="live-aggregating-logs-db.log"><span class="header-section-number">3.3.4</span> Live-Aggregating Logs (<code>db.log</code>)</h3>
+<section id="live-aggregating-logs-db.log" class="level3">
+<h3 class="anchored" data-anchor-id="live-aggregating-logs-db.log">Live-Aggregating Logs (<code>db.log</code>)</h3>
 <p>Monitor your application’s health in real-time. The <code>.live()</code> method provides a continuously updating, aggregated view of your log data, perfect for terminal dashboards.</p>
 <p>First, we define an ‘aggregator’ function that takes a list of log entries and returns a single summary dictionary.</p>
 <div class="sourceCode" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> datetime <span class="im">import</span> timedelta</span>
@@ -711,8 +657,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a><span class="cf">finally</span>:</span>
 <span id="cb32-9"><a href="#cb32-9" aria-hidden="true" tabindex="-1"></a>    db.close()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="event-driven-callbacks-.on-.off" class="level3" data-number="3.3.5">
-<h3 data-number="3.3.5" class="anchored" data-anchor-id="event-driven-callbacks-.on-.off"><span class="header-section-number">3.3.5</span> Event-Driven Callbacks (<code>.on</code> / <code>.off</code>)</h3>
+<section id="event-driven-callbacks-.on-.off" class="level3">
+<h3 class="anchored" data-anchor-id="event-driven-callbacks-.on-.off">Event-Driven Callbacks (<code>.on</code> / <code>.off</code>)</h3>
 <p>Listen for database changes in real-time. You can subscribe to events on specific managers (e.g., <code>db.dict("config").on("set", ...)</code> to trigger workflows or update UIs).</p>
 <p>First, let’s define a callback function that will be triggered when a change occurs.</p>
 <div class="sourceCode" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> time</span>
@@ -752,10 +698,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb36-9"><a href="#cb36-9" aria-hidden="true" tabindex="-1"></a>db.close()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
 </section>
-<section id="advanced-features" class="level2" data-number="3.4">
-<h2 data-number="3.4" class="anchored" data-anchor-id="advanced-features"><span class="header-section-number">3.4</span> Advanced Features</h2>
-<section id="type-safe-models-with-pydantic" class="level3" data-number="3.4.1">
-<h3 data-number="3.4.1" class="anchored" data-anchor-id="type-safe-models-with-pydantic"><span class="header-section-number">3.4.1</span> Type-Safe Models with Pydantic</h3>
+<section id="advanced-features" class="level2">
+<h2 class="anchored" data-anchor-id="advanced-features">Advanced Features</h2>
+<section id="type-safe-models-with-pydantic" class="level3">
+<h3 class="anchored" data-anchor-id="type-safe-models-with-pydantic">Type-Safe Models with Pydantic</h3>
 <p>BeaverDB has first-class support for Pydantic. By associating a <code>BaseModel</code> with a data structure, you get automatic, recursive (de)serialization and data validation.</p>
 <p>By passing <code>model=User</code> to the <code>db.dict()</code> factory, BeaverDB will automatically validate data on write and, more importantly, deserialize the stored JSON back into a full <code>User</code> object on read, giving you type safety and editor autocompletion.</p>
 <div class="sourceCode" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pydantic <span class="im">import</span> BaseModel</span>
@@ -788,8 +734,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb37-28"><a href="#cb37-28" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb37-29"><a href="#cb37-29" aria-hidden="true" tabindex="-1"></a>db.close()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="server-cli" class="level3" data-number="3.4.2">
-<h3 data-number="3.4.2" class="anchored" data-anchor-id="server-cli"><span class="header-section-number">3.4.2</span> Server &amp; CLI</h3>
+<section id="server-cli" class="level3">
+<h3 class="anchored" data-anchor-id="server-cli">Server &amp; CLI</h3>
 <p>You can instantly expose your database over a RESTful API and interact with it from the command line.</p>
 <p><strong>1. Start the Server</strong></p>
 <div class="sourceCode" id="cb38"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Start the server for your database file</span></span>
@@ -817,8 +763,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb40-10"><a href="#cb40-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Run a script protected by a distributed lock</span></span>
 <span id="cb40-11"><a href="#cb40-11" aria-hidden="true" tabindex="-1"></a><span class="ex">beaver</span> <span class="at">--database</span> data.db lock my-cron-job run bash <span class="at">-c</span> <span class="st">'run_daily_report.sh'</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="data-export-backups-.dump" class="level3" data-number="3.4.3">
-<h3 data-number="3.4.3" class="anchored" data-anchor-id="data-export-backups-.dump"><span class="header-section-number">3.4.3</span> Data Export &amp; Backups (<code>.dump</code>)</h3>
+<section id="data-export-backups-.dump" class="level3">
+<h3 class="anchored" data-anchor-id="data-export-backups-.dump">Data Export &amp; Backups (<code>.dump</code>)</h3>
 <p>All data structures support a <code>.dump()</code> method for easy backups and migration to a JSON file.</p>
 <div class="sourceCode" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> json</span>
 <span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver <span class="im">import</span> BeaverDB</span>
@@ -841,8 +787,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="sourceCode" id="cb42"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="ex">beaver</span> <span class="at">--database</span> data.db collection my_documents dump <span class="op">&gt;</span> my_documents.json</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
 </section>
-<section id="further-reading" class="level2" data-number="3.5">
-<h2 data-number="3.5" class="anchored" data-anchor-id="further-reading"><span class="header-section-number">3.5</span> Further Reading</h2>
+<section id="further-reading" class="level2">
+<h2 class="anchored" data-anchor-id="further-reading">Further Reading</h2>
 <p>Keep exploring BeaverDB with these in-depth guides:</p>
 <ul>
 <li><a href="./guide-dicts-blobs.html">Key-Value Dictionaries and Blob Storage</a></li>
@@ -854,6 +800,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </ul>
 
 
+</section>
 </section>
 
 </main> <!-- /main -->
@@ -929,7 +876,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp('/' + window.location.host + '/');
+        var filterRegex = new RegExp("https:\/\/syalia-srl\.github\.io\/beaver\/");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
@@ -1256,18 +1203,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     }
   });
   </script>
-<nav class="page-navigation">
-  <div class="nav-page nav-page-previous">
-      <a href="./quickstart.html" class="pagination-link" aria-label="Quickstart Guide">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Quickstart Guide</span></span>
-      </a>          
-  </div>
-  <div class="nav-page nav-page-next">
-      <a href="./guide-dicts-blobs.html" class="pagination-link" aria-label="Key-Value and Blob Storage">
-        <span class="nav-page-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Key-Value and Blob Storage</span></span> <i class="bi bi-arrow-right-short"></i>
-      </a>
-  </div>
-</nav>
 </div> <!-- /content -->
 
 

@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>2&nbsp; Quickstart Guide – BeaverDB: The Complete Guide</title>
+<title>quickstart – BeaverDB</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -64,8 +64,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-search/fuse.min.js"></script>
 <script src="site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="./">
-<link href="./guide.html" rel="next">
-<link href="./index.html" rel="prev">
 <script src="site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
@@ -75,13 +73,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="site_libs/quarto-html/quarto-syntax-highlighting-de070a7b0ab54f8780927367ac907214.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-5d653dd4d7566aed16f42eb06e547978.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-e628450da95f84e11e7804e63d9c5e30.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
-  "location": "sidebar",
+  "location": "navbar",
   "copy-button": false,
   "collapse-after": 3,
-  "panel-placement": "start",
-  "type": "textbox",
+  "panel-placement": "end",
+  "type": "overlay",
   "limit": 50,
   "keyboard-shortcut": [
     "f",
@@ -107,194 +105,142 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 </head>
 
-<body class="nav-sidebar docked quarto-light">
+<body class="nav-fixed quarto-light">
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
-  <nav class="quarto-secondary-nav">
-    <div class="container-fluid d-flex">
-      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
-        <i class="bi bi-layout-text-sidebar-reverse"></i>
-      </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./quickstart.html"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Quickstart Guide</span></a></li></ol></nav>
-        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
-        </a>
-      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
-        <i class="bi bi-search"></i>
-      </button>
-    </div>
-  </nav>
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="./index.html" class="navbar-brand navbar-brand-logo">
+    <img src="./logo.png" alt="" class="navbar-logo">
+    </a>
+    <a class="navbar-brand" href="./index.html">
+    <span class="navbar-title">BeaverDB</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="./index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./intro.html"> 
+<span class="menu-text">Introduction</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link active" href="./quickstart.html" aria-current="page"> 
+<span class="menu-text">Quickstart</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-user-guide" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">User Guide</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-user-guide">    
+        <li>
+    <a class="dropdown-item" href="./guide.html">
+ <span class="dropdown-text">Feature Summary</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./guide-dicts-blobs.html">
+ <span class="dropdown-text">Dictionaries &amp; Blobs</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./guide-lists-queues.html">
+ <span class="dropdown-text">Lists &amp; Queues</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./guide-collections.html">
+ <span class="dropdown-text">Collections (Vector/FTS/Graph)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./guide-realtime.html">
+ <span class="dropdown-text">Real-Time Data (Pub/Sub)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./guide-concurrency.html">
+ <span class="dropdown-text">Concurrency &amp; Locking</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./guide-deployment.html">
+ <span class="dropdown-text">Deployment &amp; API</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-developer-guide" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Developer Guide</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-developer-guide">    
+        <li>
+    <a class="dropdown-item" href="./dev-architecture.html">
+ <span class="dropdown-text">Core Architecture</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./dev-concurrency.html">
+ <span class="dropdown-text">Concurrency Model</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./dev-search.html">
+ <span class="dropdown-text">Search Internals</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./dev-contributing.html">
+ <span class="dropdown-text">Contributing</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
 </header>
 <!-- content -->
-<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
 <!-- sidebar -->
-  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
-    <div class="pt-lg-2 mt-2 text-left sidebar-header sidebar-header-stacked">
-      <a href="./index.html" class="sidebar-logo-link">
-      <img src="./logo.png" alt="" class="sidebar-logo py-0 d-lg-inline d-none">
-      </a>
-    <div class="sidebar-title mb-0 py-0">
-      <a href="./">BeaverDB: The Complete Guide</a> 
-    </div>
-      </div>
-        <div class="mt-2 flex-shrink-0 align-items-center">
-        <div class="sidebar-search">
-        <div id="quarto-search" class="" title="Search"></div>
-        </div>
-        </div>
-    <div class="sidebar-menu-container"> 
-    <ul class="list-unstyled mt-1">
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./index.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></span></a>
-  </div>
-</li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./quickstart.html" class="sidebar-item-text sidebar-link active">
- <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Quickstart Guide</span></span></a>
-  </div>
-</li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./guide.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Feature Summary</span></span></a>
-  </div>
-</li>
-        <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false">
- <span class="menu-text">The User Guide</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./guide-dicts-blobs.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Key-Value and Blob Storage</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./guide-lists-queues.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Lists and Queues</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./guide-collections.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">The Document Collection (<code>db.collection</code>)</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./guide-realtime.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Real-Time Data</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./guide-concurrency.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Concurrency</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./guide-deployment.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Deployment &amp; Access</span></span></a>
-  </div>
-</li>
-      </ul>
-  </li>
-        <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false">
- <span class="menu-text">The Developer Guide</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./dev-architecture.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Core Architecture &amp; Design</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./dev-concurrency.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">11</span>&nbsp; <span class="chapter-title">Concurrency Model</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./dev-search.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">12</span>&nbsp; <span class="chapter-title">Search Architecture</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./dev-contributing.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">13</span>&nbsp; <span class="chapter-title">Future Roadmap &amp; Contributing</span></span></a>
-  </div>
-</li>
-      </ul>
-  </li>
-    </ul>
-    </div>
-</nav>
-<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
 <!-- margin-sidebar -->
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
         <nav id="TOC" role="doc-toc" class="toc-active">
-    <h2 id="toc-title">Table of contents</h2>
+    <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#installation" id="toc-installation" class="nav-link active" data-scroll-target="#installation"><span class="header-section-number">2.1</span> Installation</a></li>
-  <li><a href="#docker" id="toc-docker" class="nav-link" data-scroll-target="#docker"><span class="header-section-number">2.2</span> Docker</a></li>
-  <li><a href="#a-step-by-step-example" id="toc-a-step-by-step-example" class="nav-link" data-scroll-target="#a-step-by-step-example"><span class="header-section-number">2.3</span> A Step-by-Step Example</a>
+  <li><a href="#quickstart-guide" id="toc-quickstart-guide" class="nav-link active" data-scroll-target="#quickstart-guide">Quickstart Guide</a>
   <ul class="collapse">
-  <li><a href="#initialize-the-database" id="toc-initialize-the-database" class="nav-link" data-scroll-target="#initialize-the-database"><span class="header-section-number">2.3.1</span> 1. Initialize the Database</a></li>
-  <li><a href="#use-a-dictionary" id="toc-use-a-dictionary" class="nav-link" data-scroll-target="#use-a-dictionary"><span class="header-section-number">2.3.2</span> 2. Use a Dictionary</a></li>
-  <li><a href="#use-a-persistent-list" id="toc-use-a-persistent-list" class="nav-link" data-scroll-target="#use-a-persistent-list"><span class="header-section-number">2.3.3</span> 3. Use a Persistent List</a></li>
-  <li><a href="#use-a-collection" id="toc-use-a-collection" class="nav-link" data-scroll-target="#use-a-collection"><span class="header-section-number">2.3.4</span> 4. Use a Collection</a></li>
-  <li><a href="#index-for-search" id="toc-index-for-search" class="nav-link" data-scroll-target="#index-for-search"><span class="header-section-number">2.3.5</span> 5. Index for Search</a></li>
-  <li><a href="#perform-a-fuzzy-search" id="toc-perform-a-fuzzy-search" class="nav-link" data-scroll-target="#perform-a-fuzzy-search"><span class="header-section-number">2.3.6</span> 6. Perform a Fuzzy Search</a></li>
+  <li><a href="#installation" id="toc-installation" class="nav-link" data-scroll-target="#installation">Installation</a></li>
+  <li><a href="#docker" id="toc-docker" class="nav-link" data-scroll-target="#docker">Docker</a></li>
+  <li><a href="#a-step-by-step-example" id="toc-a-step-by-step-example" class="nav-link" data-scroll-target="#a-step-by-step-example">A Step-by-Step Example</a>
+  <ul class="collapse">
+  <li><a href="#initialize-the-database" id="toc-initialize-the-database" class="nav-link" data-scroll-target="#initialize-the-database">1. Initialize the Database</a></li>
+  <li><a href="#use-a-dictionary" id="toc-use-a-dictionary" class="nav-link" data-scroll-target="#use-a-dictionary">2. Use a Dictionary</a></li>
+  <li><a href="#use-a-persistent-list" id="toc-use-a-persistent-list" class="nav-link" data-scroll-target="#use-a-persistent-list">3. Use a Persistent List</a></li>
+  <li><a href="#use-a-collection" id="toc-use-a-collection" class="nav-link" data-scroll-target="#use-a-collection">4. Use a Collection</a></li>
+  <li><a href="#index-for-search" id="toc-index-for-search" class="nav-link" data-scroll-target="#index-for-search">5. Index for Search</a></li>
+  <li><a href="#perform-a-fuzzy-search" id="toc-perform-a-fuzzy-search" class="nav-link" data-scroll-target="#perform-a-fuzzy-search">6. Perform a Fuzzy Search</a></li>
   </ul></li>
-  <li><a href="#using-the-cli" id="toc-using-the-cli" class="nav-link" data-scroll-target="#using-the-cli"><span class="header-section-number">2.4</span> Using the CLI</a></li>
-  <li><a href="#running-the-rest-api-server" id="toc-running-the-rest-api-server" class="nav-link" data-scroll-target="#running-the-rest-api-server"><span class="header-section-number">2.5</span> Running the REST API Server</a></li>
+  <li><a href="#using-the-cli" id="toc-using-the-cli" class="nav-link" data-scroll-target="#using-the-cli">Using the CLI</a></li>
+  <li><a href="#running-the-rest-api-server" id="toc-running-the-rest-api-server" class="nav-link" data-scroll-target="#running-the-rest-api-server">Running the REST API Server</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content">
-
-<header id="title-block-header" class="quarto-title-block default">
-<div class="quarto-title">
-<h1 class="title"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Quickstart Guide</span></h1>
-</div>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
 
 
 
-<div class="quarto-title-meta">
 
-    
-  
-    
-  </div>
-  
-
-
-</header>
-
-
+<section id="quickstart-guide" class="level1">
+<h1>Quickstart Guide</h1>
 <p>This is where the fun begins. Let’s get BeaverDB installed and run your first multi-modal script. You’ll be up and running in about 30 seconds.</p>
-<section id="installation" class="level2" data-number="2.1">
-<h2 data-number="2.1" class="anchored" data-anchor-id="installation"><span class="header-section-number">2.1</span> Installation</h2>
+<section id="installation" class="level2">
+<h2 class="anchored" data-anchor-id="installation">Installation</h2>
 <p>BeaverDB is a Python library, so you can install it right from your terminal using <code>uv</code> or <code>pip</code>.</p>
 <p><strong>The Core Install</strong></p>
 <p>The core <code>beaver-db</code> package includes everything you need for local development, including the CLI, vector search, and all data structures.</p>
@@ -309,8 +255,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># To install all features, including the REST server</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install <span class="st">"beaver-db[full]"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="docker" class="level2" data-number="2.2">
-<h2 data-number="2.2" class="anchored" data-anchor-id="docker"><span class="header-section-number">2.2</span> Docker</h2>
+<section id="docker" class="level2">
+<h2 class="anchored" data-anchor-id="docker">Docker</h2>
 <p>You can also run the BeaverDB REST API server using Docker. This is the recommended way to deploy BeaverDB as a service.</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Pull the latest image from the GitHub Container Registry</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> pull ghcr.io/syalia-srl/beaver:latest</span>
@@ -327,12 +273,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>Tells the server to create its database file at <code>/app/data/production.db</code> (which will persist in your <code>my-beaver-data</code> folder).</li>
 </ul>
 </section>
-<section id="a-step-by-step-example" class="level2" data-number="2.3">
-<h2 data-number="2.3" class="anchored" data-anchor-id="a-step-by-step-example"><span class="header-section-number">2.3</span> A Step-by-Step Example</h2>
+<section id="a-step-by-step-example" class="level2">
+<h2 class="anchored" data-anchor-id="a-step-by-step-example">A Step-by-Step Example</h2>
 <p>Let’s create a single Python script that shows off BeaverDB’s “multi-modal” power.</p>
 <p>Create a new file named <code>quickstart.py</code>.</p>
-<section id="initialize-the-database" class="level3" data-number="2.3.1">
-<h3 data-number="2.3.1" class="anchored" data-anchor-id="initialize-the-database"><span class="header-section-number">2.3.1</span> 1. Initialize the Database</h3>
+<section id="initialize-the-database" class="level3">
+<h3 class="anchored" data-anchor-id="initialize-the-database">1. Initialize the Database</h3>
 <p>First, import <code>BeaverDB</code> and <code>Document</code>. The <code>BeaverDB</code> class is your main entry point, and <code>Document</code> is the object we’ll use for storing rich data. This line creates a single file, <code>my_data.db</code>, if it doesn’t already exist.</p>
 <div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver <span class="im">import</span> BeaverDB, Document</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -340,8 +286,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co"># and sets it up for safe, concurrent access.</span></span>
 <span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>db <span class="op">=</span> BeaverDB(<span class="st">"my_data.db"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="use-a-dictionary" class="level3" data-number="2.3.2">
-<h3 data-number="2.3.2" class="anchored" data-anchor-id="use-a-dictionary"><span class="header-section-number">2.3.2</span> 2. Use a Dictionary</h3>
+<section id="use-a-dictionary" class="level3">
+<h3 class="anchored" data-anchor-id="use-a-dictionary">2. Use a Dictionary</h3>
 <p>Now let’s use a namespaced dictionary. This is perfect for storing app configuration or user settings. We get it by calling <code>db.dict("app_config")</code>. The object it returns behaves just like a standard Python <code>dict</code>.</p>
 <div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># This is perfect for storing app configuration or user settings.</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>config <span class="op">=</span> db.<span class="bu">dict</span>(<span class="st">"app_config"</span>)</span>
@@ -353,8 +299,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="co"># You can read the value back just as easily:</span></span>
 <span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"App theme is: </span><span class="sc">{</span>config[<span class="st">'theme'</span>]<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="use-a-persistent-list" class="level3" data-number="2.3.3">
-<h3 data-number="2.3.3" class="anchored" data-anchor-id="use-a-persistent-list"><span class="header-section-number">2.3.3</span> 3. Use a Persistent List</h3>
+<section id="use-a-persistent-list" class="level3">
+<h3 class="anchored" data-anchor-id="use-a-persistent-list">3. Use a Persistent List</h3>
 <p>Next, let’s store some ordered data. A persistent list (<code>db.list()</code>) is great for a to-do list, a job queue, or a chat history. It supports methods like <code>push</code>, <code>pop</code>, and standard index access.</p>
 <div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># This is great for a to-do list, a job queue, or a chat history.</span></span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>tasks <span class="op">=</span> db.<span class="bu">list</span>(<span class="st">"daily_tasks"</span>)</span>
@@ -366,8 +312,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="co"># You can access items by index, just like a normal list:</span></span>
 <span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"First task is: </span><span class="sc">{</span>tasks[<span class="dv">0</span>][<span class="st">'desc'</span>]<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="use-a-collection" class="level3" data-number="2.3.4">
-<h3 data-number="2.3.4" class="anchored" data-anchor-id="use-a-collection"><span class="header-section-number">2.3.4</span> 4. Use a Collection</h3>
+<section id="use-a-collection" class="level3">
+<h3 class="anchored" data-anchor-id="use-a-collection">4. Use a Collection</h3>
 <p>The “collection” is the most powerful feature. It stores rich <code>Document</code> objects and allows you to search them using vectors, text, or graph relationships.</p>
 <p>Let’s get a collection and create a <code>Document</code> to store. The <code>body</code> field holds all of our text and metadata.</p>
 <div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># This is the most powerful feature, combining data and search.</span></span>
@@ -380,16 +326,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    body<span class="op">=</span><span class="st">"SQLite is a powerful embedded database ideal for local apps."</span></span>
 <span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="index-for-search" class="level3" data-number="2.3.5">
-<h3 data-number="2.3.5" class="anchored" data-anchor-id="index-for-search"><span class="header-section-number">2.3.5</span> 5. Index for Search</h3>
+<section id="index-for-search" class="level3">
+<h3 class="anchored" data-anchor-id="index-for-search">5. Index for Search</h3>
 <p>Now, we’ll save the document using <code>.index()</code>. By setting <code>fts=True</code>, we tell BeaverDB to <em>also</em> automatically add the text in <code>body</code> to a Full-Text Search index. We’ll add <code>fuzzy=True</code> to tolerate typos.</p>
 <div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># This not only saves the document but also automatically</span></span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="co"># makes its text content searchable via a Full-Text Search (FTS) index</span></span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co"># with optional fuzzy matching.</span></span>
 <span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>articles.index(doc, fts<span class="op">=</span><span class="va">True</span>, fuzzy<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="perform-a-fuzzy-search" class="level3" data-number="2.3.6">
-<h3 data-number="2.3.6" class="anchored" data-anchor-id="perform-a-fuzzy-search"><span class="header-section-number">2.3.6</span> 6. Perform a Fuzzy Search</h3>
+<section id="perform-a-fuzzy-search" class="level3">
+<h3 class="anchored" data-anchor-id="perform-a-fuzzy-search">6. Perform a Fuzzy Search</h3>
 <p>Finally, let’s query our collection. We’ll use <code>.match()</code> to perform a text search. Notice the intentional typo in <strong>“datbase”</strong>. Because we indexed with <code>fuzziness=1</code>, BeaverDB finds the correct document anyway!</p>
 <div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># This isn't a simple string find; it's a real search engine!</span></span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Note the typo in "datbase"</span></span>
@@ -401,8 +347,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>When you run your <code>quickstart.py</code> script, you’ll have a single <code>my_data.db</code> file containing your config, your task list, and your searchable articles.</p>
 </section>
 </section>
-<section id="using-the-cli" class="level2" data-number="2.4">
-<h2 data-number="2.4" class="anchored" data-anchor-id="using-the-cli"><span class="header-section-number">2.4</span> Using the CLI</h2>
+<section id="using-the-cli" class="level2">
+<h2 class="anchored" data-anchor-id="using-the-cli">Using the CLI</h2>
 <p>The <code>beaver</code> CLI is included in the core installation and is a great way to inspect or manage your database from the terminal.</p>
 <p>Let’s interact with the <code>my_data.db</code> file we just created.</p>
 <div class="sourceCode" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get the 'theme' key from the 'app_config' dictionary</span></span>
@@ -422,8 +368,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  <span class="er">}</span></span>
 <span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="ex">]</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="running-the-rest-api-server" class="level2" data-number="2.5">
-<h2 data-number="2.5" class="anchored" data-anchor-id="running-the-rest-api-server"><span class="header-section-number">2.5</span> Running the REST API Server</h2>
+<section id="running-the-rest-api-server" class="level2">
+<h2 class="anchored" data-anchor-id="running-the-rest-api-server">Running the REST API Server</h2>
 <p>You can start a REST API server for your database using the <code>beaver serve</code> command. This allows you to interact with your BeaverDB instance over HTTP, making it easy to build web or mobile applications.</p>
 <div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> beaver serve <span class="at">--database</span> my_data.db <span class="at">--port</span> 8000</span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="ex">INFO:</span>     Started server process <span class="pp">[</span><span class="ss">12345</span><span class="pp">]</span></span>
@@ -437,6 +383,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Happy coding!</p>
 
 
+</section>
 </section>
 
 </main> <!-- /main -->
@@ -512,7 +459,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp('/' + window.location.host + '/');
+        var filterRegex = new RegExp("https:\/\/syalia-srl\.github\.io\/beaver\/");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
@@ -839,18 +786,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     }
   });
   </script>
-<nav class="page-navigation">
-  <div class="nav-page nav-page-previous">
-      <a href="./index.html" class="pagination-link" aria-label="Introduction">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></span>
-      </a>          
-  </div>
-  <div class="nav-page nav-page-next">
-      <a href="./guide.html" class="pagination-link" aria-label="Feature Summary">
-        <span class="nav-page-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Feature Summary</span></span> <i class="bi bi-arrow-right-short"></i>
-      </a>
-  </div>
-</nav>
 </div> <!-- /content -->
 
 
