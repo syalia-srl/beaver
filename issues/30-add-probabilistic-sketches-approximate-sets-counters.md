@@ -54,7 +54,8 @@ Since sketches are fixed-size binary blobs, we store them as single rows.
 CREATE TABLE IF NOT EXISTS beaver_sketches (
     name TEXT PRIMARY KEY,
     type TEXT NOT NULL, -- 'approx_set'
-    config TEXT NOT NULL, -- JSON: {capacity, error_rate}
+    capacity INTEGER NOT NULL, -- Bloom Filter capacity
+    error_rate REAL NOT NULL, -- Bloom Filter error rate
     data BLOB NOT NULL -- The packed binary state
 );
 ```
