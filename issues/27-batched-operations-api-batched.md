@@ -30,7 +30,7 @@ with db.dict("config").batched() as batch:
     batch["key1"] = "value1"
     batch.set("key2", "value2", ttl_seconds=300)
     # Writes happen atomically here
-````
+```
 
 #### Lists
 
@@ -74,7 +74,7 @@ with db.blobs("icons").batched() as batch:
     batch.put("icon_2.png", data_bytes_2)
 ```
 
-### 4\. Implementation Design
+### 4. Implementation Design
 
 Each manager will return a specialized `Batch` subclass (e.g., `DictBatch`, `ListBatch`) that implements `__enter__` and `__exit__`.
 
@@ -139,7 +139,7 @@ Each manager will return a specialized `Batch` subclass (e.g., `DictBatch`, `Lis
         1.  Acquires lock and transaction.
         2.  Calls `cursor.executemany("INSERT OR REPLACE INTO beaver_blobs ...", _pending_blobs)`.
 
-### 5\. Constraints & Exclusions
+### 5. Constraints & Exclusions
 
   * **Queues Excluded:** `QueueManager` is excluded from this API. Batch *consumption* is handled by `db.queue(...).acquire()`. Batch *production* is rare enough to not warrant a specific API in this pass.
   * **Memory Usage (Blobs):** The batch is held in memory. Users will be warned in documentation not to use `BlobBatch` for large files (e.g., video dumps), as it will cause an OOM error before the write occurs.
