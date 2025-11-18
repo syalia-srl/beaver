@@ -77,7 +77,7 @@ class BeaverDB:
     def dict(self, name: str):
         # Returns a SyncDictManager that wraps AsyncDictManager
         return SyncDictManager(self._async_db.dict(name), self._loop)
-````
+```
 
 #### Phase 4: Migration of Managers
 
