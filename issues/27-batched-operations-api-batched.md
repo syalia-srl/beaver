@@ -7,17 +7,18 @@ labels:
 
 ### 1. Concept
 
-This feature introduces a specific API for high-performance bulk write operations across `DictManager`, `ListManager`, and `CollectionManager`.
+This feature introduces a specific API for high-performance bulk write operations across `DictManager`, `ListManager`, `CollectionManager`, `LogManager`, and `BlobManager`.
 
-While SQLite handles individual writes reasonably well, high-throughput scenarios (like ETL jobs, data migration, or initial seeding) perform poorly if every insertion is its own transaction.
+While SQLite handles individual writes reasonably well, high-throughput scenarios (like ETL jobs, data migration, high-frequency logging, or initial seeding) perform poorly if every insertion is its own transaction.
 
 We will introduce a `.batched()` method on managers that returns a context manager. Operations performed on the "batch" object are buffered in memory and executed in a single, optimized transaction upon exiting the block.
 
 ### 2. Use Cases
 
 * **Bulk Data Ingestion:** Loading 10,000 user profiles into a dictionary from a JSON file.
-* **Log Processing:** Pushing a batch of 500 log lines onto a list at once.
+* **High-Frequency Logging:** Pushing a batch of 500 sensor metrics or request logs without stalling the application.
 * **RAG Indexing:** Indexing a corpus of documents where embedding generation happens in batches.
+* **Asset Migration:** Bulk uploading a directory of small icon files into a blob store.
 
 ### 3. Proposed API
 
@@ -50,6 +51,27 @@ with db.collection("articles").batched() as batch:
     batch.index(doc1)
     batch.index(doc2)
     # Bulk inserts into main storage, FTS, and Vector logs
+```
+
+#### Logs
+
+Ensures strict time-ordering to prevent primary key collisions in the database.
+
+```python
+with db.log("metrics").batched() as batch:
+    for i in range(1000):
+        batch.log({"cpu": i})
+    # Inserts 1000 records in one transaction
+```
+
+#### Blobs
+
+Useful for bulk loading small files.
+
+```python
+with db.blobs("icons").batched() as batch:
+    batch.put("icon_1.png", data_bytes_1)
+    batch.put("icon_2.png", data_bytes_2)
 ```
 
 ### 4\. Implementation Design
@@ -95,8 +117,31 @@ Each manager will return a specialized `Batch` subclass (e.g., `DictBatch`, `Lis
               * This method will use `executemany` to insert into `beaver_vector_change_log`.
               * It will then assume the "fast path" update for the in-memory index (iterating over the batch to update the local delta index).
 
-### 5\. Constraints
+#### D. `LogBatch`
 
-  * **Memory Usage:** The batch is held in memory. Users should not batch 10GB of data at once (they should chunk it, which `beaver load` already handles).
+  * **State:** `_pending_logs: list[tuple]`, `_last_ts: float`.
+  * **Logic:**
+      * `log(data, timestamp=None)`:
+          * Calculates `ts = timestamp or time.time()`.
+          * **Monotonicity Check:** If `ts <= self._last_ts`, sets `ts = self._last_ts + 1e-6` (microsecond increment).
+          * Updates `self._last_ts = ts`.
+          * Appends `(ts, serialize(data))` to list.
+      * `__exit__`:
+        1.  Acquires lock and transaction.
+        2.  Calls `cursor.executemany("INSERT INTO beaver_logs ...", _pending_logs)`.
+
+#### E. `BlobBatch`
+
+  * **State:** `_pending_blobs: list[tuple]`.
+  * **Logic:**
+      * `put(key, data, metadata)`: Appends to list.
+      * `__exit__`:
+        1.  Acquires lock and transaction.
+        2.  Calls `cursor.executemany("INSERT OR REPLACE INTO beaver_blobs ...", _pending_blobs)`.
+
+### 5\. Constraints & Exclusions
+
+  * **Queues Excluded:** `QueueManager` is excluded from this API. Batch *consumption* is handled by `db.queue(...).acquire()`. Batch *production* is rare enough to not warrant a specific API in this pass.
+  * **Memory Usage (Blobs):** The batch is held in memory. Users will be warned in documentation not to use `BlobBatch` for large files (e.g., video dumps), as it will cause an OOM error before the write occurs.
   * **List Indexing:** `batch.insert(i, val)` will **not** be supported initially to avoid complex order shifting logic.
   * **Isolation:** Reads inside the `with` block will **not** see the pending writes (standard SQL transaction isolation).
