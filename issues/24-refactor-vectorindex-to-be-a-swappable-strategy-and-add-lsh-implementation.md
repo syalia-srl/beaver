@@ -10,8 +10,8 @@ labels:
 The current `NumpyVectorIndex` provides an excellent, zero-dependency default for vector search based on a linear scan. However, its `O(N+k)` search complexity can be a bottleneck for larger datasets.
 
 This feature proposes refactoring the vector index into a "Strategy Pattern":
-1.  **Define a `VectorIndex` Protocol:** Create a formal interface that all vector index strategies must implement.
-2.  **Refactor `NumpyVectorIndex`:** The current implementation will be retained as the default "linear" strategy.
+1.  **Define a `VectorIndex` Protocol:** Create a formal interface that all vector index strategies must implement. Crucially, this interface must be **Async-Native** to work with the new core (Issue #25) and support **Batching** (Issue #26).
+2.  **Refactor `NumpyVectorIndex`:** The current implementation will be retained as the default "linear" strategy but updated to be async.
 3.  **Add `LSHVectorIndex`:** A new, swappable strategy will be implemented based on Locality-Sensitive Hashing (LSH). This will provide `O(k)` (approximate) search performance without adding heavy dependencies.
 4.  **Add Factory Toggle:** Users will be able to select their desired strategy via a new `index_strategy` parameter in the `db.collection()` factory method.
 
@@ -19,7 +19,7 @@ This feature proposes refactoring the vector index into a "Strategy Pattern":
 
 * **Performance Flexibility:** LSH provides a well-understood trade-off, sacrificing perfect accuracy for a significant speedup on large datasets. This allows users to choose the right algorithm for their scale.
 * **Extensibility:** Refactoring to a protocol-based design makes it trivial to add other `numpy`-based ANN strategies in the future (e.g., simple k-d trees) without modifying the `CollectionManager`.
-* **Aligns with Philosophy:** This keeps the "Simplicity" and "Minimal Dependency" principles by defaulting to the simple linear scan, while allowing users to *opt-in* to a more complex, performant strategy.
+* **Async Compatibility:** The new protocol ensures that vector operations (which require database I/O for logging and compaction) do not block the main event loop in the new Async-First architecture.
 
 ### 3. Proposed API
 
@@ -57,32 +57,48 @@ class BeaverDB:
 
 #### A. The `VectorIndex` Protocol
 
-We will create a new file (e.g., `beaver/vector_interface.py`) to define the formal protocol. As discussed, this protocol **will not** include `delta_size`, as that is an implementation detail of the linear index.
+We will create a new file (e.g., `beaver/vector_interface.py`) to define the formal protocol. All methods interacting with the database are `async`.
 
 ```python
-class VectorIndex(Protocol):
-    def __init__(self, collection_name: str, db: IDatabase): ...
+from typing import Protocol, List, Tuple, Any
 
-    def index(self, vector: list[float], item_id: str, cursor: sqlite3.Cursor):
-        """Logs a vector insertion."""
+class VectorIndex(Protocol):
+    def __init__(self, collection_name: str, db: Any): ...
+
+    async def index(self, vector: list[float], item_id: str, cursor: Any):
+        """Logs a single vector insertion."""
         ...
 
-    def drop(self, item_id: str, cursor: sqlite3.Cursor):
+    async def index_many(self, items: list[tuple[list[float], str]], cursor: Any):
+        """
+        Logs multiple vector insertions efficiently.
+        Required for supporting the .batched() API (Issue #26).
+        """
+        ...
+
+    async def drop(self, item_id: str, cursor: Any):
         """Logs a vector deletion."""
         ...
 
-    def search(self, embedding: list[float], top_k: int) -> List[Tuple[str, float]]:
-        """Performs the nearest neighbor search."""
+    async def search(self, embedding: list[float], top_k: int) -> List[Tuple[str, float]]:
+        """
+        Performs the nearest neighbor search.
+        Should ideally use asyncio.to_thread for heavy numpy calculations.
+        """
         ...
 
-    def compact(self, cursor: sqlite3.Cursor):
+    async def compact(self, cursor: Any):
         """Triggers a compaction/rebuild of the index."""
         ...
 ```
 
 #### B. Refactor `NumpyVectorIndex`
 
-The existing `NumpyVectorIndex` class will be refactored to formally implement this protocol, but its internal logic (using `_n_matrix`, `_k_matrix`, `_deleted_ids`, and `delta_size`) will remain unchanged.
+The existing `NumpyVectorIndex` class will be refactored to formally implement this async protocol.
+
+  * `index` / `drop`: Update to `async def` and `await cursor.execute`.
+  * `index_many`: Implement using `await cursor.executemany` and batched in-memory updates.
+  * `search`: Update to `async def`.
 
 #### C. New `LSHVectorIndex` Implementation
 
@@ -94,28 +110,22 @@ A new class, `LSHVectorIndex`, will be created and will also implement the `Vect
     2.  `buckets: dict[int, list[int]]`: A mapping of hash codes to *indices* in the main `_vector_matrix`.
     3.  `_vector_matrix: np.ndarray`: A single `O(N)` matrix of all vectors.
     4.  `_vector_ids: list[str]`: A list mapping matrix indices to document IDs.
-    5.  It will still use `_check_and_sync`, `_load_base_index`, and `_sync_deltas` to read from the `beaver_vector_change_log`.
 
   * **`_load_base_index()` (O(N) Rebuild):**
 
-      * This is an `O(N)` operation that reads all vectors from `beaver_collections` into `_vector_matrix` and `_vector_ids`.
-      * It then iterates over `_vector_matrix`, hashes every vector, and builds the `buckets` dictionary from scratch.
+      * This is an `O(N)` operation that reads all vectors from `beaver_collections` via `aiosqlite` streaming.
+      * It builds the `buckets` dictionary from scratch.
 
   * **`_sync_deltas()` (O(k) Sync):**
 
-      * Reads the `k` new vectors from the log.
-      * For each new vector, appends it to `_vector_matrix` and its ID to `_vector_ids`.
-      * It then hashes the new vector and appends its new index to the appropriate list in the `buckets` dictionary.
+      * Reads the `k` new vectors from the log asynchronously.
+      * Hashes new vectors and updates `buckets` and `_vector_matrix`.
 
   * **`search()` (O(k) Search):**
 
       * Hashes the query vector to get its bucket ID(s).
       * Retrieves the list of candidate indices from the `buckets` dict.
       * Performs an exact `numpy` linear scan *only* on the candidate vectors.
-
-  * **`compact()`:**
-
-      * This is *not* a no-op. When `CollectionManager` triggers a compaction (to clear the log), this method *must* dump its in-memory state and call `_load_base_index()` to perform a full `O(N)` rebuild from the `beaver_collections` table, just like `NumpyVectorIndex`.
 
 #### D. Factory Update in `CollectionManager`
 
@@ -125,35 +135,21 @@ The `CollectionManager` will be updated to act as the factory that selects the s
 # In beaver/collections.py
 from .vector_strategies.linear import NumpyVectorIndex
 from .vector_strategies.lsh import LSHVectorIndex
-from .vector_interface import VectorIndex
 
 class CollectionManager[B: BaseModel](ManagerBase[B]):
-
-    def __init__(
-        self,
-        name: str,
-        db: IDatabase,
-        model: Type[B] | None = None,
-        index_strategy: str = "linear"  # <-- Accept arg
-    ):
-        super().__init__(name, db, model)
-
-        # "Strategy" pattern
+    def __init__(self, ..., index_strategy: str = "linear"):
+        # ...
         if index_strategy == "lsh":
-            self._vector_index: VectorIndex = LSHVectorIndex(name, db)
+            self._vector_index = LSHVectorIndex(name, db)
         elif index_strategy == "linear":
-            self._vector_index: VectorIndex = NumpyVectorIndex(name, db)
-        else:
-            raise ValueError(f"Unknown index_strategy: '{index_strategy}'")
-
-        # ... rest of init ...
+            self._vector_index = NumpyVectorIndex(name, db)
+        # ...
 ```
 
 ### 5. High-Level Roadmap
 
-1.  Create the `VectorIndex` protocol in a new `beaver/vector_interface.py` file (or similar).
-2.  Refactor `beaver/vectors.py` so `NumpyVectorIndex` formally implements the new protocol.
-3.  Implement the new `LSHVectorIndex` class, ensuring it uses the same log-based sync mechanism (`_check_and_sync`, etc.).
-4.  Update `BeaverDB.collection()` in `beaver/core.py` to accept the `index_strategy` parameter.
-5.  Update `CollectionManager.__init__` in `beaver/collections.py` to act as the factory for selecting the correct vector index strategy.
-6.  Add unit tests for the LSH implementation and integration tests to verify the `index_strategy` toggle works.
+1.  Create `beaver/vector_interface.py` with the async `VectorIndex` protocol.
+2.  Refactor `beaver/vectors.py` to make `NumpyVectorIndex` async and add `index_many`.
+3.  Implement `LSHVectorIndex`, ensuring it uses `await` for all DB interactions.
+4.  Update `CollectionManager` to use the new async vector methods and the strategy factory.
+5.  Add unit tests for LSH and async behavior.
