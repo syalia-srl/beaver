@@ -5,6 +5,7 @@ from beaver import BeaverDB
 
 pytestmark = pytest.mark.unit
 
+
 def test_sketch_creation_defaults(db_memory: BeaverDB):
     """Tests creating a sketch with default parameters."""
     # Default capacity=1_000_000, error_rate=0.01
@@ -17,6 +18,7 @@ def test_sketch_creation_defaults(db_memory: BeaverDB):
     # p=14 for error=0.01
     assert sketch._sketch.p == 14
 
+
 def test_sketch_custom_params(db_memory: BeaverDB):
     """Tests creating a sketch with custom parameters (low capacity, high error)."""
     # High error rate (5%) -> lower p
@@ -25,6 +27,7 @@ def test_sketch_custom_params(db_memory: BeaverDB):
     # p should be 9 for 5% error (2 * log2(1.04/0.05) ≈ 8.7)
     assert sketch._sketch.p == 9
     assert len(sketch) == 0
+
 
 def test_sketch_add_and_contains(db_memory: BeaverDB):
     """Tests the Bloom Filter membership testing."""
@@ -39,6 +42,7 @@ def test_sketch_add_and_contains(db_memory: BeaverDB):
         assert item in sketch
 
     assert "non_existent" not in sketch
+
 
 def test_sketch_cardinality_hll(db_memory: BeaverDB):
     """Tests the HyperLogLog cardinality estimation."""
@@ -57,6 +61,7 @@ def test_sketch_cardinality_hll(db_memory: BeaverDB):
     # We allow a generous 5% margin for this sanity check.
     assert 950 < count < 1050
 
+
 def test_sketch_batched_write(db_path: str):
     """Tests the high-performance .batched() context manager."""
     sketch = BeaverDB(db_path).sketch("batch_test")
@@ -70,10 +75,11 @@ def test_sketch_batched_write(db_path: str):
     sketch = BeaverDB(db_path).sketch("batch_test")
 
     # Verify they were added
-    assert len(sketch) > 450 # Rough HLL check
+    assert len(sketch) > 450  # Rough HLL check
     assert "batch_0" in sketch
     assert "batch_499" in sketch
     assert "batch_500" not in sketch
+
 
 def test_sketch_config_validation(db_path):
     """Tests strict validation of capacity/error_rate on load."""
@@ -96,6 +102,7 @@ def test_sketch_config_validation(db_path):
     # 3. Load with CORRECT params -> Should succeed
     sketch_valid = db.sketch("strict_sketch", capacity=1000, error_rate=0.05)
     assert sketch_valid is not None
+
 
 def test_sketch_mixed_types(db_memory: BeaverDB):
     """Tests adding different python types."""

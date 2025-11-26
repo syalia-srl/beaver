@@ -76,7 +76,9 @@ class ApproximateSet:
 
         if data:
             if len(data) != expected_size:
-                raise ValueError(f"Corrupted sketch data. Expected {expected_size} bytes, got {len(data)}")
+                raise ValueError(
+                    f"Corrupted sketch data. Expected {expected_size} bytes, got {len(data)}"
+                )
             self._data = bytearray(data)
         else:
             self._data = bytearray(expected_size)
@@ -124,7 +126,7 @@ class ApproximateSet:
         h = hashlib.md5(item_bytes).digest()
         h1, h2 = struct.unpack("<QQ", h)
 
-        offset = self.m # Bloom starts after HLL registers
+        offset = self.m  # Bloom starts after HLL registers
 
         for i in range(self.bloom_k):
             # Calculate bit index
@@ -165,7 +167,7 @@ class ApproximateSet:
                 zeros += 1
             sum_inv += 2.0 ** (-val)
 
-        E = self.alpha * (self.m ** 2) / sum_inv
+        E = self.alpha * (self.m**2) / sum_inv
 
         # Small range correction (Linear Counting)
         if E <= 2.5 * self.m:
@@ -258,7 +260,9 @@ class SketchManager[T: BaseModel](ManagerBase[T]):
                     f"Cannot load with requested capacity={self._capacity}, error={self._error_rate}."
                 )
 
-            self._sketch = ApproximateSet(self._capacity, self._error_rate, data=db_data)
+            self._sketch = ApproximateSet(
+                self._capacity, self._error_rate, data=db_data
+            )
         else:
             # Create new
             self._sketch = ApproximateSet(self._capacity, self._error_rate)
