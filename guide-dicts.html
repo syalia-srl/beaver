@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>guide-collections – BeaverDB</title>
+<title>guide-dicts – BeaverDB</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -235,31 +235,25 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#collections-multi-modal-search" id="toc-collections-multi-modal-search" class="nav-link active" data-scroll-target="#collections-multi-modal-search">Collections (Multi-Modal Search)</a>
+  <li><a href="#dictionaries-key-value-store" id="toc-dictionaries-key-value-store" class="nav-link active" data-scroll-target="#dictionaries-key-value-store">Dictionaries (Key-Value Store)</a>
   <ul class="collapse">
   <li><a href="#quick-start" id="toc-quick-start" class="nav-link" data-scroll-target="#quick-start">Quick Start</a></li>
-  <li><a href="#managing-documents" id="toc-managing-documents" class="nav-link" data-scroll-target="#managing-documents">Managing Documents</a>
+  <li><a href="#basic-operations" id="toc-basic-operations" class="nav-link" data-scroll-target="#basic-operations">Basic Operations</a>
   <ul class="collapse">
-  <li><a href="#the-document-object" id="toc-the-document-object" class="nav-link" data-scroll-target="#the-document-object">The <code>Document</code> Object</a></li>
-  <li><a href="#indexing" id="toc-indexing" class="nav-link" data-scroll-target="#indexing">Indexing</a></li>
-  <li><a href="#deleting-clearing" id="toc-deleting-clearing" class="nav-link" data-scroll-target="#deleting-clearing">Deleting &amp; Clearing</a></li>
+  <li><a href="#getting-and-setting-items" id="toc-getting-and-setting-items" class="nav-link" data-scroll-target="#getting-and-setting-items">Getting and Setting Items</a></li>
+  <li><a href="#checking-existence" id="toc-checking-existence" class="nav-link" data-scroll-target="#checking-existence">Checking Existence</a></li>
+  <li><a href="#deleting-items" id="toc-deleting-items" class="nav-link" data-scroll-target="#deleting-items">Deleting Items</a></li>
+  <li><a href="#iteration" id="toc-iteration" class="nav-link" data-scroll-target="#iteration">Iteration</a></li>
   </ul></li>
-  <li><a href="#search-capabilities" id="toc-search-capabilities" class="nav-link" data-scroll-target="#search-capabilities">Search Capabilities</a>
+  <li><a href="#advanced-features" id="toc-advanced-features" class="nav-link" data-scroll-target="#advanced-features">Advanced Features</a>
   <ul class="collapse">
-  <li><a href="#vector-search-semantic" id="toc-vector-search-semantic" class="nav-link" data-scroll-target="#vector-search-semantic">1. Vector Search (Semantic)</a></li>
-  <li><a href="#full-text-search-fts" id="toc-full-text-search-fts" class="nav-link" data-scroll-target="#full-text-search-fts">2. Full-Text Search (FTS)</a></li>
-  <li><a href="#fuzzy-search-typo-tolerance" id="toc-fuzzy-search-typo-tolerance" class="nav-link" data-scroll-target="#fuzzy-search-typo-tolerance">3. Fuzzy Search (Typo Tolerance)</a></li>
-  <li><a href="#hybrid-search-reranking" id="toc-hybrid-search-reranking" class="nav-link" data-scroll-target="#hybrid-search-reranking">4. Hybrid Search (Reranking)</a></li>
+  <li><a href="#time-to-live-ttl" id="toc-time-to-live-ttl" class="nav-link" data-scroll-target="#time-to-live-ttl">Time-To-Live (TTL)</a></li>
+  <li><a href="#high-performance-batching" id="toc-high-performance-batching" class="nav-link" data-scroll-target="#high-performance-batching">High-Performance Batching</a></li>
   </ul></li>
-  <li><a href="#graph-relationships" id="toc-graph-relationships" class="nav-link" data-scroll-target="#graph-relationships">Graph &amp; Relationships</a>
+  <li><a href="#security-encryption" id="toc-security-encryption" class="nav-link" data-scroll-target="#security-encryption">Security &amp; Encryption</a>
   <ul class="collapse">
-  <li><a href="#linking-documents" id="toc-linking-documents" class="nav-link" data-scroll-target="#linking-documents">Linking Documents</a></li>
-  <li><a href="#neighbors-traversal" id="toc-neighbors-traversal" class="nav-link" data-scroll-target="#neighbors-traversal">Neighbors &amp; Traversal</a></li>
-  </ul></li>
-  <li><a href="#maintenance" id="toc-maintenance" class="nav-link" data-scroll-target="#maintenance">Maintenance</a>
-  <ul class="collapse">
-  <li><a href="#compaction" id="toc-compaction" class="nav-link" data-scroll-target="#compaction">Compaction</a></li>
-  <li><a href="#exporting" id="toc-exporting" class="nav-link" data-scroll-target="#exporting">Exporting</a></li>
+  <li><a href="#encrypted-dictionaries-secrets" id="toc-encrypted-dictionaries-secrets" class="nav-link" data-scroll-target="#encrypted-dictionaries-secrets">Encrypted Dictionaries (Secrets)</a></li>
+  <li><a href="#secure-credentials-hashing" id="toc-secure-credentials-hashing" class="nav-link" data-scroll-target="#secure-credentials-hashing">Secure Credentials (Hashing)</a></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -271,166 +265,126 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 
-<section id="collections-multi-modal-search" class="level1">
-<h1>Collections (Multi-Modal Search)</h1>
-<p>The <code>CollectionManager</code> is the powerhouse of BeaverDB. It provides a unified interface for storing Documents and performing <strong>Vector Search</strong>, <strong>Full-Text Search (FTS)</strong>, <strong>Fuzzy Matching</strong>, and <strong>Graph Traversal</strong> on them.</p>
-<p>This is ideal for building RAG (Retrieval Augmented Generation) applications, search engines, knowledge graphs, or recommendation systems.</p>
+<section id="dictionaries-key-value-store" class="level1">
+<h1>Dictionaries (Key-Value Store)</h1>
+<p>BeaverDB provides a robust, persistent Key-Value store that behaves almost exactly like a standard Python dictionary. The <code>DictManager</code> allows you to store JSON-serializable data (strings, numbers, lists, dictionaries) that persists to disk and is safe to access across multiple processes.</p>
+<p>This is the “Swiss Army Knife” for storing configuration, user sessions, application state, or caching API responses.</p>
 <section id="quick-start" class="level2">
 <h2 class="anchored" data-anchor-id="quick-start">Quick Start</h2>
-<p>A Collection stores <code>Document</code> objects. Each document has a unique <code>id</code>, an optional vector <code>embedding</code>, and a JSON-serializable <code>body</code>.</p>
+<p>Initialize a dictionary using <code>db.dict()</code>. If the dictionary doesn’t exist, it is created automatically.</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver <span class="im">import</span> BeaverDB</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver.collections <span class="im">import</span> Document</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>db <span class="op">=</span> BeaverDB(<span class="st">"app.db"</span>)</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>docs <span class="op">=</span> db.collection(<span class="st">"articles"</span>)</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Index a Document (with embedding for semantic search)</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>doc <span class="op">=</span> Document(</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">id</span><span class="op">=</span><span class="st">"doc_1"</span>,</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    body<span class="op">=</span>{<span class="st">"title"</span>: <span class="st">"Introduction to AI"</span>, <span class="st">"content"</span>: <span class="st">"AI is changing the world..."</span>},</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    embedding<span class="op">=</span>[<span class="fl">0.1</span>, <span class="fl">0.2</span>, <span class="fl">0.8</span>, ...] <span class="co"># 768-dim vector</span></span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>docs.index(doc)</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Semantic Search (Vector)</span></span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Finds documents semantically similar to the query vector</span></span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> docs.search(query_vector, top_k<span class="op">=</span><span class="dv">5</span>)</span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Keyword Search (FTS)</span></span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Finds documents containing specific words</span></span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>matches <span class="op">=</span> docs.match(<span class="st">"artificial intelligence"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>db <span class="op">=</span> BeaverDB(<span class="st">"app.db"</span>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>settings <span class="op">=</span> db.<span class="bu">dict</span>(<span class="st">"app_settings"</span>)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Write data (Persists immediately to SQLite)</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>settings[<span class="st">"theme"</span>] <span class="op">=</span> <span class="st">"dark"</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>settings[<span class="st">"max_retries"</span>] <span class="op">=</span> <span class="dv">5</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>settings[<span class="st">"features"</span>] <span class="op">=</span> {<span class="st">"beta"</span>: <span class="va">True</span>, <span class="st">"logging"</span>: <span class="st">"verbose"</span>}</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Read data</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(settings[<span class="st">"theme"</span>])  <span class="co"># -&gt; "dark"</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Process-Safe</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co"># You can open this same dict in another script/process safely.</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="managing-documents" class="level2">
-<h2 class="anchored" data-anchor-id="managing-documents">Managing Documents</h2>
-<section id="the-document-object" class="level3">
-<h3 class="anchored" data-anchor-id="the-document-object">The <code>Document</code> Object</h3>
-<p>BeaverDB uses a strict Pydantic model for items.</p>
-<ul>
-<li><strong><code>id</code></strong>: String (UUID by default).</li>
-<li><strong><code>embedding</code></strong>: List of floats (or None).</li>
-<li><strong><code>body</code></strong>: Dictionary or Pydantic model (Metadata).</li>
-</ul>
-<!-- end list -->
-<div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pydantic <span class="im">import</span> BaseModel</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Article(BaseModel):</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    title: <span class="bu">str</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    tags: <span class="bu">list</span>[<span class="bu">str</span>]</span>
+<section id="basic-operations" class="level2">
+<h2 class="anchored" data-anchor-id="basic-operations">Basic Operations</h2>
+<section id="getting-and-setting-items" class="level3">
+<h3 class="anchored" data-anchor-id="getting-and-setting-items">Getting and Setting Items</h3>
+<p>You can use standard bracket notation <code>[]</code> or the <code>.get()</code> method.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Set value</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>settings[<span class="st">"user_1"</span>] <span class="op">=</span> {<span class="st">"name"</span>: <span class="st">"Alice"</span>, <span class="st">"score"</span>: <span class="dv">42</span>}</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Get value (Raises KeyError if missing)</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>user <span class="op">=</span> settings[<span class="st">"user_1"</span>]</span>
 <span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Typed Collection</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>articles <span class="op">=</span> db.collection(<span class="st">"news"</span>, model<span class="op">=</span>Article)</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Indexing</span></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>articles.index(Document(body<span class="op">=</span>Article(title<span class="op">=</span><span class="st">"New Release"</span>, tags<span class="op">=</span>[<span class="st">"tech"</span>])))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Get with default (Safe)</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>user <span class="op">=</span> settings.get(<span class="st">"user_99"</span>, default<span class="op">=</span>{<span class="st">"name"</span>: <span class="st">"Guest"</span>})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="indexing" class="level3">
-<h3 class="anchored" data-anchor-id="indexing">Indexing</h3>
-<p>The <code>.index()</code> method performs an atomic upsert. It updates the main storage, vector index, FTS index, and fuzzy n-gram index simultaneously.</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Index with specific FTS fields</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>docs.index(doc, fts<span class="op">=</span>[<span class="st">"title"</span>, <span class="st">"content"</span>])</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Enable Fuzzy Search support (slower indexing, robust matching)</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>docs.index(doc, fts<span class="op">=</span>[<span class="st">"title"</span>], fuzzy<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="checking-existence" class="level3">
+<h3 class="anchored" data-anchor-id="checking-existence">Checking Existence</h3>
+<p>Use the <code>in</code> operator to check if a key exists efficiently (O(1)).</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="st">"user_1"</span> <span class="kw">in</span> settings:</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"User exists!"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="deleting-clearing" class="level3">
-<h3 class="anchored" data-anchor-id="deleting-clearing">Deleting &amp; Clearing</h3>
-<div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Remove a single document</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>docs.drop(doc)</span>
+<section id="deleting-items" class="level3">
+<h3 class="anchored" data-anchor-id="deleting-items">Deleting Items</h3>
+<p>Remove items using <code>del</code> or <code>.pop()</code>.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Remove and return value</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>old_val <span class="op">=</span> settings.pop(<span class="st">"user_1"</span>, <span class="va">None</span>)</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Wipe the entire collection (Vectors, Graph, FTS)</span></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>docs.clear()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Delete key (Raises KeyError if missing)</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="kw">del</span> settings[<span class="st">"max_retries"</span>]</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Clear entire dictionary</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>settings.clear()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-</section>
-<section id="search-capabilities" class="level2">
-<h2 class="anchored" data-anchor-id="search-capabilities">Search Capabilities</h2>
-<section id="vector-search-semantic" class="level3">
-<h3 class="anchored" data-anchor-id="vector-search-semantic">1. Vector Search (Semantic)</h3>
-<p>Performs an Approximate Nearest Neighbor (ANN) search using Cosine Similarity.</p>
-<ul>
-<li><strong>Speed:</strong> Extremely fast (in-memory index).</li>
-<li><strong>Persistence:</strong> The index is fully persisted to disk and crash-safe.</li>
-</ul>
-<!-- end list -->
-<div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Returns list of (Document, score) tuples</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> docs.search(embedding_vector, top_k<span class="op">=</span><span class="dv">10</span>)</span>
+<section id="iteration" class="level3">
+<h3 class="anchored" data-anchor-id="iteration">Iteration</h3>
+<p>You can iterate over keys, values, or items just like a standard dict. Note that for very large dictionaries (millions of items), this streams data from the database to avoid loading everything into memory at once.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> key <span class="kw">in</span> settings:</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(key)</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> doc, score <span class="kw">in</span> results:</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>score<span class="sc">:.4f}</span><span class="ss">: </span><span class="sc">{</span>doc<span class="sc">.</span>body[<span class="st">'title'</span>]<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> key, val <span class="kw">in</span> settings.items():</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>key<span class="sc">}</span><span class="ss">: </span><span class="sc">{</span>val<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="full-text-search-fts" class="level3">
-<h3 class="anchored" data-anchor-id="full-text-search-fts">2. Full-Text Search (FTS)</h3>
-<p>Uses SQLite’s FTS5 engine for powerful keyword matching. Supports boolean operators (<code>AND</code>, <code>OR</code>, <code>NOT</code>) and prefix matching.</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Simple match</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>docs.match(<span class="st">"python database"</span>)</span>
+</section>
+<section id="advanced-features" class="level2">
+<h2 class="anchored" data-anchor-id="advanced-features">Advanced Features</h2>
+<section id="time-to-live-ttl" class="level3">
+<h3 class="anchored" data-anchor-id="time-to-live-ttl">Time-To-Live (TTL)</h3>
+<p>You can set keys that automatically expire after a certain duration. This is perfect for caching or temporary session tokens.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Set a key that expires in 300 seconds (5 minutes)</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>settings.<span class="bu">set</span>(<span class="st">"session_id"</span>, <span class="st">"xyz_123"</span>, ttl<span class="op">=</span><span class="dv">300</span>)</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Specific fields</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>docs.match(<span class="st">"tutorial"</span>, on<span class="op">=</span>[<span class="st">"title"</span>])</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Boolean query</span></span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>docs.match(<span class="st">"python AND NOT java"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Retrieving it after 5 minutes will return None (or raise KeyError)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="fuzzy-search-typo-tolerance" class="level3">
-<h3 class="anchored" data-anchor-id="fuzzy-search-typo-tolerance">3. Fuzzy Search (Typo Tolerance)</h3>
-<p>If you indexed with <code>fuzzy=True</code>, you can find documents even with typos. BeaverDB uses a hybrid <strong>Trigram + Levenshtein</strong> approach for high performance.</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Finds "BeaverDB" even if user types "BaverDB"</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>docs.match(<span class="st">"BaverDB"</span>, fuzziness<span class="op">=</span><span class="dv">1</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-<section id="hybrid-search-reranking" class="level3">
-<h3 class="anchored" data-anchor-id="hybrid-search-reranking">4. Hybrid Search (Reranking)</h3>
-<p>To get the best of both worlds (semantic understanding + keyword precision), use <strong>Reverse Rank Fusion (RRF)</strong>. BeaverDB provides a built-in <code>rerank</code> helper.</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver.collections <span class="im">import</span> rerank</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Run searches in parallel</span></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>vector_hits <span class="op">=</span> [doc <span class="cf">for</span> doc, _ <span class="kw">in</span> docs.search(vec, top_k<span class="op">=</span><span class="dv">50</span>)]</span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>keyword_hits <span class="op">=</span> [doc <span class="cf">for</span> doc, _ <span class="kw">in</span> docs.match(<span class="st">"query"</span>, top_k<span class="op">=</span><span class="dv">50</span>)]</span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Fuse results</span></span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Scores are normalized based on rank position</span></span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>final_results <span class="op">=</span> rerank(vector_hits, keyword_hits, k<span class="op">=</span><span class="dv">60</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="high-performance-batching" class="level3">
+<h3 class="anchored" data-anchor-id="high-performance-batching">High-Performance Batching</h3>
+<p>If you need to insert thousands of items (e.g., an initial data migration or bulk import), inserting them one-by-one is slow because each write is a separate database transaction.</p>
+<p>Use <code>.batched()</code> to buffer writes in memory and commit them in a single, high-speed transaction.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Insert 10,000 items efficiently</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> settings.batched() <span class="im">as</span> batch:</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">10000</span>):</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>        batch[<span class="ss">f"key_</span><span class="sc">{</span>i<span class="sc">}</span><span class="ss">"</span>] <span class="op">=</span> i</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
 </section>
-<section id="graph-relationships" class="level2">
-<h2 class="anchored" data-anchor-id="graph-relationships">Graph &amp; Relationships</h2>
-<p>BeaverDB is also a <strong>Graph Database</strong>. You can link documents together and traverse the connections to find related context (e.g., for GraphRAG).</p>
-<section id="linking-documents" class="level3">
-<h3 class="anchored" data-anchor-id="linking-documents">Linking Documents</h3>
-<p>Create directed, labeled edges between documents.</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># d1 -&gt; d2 (d1 references d2)</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>docs.<span class="ex">connect</span>(d1, d2, label<span class="op">=</span><span class="st">"references"</span>)</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co"># d2 -&gt; d3 (d2 is the parent of d3)</span></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>docs.<span class="ex">connect</span>(d2, d3, label<span class="op">=</span><span class="st">"parent"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="security-encryption" class="level2">
+<h2 class="anchored" data-anchor-id="security-encryption">Security &amp; Encryption</h2>
+<p>BeaverDB offers a built-in <strong>Security Suite</strong> for Dictionaries, allowing you to store sensitive application secrets and user credentials securely.</p>
+<section id="encrypted-dictionaries-secrets" class="level3">
+<h3 class="anchored" data-anchor-id="encrypted-dictionaries-secrets">Encrypted Dictionaries (Secrets)</h3>
+<p>Pass a <code>secret</code> (passphrase) when initializing the dictionary. This enables <strong>Encryption-at-Rest</strong> using AES-128 (Fernet). The keys remain visible (for lookup speed), but the values are completely encrypted on disk.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Initialize securely</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="co"># If you lose the secret, the data is unrecoverable!</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>vault <span class="op">=</span> db.<span class="bu">dict</span>(<span class="st">"api_keys"</span>, secret<span class="op">=</span><span class="st">"my-master-passphrase"</span>)</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Writes are encrypted before hitting the disk</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>vault[<span class="st">"openai"</span>] <span class="op">=</span> <span class="st">"sk-..."</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Reads are automatically decrypted</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(vault[<span class="st">"openai"</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="neighbors-traversal" class="level3">
-<h3 class="anchored" data-anchor-id="neighbors-traversal">Neighbors &amp; Traversal</h3>
-<p>Retrieve connected documents efficiently.</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get immediate neighbors</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>refs <span class="op">=</span> docs.neighbors(d1, label<span class="op">=</span><span class="st">"references"</span>)</span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Multi-hop Traversal (BFS)</span></span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="co"># "Find everything d1 connects to, up to 2 hops away"</span></span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co"># This runs a Recursive CTE in SQLite (Very Fast)</span></span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>context <span class="op">=</span> docs.walk(d1, labels<span class="op">=</span>[<span class="st">"references"</span>, <span class="st">"parent"</span>], depth<span class="op">=</span><span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-</section>
-<section id="maintenance" class="level2">
-<h2 class="anchored" data-anchor-id="maintenance">Maintenance</h2>
-<section id="compaction" class="level3">
-<h3 class="anchored" data-anchor-id="compaction">Compaction</h3>
-<p>The vector index uses a <strong>Hybrid Architecture</strong> (Base Snapshot + Delta Log). Over time, the delta log grows.</p>
-<ul>
-<li><strong>Auto-Compaction:</strong> Triggered automatically when the log gets too large.</li>
-<li><strong>Manual Compaction:</strong> You can force a merge of the log into the main index.</li>
-</ul>
-<div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>docs.compact()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-<section id="exporting" class="level3">
-<h3 class="anchored" data-anchor-id="exporting">Exporting</h3>
-<p>Dump the entire collection (vectors and metadata) to JSON for backup.</p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> docs.dump()</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="co"># OR write directly to file</span></span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> <span class="bu">open</span>(<span class="st">"backup.json"</span>, <span class="st">"w"</span>) <span class="im">as</span> f:</span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    docs.dump(f)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="secure-credentials-hashing" class="level3">
+<h3 class="anchored" data-anchor-id="secure-credentials-hashing">Secure Credentials (Hashing)</h3>
+<p>For user passwords or authentication tokens, you should never store the plain text (even if encrypted). Use the <code>Secret</code> wrapper to store a <strong>One-Way Hash</strong>.</p>
+<p>BeaverDB automatically handles salting and PBKDF2 hashing for you.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver <span class="im">import</span> Secret</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>users <span class="op">=</span> db.<span class="bu">dict</span>(<span class="st">"users"</span>, secret<span class="op">=</span><span class="st">"master-key"</span>)</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a user with a hashed password</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="co"># The plain text "correct-horse" is hashed and discarded immediately.</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>users[<span class="st">"alice"</span>] <span class="op">=</span> {</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"role"</span>: <span class="st">"admin"</span>,</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"password"</span>: Secret(<span class="st">"correct-horse"</span>)</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Verify login</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>stored_user <span class="op">=</span> users[<span class="st">"alice"</span>]</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> stored_user[<span class="st">"password"</span>] <span class="op">==</span> <span class="st">"correct-horse"</span>:</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Login Successful"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 
 
 </section>

@@ -20,6 +20,41 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
@@ -111,29 +146,53 @@ ul.task-list li input[type="checkbox"] {
     <a class="dropdown-item" href="./guide.html">
  <span class="dropdown-text">Feature Summary</span></a>
   </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">Core Storage</li>
         <li>
-    <a class="dropdown-item" href="./guide-dicts-blobs.html">
- <span class="dropdown-text">Dictionaries &amp; Blobs</span></a>
+    <a class="dropdown-item" href="./guide-dicts.html">
+ <span class="dropdown-text">Dictionaries (KV)</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./guide-lists-queues.html">
- <span class="dropdown-text">Lists &amp; Queues</span></a>
+    <a class="dropdown-item" href="./guide-blobs.html">
+ <span class="dropdown-text">Blobs (Files)</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="./guide-lists.html">
+ <span class="dropdown-text">Lists</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">Search &amp; Graph</li>
         <li>
     <a class="dropdown-item" href="./guide-collections.html">
- <span class="dropdown-text">Collections (Vector/FTS/Graph)</span></a>
+ <span class="dropdown-text">Collections (Vector/Graph)</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./guide-realtime.html">
- <span class="dropdown-text">Real-Time Data (Pub/Sub)</span></a>
+    <a class="dropdown-item" href="./guide-sketches.html">
+ <span class="dropdown-text">Sketches (Probabilistic)</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">Real-Time</li>
+        <li>
+    <a class="dropdown-item" href="./guide-queues.html">
+ <span class="dropdown-text">Queues</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./guide-concurrency.html">
- <span class="dropdown-text">Concurrency &amp; Locking</span></a>
+    <a class="dropdown-item" href="./guide-logs.html">
+ <span class="dropdown-text">Logs (Time-Series)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./guide-channels.html">
+ <span class="dropdown-text">Channels (Pub/Sub)</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">System</li>
+        <li>
+    <a class="dropdown-item" href="./guide-locks.html">
+ <span class="dropdown-text">Locks &amp; Concurrency</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="./guide-deployment.html">
- <span class="dropdown-text">Deployment &amp; API</span></a>
+ <span class="dropdown-text">Deployment</span></a>
   </li>  
     </ul>
   </li>
@@ -176,7 +235,24 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#future-roadmap-contributing" id="toc-future-roadmap-contributing" class="nav-link active" data-scroll-target="#future-roadmap-contributing">Future Roadmap &amp; Contributing</a></li>
+  <li><a href="#contributing-to-beaverdb" id="toc-contributing-to-beaverdb" class="nav-link active" data-scroll-target="#contributing-to-beaverdb">Contributing to BeaverDB</a>
+  <ul class="collapse">
+  <li><a href="#environment-setup" id="toc-environment-setup" class="nav-link" data-scroll-target="#environment-setup">Environment Setup</a></li>
+  <li><a href="#development-workflow-makefile" id="toc-development-workflow-makefile" class="nav-link" data-scroll-target="#development-workflow-makefile">Development Workflow (Makefile)</a></li>
+  <li><a href="#issue-tracking-file-based" id="toc-issue-tracking-file-based" class="nav-link" data-scroll-target="#issue-tracking-file-based">Issue Tracking (File-Based)</a></li>
+  <li><a href="#testing-philosophy" id="toc-testing-philosophy" class="nav-link" data-scroll-target="#testing-philosophy">Testing Philosophy</a>
+  <ul class="collapse">
+  <li><a href="#unit-tests-pytest--m-unit" id="toc-unit-tests-pytest--m-unit" class="nav-link" data-scroll-target="#unit-tests-pytest--m-unit">Unit Tests (<code>pytest -m unit</code>)</a></li>
+  <li><a href="#integration-tests-pytest--m-integration" id="toc-integration-tests-pytest--m-integration" class="nav-link" data-scroll-target="#integration-tests-pytest--m-integration">Integration Tests (<code>pytest -m integration</code>)</a></li>
+  <li><a href="#concurrency-tests-pytest--m-concurrency" id="toc-concurrency-tests-pytest--m-concurrency" class="nav-link" data-scroll-target="#concurrency-tests-pytest--m-concurrency">Concurrency Tests (<code>pytest -m concurrency</code>)</a></li>
+  </ul></li>
+  <li><a href="#the-future-of-beaverdb" id="toc-the-future-of-beaverdb" class="nav-link" data-scroll-target="#the-future-of-beaverdb">The Future of BeaverDB</a>
+  <ul class="collapse">
+  <li><a href="#a.-the-async-core-migration" id="toc-a.-the-async-core-migration" class="nav-link" data-scroll-target="#a.-the-async-core-migration">A. The “Async Core” Migration</a></li>
+  <li><a href="#b.-client-server-parity" id="toc-b.-client-server-parity" class="nav-link" data-scroll-target="#b.-client-server-parity">B. Client-Server Parity</a></li>
+  <li><a href="#c.-api-stability" id="toc-c.-api-stability" class="nav-link" data-scroll-target="#c.-api-stability">C. API Stability</a></li>
+  </ul></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -186,22 +262,125 @@ ul.task-list li input[type="checkbox"] {
 
 
 
-<section id="future-roadmap-contributing" class="level1">
-<h1>Future Roadmap &amp; Contributing</h1>
-<p><strong>Chapter Outline:</strong></p>
+<section id="contributing-to-beaverdb" class="level1">
+<h1>Contributing to BeaverDB</h1>
+<p>BeaverDB follows a <strong>“Simplicity First”</strong> philosophy not just in its API, but also in its development workflow. We minimize tooling overhead and prefer standard Python ecosystem tools.</p>
+<section id="environment-setup" class="level2">
+<h2 class="anchored" data-anchor-id="environment-setup">Environment Setup</h2>
+<p>To contribute, you’ll need Python 3.13+. We recommend using a virtual environment.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Clone the repository</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/syalia-srl/beaver.git</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> beaver</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Create a virtual environment</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> <span class="at">-m</span> venv .venv</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> .venv/bin/activate  <span class="co"># or .venv\Scripts\activate on Windows</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Install in editable mode with ALL dependencies (dev, server, vector, graph)</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> sync</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="development-workflow-makefile" class="level2">
+<h2 class="anchored" data-anchor-id="development-workflow-makefile">Development Workflow (Makefile)</h2>
+<p>We use a <code>makefile</code> to automate common tasks. You don’t need to memorize complex commands.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Command</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><code>make test-unit</code></td>
+<td style="text-align: left;">Runs fast unit tests (Default). Use this during local dev.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>make test-all</code></td>
+<td style="text-align: left;">Runs <strong>all</strong> tests, including slow integration and concurrency tests.</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>make format</code></td>
+<td style="text-align: left;">Runs <code>black</code> to format code and commits the changes.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>make docs</code></td>
+<td style="text-align: left;">Publishes the documentation to GitHub Pages (requires permissions).</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>make issues</code></td>
+<td style="text-align: left;">Syncs local markdown issues with GitHub Issues (see below).</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="issue-tracking-file-based" class="level2">
+<h2 class="anchored" data-anchor-id="issue-tracking-file-based">Issue Tracking (File-Based)</h2>
+<p>BeaverDB uses a unique <strong>“Docs-as-Code”</strong> approach for issue tracking using the <code>gh-md-issues</code> extension.</p>
 <ul>
-<li><strong>12.1. The Future of BeaverDB</strong>
-<ul>
-<li>The <code>BeaverClient</code> as a drop-in network client.</li>
-<li>Replacing <code>faiss</code> with a simpler, pure-<code>numpy</code> linear search.</li>
-</ul></li>
-<li><strong>12.2. How to Contribute</strong>
-<ul>
-<li>(Standard contribution guidelines, linking to Makefile, etc.)</li>
-</ul></li>
+<li><strong>Issues are Files:</strong> Every issue exists as a markdown file in the <code>issues/</code> directory (e.g., <code>issues/31-composable-graph-rag.md</code>).</li>
+<li><strong>Syncing:</strong> We edit these files locally to draft feature plans or update status. Running <code>make issues</code> pushes these changes to GitHub Issues and pulls any comments/updates back to your local files.</li>
 </ul>
+<p><strong>Workflow:</strong></p>
+<ol type="1">
+<li>Create a new file <code>issues/New-Feature.md</code>.</li>
+<li>Write the frontmatter (<code>title</code>, <code>labels</code>, <code>state: open</code>).</li>
+<li>Run <code>make issues</code> to create it on GitHub.</li>
+</ol>
+</section>
+<section id="testing-philosophy" class="level2">
+<h2 class="anchored" data-anchor-id="testing-philosophy">Testing Philosophy</h2>
+<p>Our test suite is divided into strict categories to keep the “Feedback Loop” fast. We use <code>pytest</code> markers defined in <code>pytest.ini</code>.</p>
+<section id="unit-tests-pytest--m-unit" class="level3">
+<h3 class="anchored" data-anchor-id="unit-tests-pytest--m-unit">Unit Tests (<code>pytest -m unit</code>)</h3>
+<ul>
+<li><strong>Goal:</strong> Instant feedback (&lt; 1 second).</li>
+<li><strong>Scope:</strong> In-memory logic, single-process SQLite, schema validation.</li>
+<li><strong>Rule:</strong> NEVER sleep, NEVER perform network I/O, NEVER spawn subprocesses.</li>
+</ul>
+</section>
+<section id="integration-tests-pytest--m-integration" class="level3">
+<h3 class="anchored" data-anchor-id="integration-tests-pytest--m-integration">Integration Tests (<code>pytest -m integration</code>)</h3>
+<ul>
+<li><strong>Goal:</strong> Verification of complex interactions.</li>
+<li><strong>Scope:</strong> Client-Server communication (FastAPI), File I/O (Blobs), Persistence checks.</li>
+<li><strong>Rule:</strong> Can be slower, but must be robust/deterministic.</li>
+</ul>
+</section>
+<section id="concurrency-tests-pytest--m-concurrency" class="level3">
+<h3 class="anchored" data-anchor-id="concurrency-tests-pytest--m-concurrency">Concurrency Tests (<code>pytest -m concurrency</code>)</h3>
+<ul>
+<li><strong>Goal:</strong> Stress testing locks and race conditions.</li>
+<li><strong>Scope:</strong> Multiprocessing, locking correctness, high-contention scenarios.</li>
+<li><strong>Rule:</strong> These are slow and resource-intensive. Run them only before a PR.</li>
+</ul>
+</section>
+</section>
+<section id="the-future-of-beaverdb" class="level2">
+<h2 class="anchored" data-anchor-id="the-future-of-beaverdb">The Future of BeaverDB</h2>
+<p>BeaverDB is feature-complete for its core mission: a multi-modal embedded database. The future roadmap focuses on <strong>Architecture</strong> and <strong>Stability</strong> rather than adding new data structures.</p>
+<section id="a.-the-async-core-migration" class="level3">
+<h3 class="anchored" data-anchor-id="a.-the-async-core-migration">A. The “Async Core” Migration</h3>
+<p>The single biggest remaining milestone is refactoring the core to be <strong>Async-First</strong>.</p>
+<ul>
+<li><strong>Current:</strong> Synchronous core with async wrappers.</li>
+<li><strong>Future:</strong> <code>AsyncBeaverDB</code> (using <code>aiosqlite</code>) as the engine, with a synchronous <code>BeaverDB</code> facade on top. This will allow handling thousands of concurrent Pub/Sub listeners and Locks on a single event loop.</li>
+</ul>
+</section>
+<section id="b.-client-server-parity" class="level3">
+<h3 class="anchored" data-anchor-id="b.-client-server-parity">B. Client-Server Parity</h3>
+<p>We aim for the <code>BeaverClient</code> (HTTP) to be a 100% drop-in replacement for <code>BeaverDB</code> (Local). Code written for one should run on the other without modification. This allows developers to start local (embedded) and scale to a server deployment effortlessly.</p>
+</section>
+<section id="c.-api-stability" class="level3">
+<h3 class="anchored" data-anchor-id="c.-api-stability">C. API Stability</h3>
+<p>We are committed to a stable, Pythonic API. We resist “feature creep.” If a feature can be implemented as a plugin or helper function on top of existing primitives (like <code>DocumentStream</code> built on <code>walk</code>), it belongs there, not in the core.</p>
 
 
+</section>
+</section>
 </section>
 
 </main> <!-- /main -->

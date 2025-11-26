@@ -5,51 +5,67 @@
     <lastmod>2025-11-11T18:48:44.695Z</lastmod>
   </url>
   <url>
-    <loc>https://syalia-srl.github.io/beaver/guide-collections.html</loc>
-    <lastmod>2025-11-01T19:23:54.169Z</lastmod>
+    <loc>https://syalia-srl.github.io/beaver/guide-deployment.html</loc>
+    <lastmod>2025-11-26T16:48:01.676Z</lastmod>
   </url>
   <url>
-    <loc>https://syalia-srl.github.io/beaver/dev-architecture.html</loc>
-    <lastmod>2025-11-01T19:23:31.464Z</lastmod>
+    <loc>https://syalia-srl.github.io/beaver/guide-locks.html</loc>
+    <lastmod>2025-11-26T16:31:43.256Z</lastmod>
   </url>
   <url>
-    <loc>https://syalia-srl.github.io/beaver/dev-concurrency.html</loc>
-    <lastmod>2025-11-01T19:23:43.410Z</lastmod>
+    <loc>https://syalia-srl.github.io/beaver/guide-channels.html</loc>
+    <lastmod>2025-11-26T16:24:46.638Z</lastmod>
   </url>
   <url>
-    <loc>https://syalia-srl.github.io/beaver/guide-lists-queues.html</loc>
-    <lastmod>2025-11-01T19:24:13.002Z</lastmod>
+    <loc>https://syalia-srl.github.io/beaver/guide-dicts.html</loc>
+    <lastmod>2025-11-26T15:14:21.958Z</lastmod>
+  </url>
+  <url>
+    <loc>https://syalia-srl.github.io/beaver/intro.html</loc>
+    <lastmod>2025-11-26T15:05:04.207Z</lastmod>
+  </url>
+  <url>
+    <loc>https://syalia-srl.github.io/beaver/guide-sketches.html</loc>
+    <lastmod>2025-11-26T15:50:25.046Z</lastmod>
+  </url>
+  <url>
+    <loc>https://syalia-srl.github.io/beaver/guide-blobs.html</loc>
+    <lastmod>2025-11-26T15:16:34.209Z</lastmod>
+  </url>
+  <url>
+    <loc>https://syalia-srl.github.io/beaver/guide-queues.html</loc>
+    <lastmod>2025-11-26T16:11:16.919Z</lastmod>
+  </url>
+  <url>
+    <loc>https://syalia-srl.github.io/beaver/dev-search.html</loc>
+    <lastmod>2025-11-26T17:01:50.649Z</lastmod>
+  </url>
+  <url>
+    <loc>https://syalia-srl.github.io/beaver/dev-contributing.html</loc>
+    <lastmod>2025-11-26T17:12:56.336Z</lastmod>
   </url>
   <url>
     <loc>https://syalia-srl.github.io/beaver/guide.html</loc>
     <lastmod>2025-11-11T18:29:40.213Z</lastmod>
   </url>
   <url>
-    <loc>https://syalia-srl.github.io/beaver/dev-search.html</loc>
-    <lastmod>2025-11-01T19:23:50.166Z</lastmod>
+    <loc>https://syalia-srl.github.io/beaver/guide-lists.html</loc>
+    <lastmod>2025-11-26T15:23:42.378Z</lastmod>
   </url>
   <url>
-    <loc>https://syalia-srl.github.io/beaver/dev-contributing.html</loc>
-    <lastmod>2025-11-01T19:23:36.016Z</lastmod>
+    <loc>https://syalia-srl.github.io/beaver/dev-concurrency.html</loc>
+    <lastmod>2025-11-26T16:57:53.657Z</lastmod>
   </url>
   <url>
-    <loc>https://syalia-srl.github.io/beaver/intro.html</loc>
-    <lastmod>2025-11-01T19:37:05.972Z</lastmod>
+    <loc>https://syalia-srl.github.io/beaver/dev-architecture.html</loc>
+    <lastmod>2025-11-26T16:56:12.225Z</lastmod>
   </url>
   <url>
-    <loc>https://syalia-srl.github.io/beaver/guide-concurrency.html</loc>
-    <lastmod>2025-11-01T19:23:59.543Z</lastmod>
+    <loc>https://syalia-srl.github.io/beaver/guide-collections.html</loc>
+    <lastmod>2025-11-26T15:31:45.075Z</lastmod>
   </url>
   <url>
-    <loc>https://syalia-srl.github.io/beaver/guide-dicts-blobs.html</loc>
-    <lastmod>2025-11-01T19:24:08.752Z</lastmod>
-  </url>
-  <url>
-    <loc>https://syalia-srl.github.io/beaver/guide-realtime.html</loc>
-    <lastmod>2025-11-01T19:24:20.138Z</lastmod>
-  </url>
-  <url>
-    <loc>https://syalia-srl.github.io/beaver/guide-deployment.html</loc>
-    <lastmod>2025-11-01T19:24:03.885Z</lastmod>
+    <loc>https://syalia-srl.github.io/beaver/guide-logs.html</loc>
+    <lastmod>2025-11-26T16:18:44.206Z</lastmod>
   </url>
 </urlset>

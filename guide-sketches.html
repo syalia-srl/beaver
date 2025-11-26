@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>guide-collections – BeaverDB</title>
+<title>guide-sketches – BeaverDB</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -235,31 +235,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#collections-multi-modal-search" id="toc-collections-multi-modal-search" class="nav-link active" data-scroll-target="#collections-multi-modal-search">Collections (Multi-Modal Search)</a>
+  <li><a href="#sketches-probabilistic-sets" id="toc-sketches-probabilistic-sets" class="nav-link active" data-scroll-target="#sketches-probabilistic-sets">Sketches (Probabilistic Sets)</a>
   <ul class="collapse">
   <li><a href="#quick-start" id="toc-quick-start" class="nav-link" data-scroll-target="#quick-start">Quick Start</a></li>
-  <li><a href="#managing-documents" id="toc-managing-documents" class="nav-link" data-scroll-target="#managing-documents">Managing Documents</a>
+  <li><a href="#how-it-works" id="toc-how-it-works" class="nav-link" data-scroll-target="#how-it-works">How It Works</a></li>
+  <li><a href="#basic-operations" id="toc-basic-operations" class="nav-link" data-scroll-target="#basic-operations">Basic Operations</a>
   <ul class="collapse">
-  <li><a href="#the-document-object" id="toc-the-document-object" class="nav-link" data-scroll-target="#the-document-object">The <code>Document</code> Object</a></li>
-  <li><a href="#indexing" id="toc-indexing" class="nav-link" data-scroll-target="#indexing">Indexing</a></li>
-  <li><a href="#deleting-clearing" id="toc-deleting-clearing" class="nav-link" data-scroll-target="#deleting-clearing">Deleting &amp; Clearing</a></li>
+  <li><a href="#adding-items" id="toc-adding-items" class="nav-link" data-scroll-target="#adding-items">Adding Items</a></li>
+  <li><a href="#membership-testing-contains" id="toc-membership-testing-contains" class="nav-link" data-scroll-target="#membership-testing-contains">Membership Testing (Contains)</a></li>
+  <li><a href="#cardinality-estimation-length" id="toc-cardinality-estimation-length" class="nav-link" data-scroll-target="#cardinality-estimation-length">Cardinality Estimation (Length)</a></li>
   </ul></li>
-  <li><a href="#search-capabilities" id="toc-search-capabilities" class="nav-link" data-scroll-target="#search-capabilities">Search Capabilities</a>
+  <li><a href="#advanced-features" id="toc-advanced-features" class="nav-link" data-scroll-target="#advanced-features">Advanced Features</a>
   <ul class="collapse">
-  <li><a href="#vector-search-semantic" id="toc-vector-search-semantic" class="nav-link" data-scroll-target="#vector-search-semantic">1. Vector Search (Semantic)</a></li>
-  <li><a href="#full-text-search-fts" id="toc-full-text-search-fts" class="nav-link" data-scroll-target="#full-text-search-fts">2. Full-Text Search (FTS)</a></li>
-  <li><a href="#fuzzy-search-typo-tolerance" id="toc-fuzzy-search-typo-tolerance" class="nav-link" data-scroll-target="#fuzzy-search-typo-tolerance">3. Fuzzy Search (Typo Tolerance)</a></li>
-  <li><a href="#hybrid-search-reranking" id="toc-hybrid-search-reranking" class="nav-link" data-scroll-target="#hybrid-search-reranking">4. Hybrid Search (Reranking)</a></li>
-  </ul></li>
-  <li><a href="#graph-relationships" id="toc-graph-relationships" class="nav-link" data-scroll-target="#graph-relationships">Graph &amp; Relationships</a>
-  <ul class="collapse">
-  <li><a href="#linking-documents" id="toc-linking-documents" class="nav-link" data-scroll-target="#linking-documents">Linking Documents</a></li>
-  <li><a href="#neighbors-traversal" id="toc-neighbors-traversal" class="nav-link" data-scroll-target="#neighbors-traversal">Neighbors &amp; Traversal</a></li>
-  </ul></li>
-  <li><a href="#maintenance" id="toc-maintenance" class="nav-link" data-scroll-target="#maintenance">Maintenance</a>
-  <ul class="collapse">
-  <li><a href="#compaction" id="toc-compaction" class="nav-link" data-scroll-target="#compaction">Compaction</a></li>
-  <li><a href="#exporting" id="toc-exporting" class="nav-link" data-scroll-target="#exporting">Exporting</a></li>
+  <li><a href="#high-performance-batching" id="toc-high-performance-batching" class="nav-link" data-scroll-target="#high-performance-batching">High-Performance Batching</a></li>
+  <li><a href="#configuration-validation" id="toc-configuration-validation" class="nav-link" data-scroll-target="#configuration-validation">Configuration Validation</a></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -271,166 +260,84 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 
-<section id="collections-multi-modal-search" class="level1">
-<h1>Collections (Multi-Modal Search)</h1>
-<p>The <code>CollectionManager</code> is the powerhouse of BeaverDB. It provides a unified interface for storing Documents and performing <strong>Vector Search</strong>, <strong>Full-Text Search (FTS)</strong>, <strong>Fuzzy Matching</strong>, and <strong>Graph Traversal</strong> on them.</p>
-<p>This is ideal for building RAG (Retrieval Augmented Generation) applications, search engines, knowledge graphs, or recommendation systems.</p>
+<section id="sketches-probabilistic-sets" class="level1">
+<h1>Sketches (Probabilistic Sets)</h1>
+<p>The <code>SketchManager</code> introduces a powerful “Big Data” capability to BeaverDB: <strong>Probabilistic Data Structures</strong>.</p>
+<p>Unlike a standard <code>set</code> which stores every item you add (consuming more memory as it grows), a Sketch stores a <strong>mathematical summary</strong> of the data. It allows you to track the <strong>Presence</strong> and <strong>Cardinality (Count)</strong> of millions of items using a tiny, constant amount of memory (often just a few kilobytes).</p>
+<p>The trade-off is that it provides <em>approximate</em> answers rather than perfect ones, but for many analytics and caching use cases, this is a perfect compromise.</p>
 <section id="quick-start" class="level2">
 <h2 class="anchored" data-anchor-id="quick-start">Quick Start</h2>
-<p>A Collection stores <code>Document</code> objects. Each document has a unique <code>id</code>, an optional vector <code>embedding</code>, and a JSON-serializable <code>body</code>.</p>
+<p>Initialize a sketch using <code>db.sketch()</code>. You define the expected <strong>capacity</strong> and acceptable <strong>error rate</strong>, and BeaverDB calculates the optimal storage size.</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver <span class="im">import</span> BeaverDB</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver.collections <span class="im">import</span> Document</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>db <span class="op">=</span> BeaverDB(<span class="st">"app.db"</span>)</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>docs <span class="op">=</span> db.collection(<span class="st">"articles"</span>)</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Index a Document (with embedding for semantic search)</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>doc <span class="op">=</span> Document(</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">id</span><span class="op">=</span><span class="st">"doc_1"</span>,</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    body<span class="op">=</span>{<span class="st">"title"</span>: <span class="st">"Introduction to AI"</span>, <span class="st">"content"</span>: <span class="st">"AI is changing the world..."</span>},</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    embedding<span class="op">=</span>[<span class="fl">0.1</span>, <span class="fl">0.2</span>, <span class="fl">0.8</span>, ...] <span class="co"># 768-dim vector</span></span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>docs.index(doc)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>db <span class="op">=</span> BeaverDB(<span class="st">"analytics.db"</span>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a sketch for tracking unique visitors</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Capacity: 1 million items</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Error Rate: 1% (0.01)</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Storage: ~1MB fixed size</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>visitors <span class="op">=</span> db.sketch(<span class="st">"daily_visitors"</span>, capacity<span class="op">=</span><span class="dv">1_000_000</span>, error_rate<span class="op">=</span><span class="fl">0.01</span>)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Add Data</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>visitors.add(<span class="st">"192.168.1.1"</span>)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>visitors.add(<span class="st">"10.0.0.5"</span>)</span>
 <span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Semantic Search (Vector)</span></span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Finds documents semantically similar to the query vector</span></span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> docs.search(query_vector, top_k<span class="op">=</span><span class="dv">5</span>)</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Check Membership (Bloom Filter)</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="st">"192.168.1.1"</span> <span class="kw">in</span> visitors:</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Returning visitor"</span>)</span>
 <span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Keyword Search (FTS)</span></span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Finds documents containing specific words</span></span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>matches <span class="op">=</span> docs.match(<span class="st">"artificial intelligence"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Count Uniques (HyperLogLog)</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Total unique visitors: </span><span class="sc">{</span><span class="bu">len</span>(visitors)<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="managing-documents" class="level2">
-<h2 class="anchored" data-anchor-id="managing-documents">Managing Documents</h2>
-<section id="the-document-object" class="level3">
-<h3 class="anchored" data-anchor-id="the-document-object">The <code>Document</code> Object</h3>
-<p>BeaverDB uses a strict Pydantic model for items.</p>
-<ul>
-<li><strong><code>id</code></strong>: String (UUID by default).</li>
-<li><strong><code>embedding</code></strong>: List of floats (or None).</li>
-<li><strong><code>body</code></strong>: Dictionary or Pydantic model (Metadata).</li>
-</ul>
-<!-- end list -->
-<div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pydantic <span class="im">import</span> BaseModel</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Article(BaseModel):</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    title: <span class="bu">str</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    tags: <span class="bu">list</span>[<span class="bu">str</span>]</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Typed Collection</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>articles <span class="op">=</span> db.collection(<span class="st">"news"</span>, model<span class="op">=</span>Article)</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Indexing</span></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>articles.index(Document(body<span class="op">=</span>Article(title<span class="op">=</span><span class="st">"New Release"</span>, tags<span class="op">=</span>[<span class="st">"tech"</span>])))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="how-it-works" class="level2">
+<h2 class="anchored" data-anchor-id="how-it-works">How It Works</h2>
+<p>BeaverDB implements a unified <strong><code>ApproximateSet</code></strong> that combines two best-in-class algorithms:</p>
+<ol type="1">
+<li><strong>Bloom Filter:</strong> Used for <code>__contains__</code> checks. It never gives false negatives (if it says “No”, the item is definitely not there). It might give false positives (saying “Yes” when the item wasn’t added) at the rate you configured (e.g., 1%).</li>
+<li><strong>HyperLogLog (HLL):</strong> Used for <code>__len__</code> counts. It estimates the number of unique elements with a standard error of roughly 0.8% - 2%, regardless of how many billions of items you add.</li>
+</ol>
+<p>These are packed into a single binary BLOB in the database, making them extremely efficient to load and save.</p>
 </section>
-<section id="indexing" class="level3">
-<h3 class="anchored" data-anchor-id="indexing">Indexing</h3>
-<p>The <code>.index()</code> method performs an atomic upsert. It updates the main storage, vector index, FTS index, and fuzzy n-gram index simultaneously.</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Index with specific FTS fields</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>docs.index(doc, fts<span class="op">=</span>[<span class="st">"title"</span>, <span class="st">"content"</span>])</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Enable Fuzzy Search support (slower indexing, robust matching)</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>docs.index(doc, fts<span class="op">=</span>[<span class="st">"title"</span>], fuzzy<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="basic-operations" class="level2">
+<h2 class="anchored" data-anchor-id="basic-operations">Basic Operations</h2>
+<section id="adding-items" class="level3">
+<h3 class="anchored" data-anchor-id="adding-items">Adding Items</h3>
+<p>Use <code>.add(item)</code> to insert a string or bytes. This updates both the Bloom Filter and the HLL counters.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>visitors.add(<span class="st">"user_123"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="deleting-clearing" class="level3">
-<h3 class="anchored" data-anchor-id="deleting-clearing">Deleting &amp; Clearing</h3>
-<div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Remove a single document</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>docs.drop(doc)</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Wipe the entire collection (Vectors, Graph, FTS)</span></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>docs.clear()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="membership-testing-contains" class="level3">
+<h3 class="anchored" data-anchor-id="membership-testing-contains">Membership Testing (Contains)</h3>
+<p>Use the <code>in</code> operator. This queries the Bloom Filter part of the sketch.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># "Have we processed this URL before?"</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> url <span class="kw">in</span> crawler_history:</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    skip_url(url)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="cardinality-estimation-length" class="level3">
+<h3 class="anchored" data-anchor-id="cardinality-estimation-length">Cardinality Estimation (Length)</h3>
+<p>Use <code>len()</code> to get the approximate count of unique items added. This queries the HyperLogLog part.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># "How many distinct words are in this book?"</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>count <span class="op">=</span> <span class="bu">len</span>(word_sketch)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
 </section>
-<section id="search-capabilities" class="level2">
-<h2 class="anchored" data-anchor-id="search-capabilities">Search Capabilities</h2>
-<section id="vector-search-semantic" class="level3">
-<h3 class="anchored" data-anchor-id="vector-search-semantic">1. Vector Search (Semantic)</h3>
-<p>Performs an Approximate Nearest Neighbor (ANN) search using Cosine Similarity.</p>
-<ul>
-<li><strong>Speed:</strong> Extremely fast (in-memory index).</li>
-<li><strong>Persistence:</strong> The index is fully persisted to disk and crash-safe.</li>
-</ul>
-<!-- end list -->
-<div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Returns list of (Document, score) tuples</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> docs.search(embedding_vector, top_k<span class="op">=</span><span class="dv">10</span>)</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> doc, score <span class="kw">in</span> results:</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>score<span class="sc">:.4f}</span><span class="ss">: </span><span class="sc">{</span>doc<span class="sc">.</span>body[<span class="st">'title'</span>]<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="advanced-features" class="level2">
+<h2 class="anchored" data-anchor-id="advanced-features">Advanced Features</h2>
+<section id="high-performance-batching" class="level3">
+<h3 class="anchored" data-anchor-id="high-performance-batching">High-Performance Batching</h3>
+<p>Updating a sketch requires a Read-Modify-Write cycle on the BLOB. Doing this for every single item in a loop is slow due to locking overhead.</p>
+<p>For high-throughput scenarios (like ingesting server logs), <strong>always use <code>.batched()</code></strong>. This buffers updates in memory and performs a single atomic merge with the database.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Ingest 10,000 log entries efficiently</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> visitors.batched() <span class="im">as</span> batch:</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> ip <span class="kw">in</span> access_logs:</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>        batch.add(ip)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="full-text-search-fts" class="level3">
-<h3 class="anchored" data-anchor-id="full-text-search-fts">2. Full-Text Search (FTS)</h3>
-<p>Uses SQLite’s FTS5 engine for powerful keyword matching. Supports boolean operators (<code>AND</code>, <code>OR</code>, <code>NOT</code>) and prefix matching.</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Simple match</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>docs.match(<span class="st">"python database"</span>)</span>
+<section id="configuration-validation" class="level3">
+<h3 class="anchored" data-anchor-id="configuration-validation">Configuration Validation</h3>
+<p>BeaverDB enforces strict configuration matching. If you create a sketch with <code>capacity=1M</code> and later try to open it with <code>capacity=500k</code>, it will raise a <code>ValueError</code> to prevent data corruption.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Valid: Open with same parameters</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>v <span class="op">=</span> db.sketch(<span class="st">"visitors"</span>, capacity<span class="op">=</span><span class="dv">1_000_000</span>, error_rate<span class="op">=</span><span class="fl">0.01</span>)</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Specific fields</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>docs.match(<span class="st">"tutorial"</span>, on<span class="op">=</span>[<span class="st">"title"</span>])</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Boolean query</span></span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>docs.match(<span class="st">"python AND NOT java"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-<section id="fuzzy-search-typo-tolerance" class="level3">
-<h3 class="anchored" data-anchor-id="fuzzy-search-typo-tolerance">3. Fuzzy Search (Typo Tolerance)</h3>
-<p>If you indexed with <code>fuzzy=True</code>, you can find documents even with typos. BeaverDB uses a hybrid <strong>Trigram + Levenshtein</strong> approach for high performance.</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Finds "BeaverDB" even if user types "BaverDB"</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>docs.match(<span class="st">"BaverDB"</span>, fuzziness<span class="op">=</span><span class="dv">1</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-<section id="hybrid-search-reranking" class="level3">
-<h3 class="anchored" data-anchor-id="hybrid-search-reranking">4. Hybrid Search (Reranking)</h3>
-<p>To get the best of both worlds (semantic understanding + keyword precision), use <strong>Reverse Rank Fusion (RRF)</strong>. BeaverDB provides a built-in <code>rerank</code> helper.</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver.collections <span class="im">import</span> rerank</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Run searches in parallel</span></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>vector_hits <span class="op">=</span> [doc <span class="cf">for</span> doc, _ <span class="kw">in</span> docs.search(vec, top_k<span class="op">=</span><span class="dv">50</span>)]</span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>keyword_hits <span class="op">=</span> [doc <span class="cf">for</span> doc, _ <span class="kw">in</span> docs.match(<span class="st">"query"</span>, top_k<span class="op">=</span><span class="dv">50</span>)]</span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Fuse results</span></span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Scores are normalized based on rank position</span></span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>final_results <span class="op">=</span> rerank(vector_hits, keyword_hits, k<span class="op">=</span><span class="dv">60</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-</section>
-<section id="graph-relationships" class="level2">
-<h2 class="anchored" data-anchor-id="graph-relationships">Graph &amp; Relationships</h2>
-<p>BeaverDB is also a <strong>Graph Database</strong>. You can link documents together and traverse the connections to find related context (e.g., for GraphRAG).</p>
-<section id="linking-documents" class="level3">
-<h3 class="anchored" data-anchor-id="linking-documents">Linking Documents</h3>
-<p>Create directed, labeled edges between documents.</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># d1 -&gt; d2 (d1 references d2)</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>docs.<span class="ex">connect</span>(d1, d2, label<span class="op">=</span><span class="st">"references"</span>)</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co"># d2 -&gt; d3 (d2 is the parent of d3)</span></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>docs.<span class="ex">connect</span>(d2, d3, label<span class="op">=</span><span class="st">"parent"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-<section id="neighbors-traversal" class="level3">
-<h3 class="anchored" data-anchor-id="neighbors-traversal">Neighbors &amp; Traversal</h3>
-<p>Retrieve connected documents efficiently.</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get immediate neighbors</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>refs <span class="op">=</span> docs.neighbors(d1, label<span class="op">=</span><span class="st">"references"</span>)</span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Multi-hop Traversal (BFS)</span></span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="co"># "Find everything d1 connects to, up to 2 hops away"</span></span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co"># This runs a Recursive CTE in SQLite (Very Fast)</span></span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>context <span class="op">=</span> docs.walk(d1, labels<span class="op">=</span>[<span class="st">"references"</span>, <span class="st">"parent"</span>], depth<span class="op">=</span><span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-</section>
-<section id="maintenance" class="level2">
-<h2 class="anchored" data-anchor-id="maintenance">Maintenance</h2>
-<section id="compaction" class="level3">
-<h3 class="anchored" data-anchor-id="compaction">Compaction</h3>
-<p>The vector index uses a <strong>Hybrid Architecture</strong> (Base Snapshot + Delta Log). Over time, the delta log grows.</p>
-<ul>
-<li><strong>Auto-Compaction:</strong> Triggered automatically when the log gets too large.</li>
-<li><strong>Manual Compaction:</strong> You can force a merge of the log into the main index.</li>
-</ul>
-<div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>docs.compact()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-<section id="exporting" class="level3">
-<h3 class="anchored" data-anchor-id="exporting">Exporting</h3>
-<p>Dump the entire collection (vectors and metadata) to JSON for backup.</p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> docs.dump()</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="co"># OR write directly to file</span></span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> <span class="bu">open</span>(<span class="st">"backup.json"</span>, <span class="st">"w"</span>) <span class="im">as</span> f:</span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    docs.dump(f)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Invalid: Raises ValueError</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>v <span class="op">=</span> db.sketch(<span class="st">"visitors"</span>, capacity<span class="op">=</span><span class="dv">500_000</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 
 
 </section>

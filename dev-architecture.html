@@ -111,29 +111,53 @@ ul.task-list li input[type="checkbox"] {
     <a class="dropdown-item" href="./guide.html">
  <span class="dropdown-text">Feature Summary</span></a>
   </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">Core Storage</li>
         <li>
-    <a class="dropdown-item" href="./guide-dicts-blobs.html">
- <span class="dropdown-text">Dictionaries &amp; Blobs</span></a>
+    <a class="dropdown-item" href="./guide-dicts.html">
+ <span class="dropdown-text">Dictionaries (KV)</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./guide-lists-queues.html">
- <span class="dropdown-text">Lists &amp; Queues</span></a>
+    <a class="dropdown-item" href="./guide-blobs.html">
+ <span class="dropdown-text">Blobs (Files)</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="./guide-lists.html">
+ <span class="dropdown-text">Lists</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">Search &amp; Graph</li>
         <li>
     <a class="dropdown-item" href="./guide-collections.html">
- <span class="dropdown-text">Collections (Vector/FTS/Graph)</span></a>
+ <span class="dropdown-text">Collections (Vector/Graph)</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./guide-realtime.html">
- <span class="dropdown-text">Real-Time Data (Pub/Sub)</span></a>
+    <a class="dropdown-item" href="./guide-sketches.html">
+ <span class="dropdown-text">Sketches (Probabilistic)</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">Real-Time</li>
+        <li>
+    <a class="dropdown-item" href="./guide-queues.html">
+ <span class="dropdown-text">Queues</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./guide-concurrency.html">
- <span class="dropdown-text">Concurrency &amp; Locking</span></a>
+    <a class="dropdown-item" href="./guide-logs.html">
+ <span class="dropdown-text">Logs (Time-Series)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./guide-channels.html">
+ <span class="dropdown-text">Channels (Pub/Sub)</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">System</li>
+        <li>
+    <a class="dropdown-item" href="./guide-locks.html">
+ <span class="dropdown-text">Locks &amp; Concurrency</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="./guide-deployment.html">
- <span class="dropdown-text">Deployment &amp; API</span></a>
+ <span class="dropdown-text">Deployment</span></a>
   </li>  
     </ul>
   </li>
@@ -176,7 +200,20 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#core-architecture-design" id="toc-core-architecture-design" class="nav-link active" data-scroll-target="#core-architecture-design">Core Architecture &amp; Design</a></li>
+  <li><a href="#core-architecture" id="toc-core-architecture" class="nav-link active" data-scroll-target="#core-architecture">Core Architecture</a>
+  <ul class="collapse">
+  <li><a href="#the-facade-pattern" id="toc-the-facade-pattern" class="nav-link" data-scroll-target="#the-facade-pattern">The Facade Pattern</a>
+  <ul class="collapse">
+  <li><a href="#the-manager-pattern" id="toc-the-manager-pattern" class="nav-link" data-scroll-target="#the-manager-pattern">The Manager Pattern</a></li>
+  </ul></li>
+  <li><a href="#schema-design" id="toc-schema-design" class="nav-link" data-scroll-target="#schema-design">Schema Design</a>
+  <ul class="collapse">
+  <li><a href="#key-value-storage" id="toc-key-value-storage" class="nav-link" data-scroll-target="#key-value-storage">Key-Value &amp; Storage</a></li>
+  <li><a href="#search-vectors" id="toc-search-vectors" class="nav-link" data-scroll-target="#search-vectors">Search &amp; Vectors</a></li>
+  <li><a href="#streams-queues" id="toc-streams-queues" class="nav-link" data-scroll-target="#streams-queues">Streams &amp; Queues</a></li>
+  <li><a href="#system" id="toc-system" class="nav-link" data-scroll-target="#system">System</a></li>
+  </ul></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -186,30 +223,166 @@ ul.task-list li input[type="checkbox"] {
 
 
 
-<section id="core-architecture-design" class="level1">
-<h1>Core Architecture &amp; Design</h1>
-<p><strong>Chapter Outline:</strong></p>
+<section id="core-architecture" class="level1">
+<h1>Core Architecture</h1>
+<p>BeaverDB is built on a simple but powerful premise: <strong>One File, Multiple Modalities.</strong></p>
+<p>Instead of being a simple key-value store or a pure vector database, it acts as a “meta-database” that manages multiple specialized data structures (Dictionaries, Lists, Logs, Vectors) within a single SQLite file.</p>
+<section id="the-facade-pattern" class="level2">
+<h2 class="anchored" data-anchor-id="the-facade-pattern">The Facade Pattern</h2>
+<p>The entry point for the entire system is the <code>BeaverDB</code> class in <code>beaver.core</code>. It acts as a <strong>Facade</strong> and a <strong>Resource Manager</strong>.</p>
 <ul>
-<li><strong>9.1. Guiding Principles (Developer Focus)</strong>
-<ul>
-<li>A deeper dive into the “Why” from <code>design.md</code>.</li>
-<li>Standard SQLite Compatibility as a “no-magic” rule.</li>
-<li>Convention over Configuration.</li>
-</ul></li>
-<li><strong>9.2. The Manager Delegation Pattern</strong>
-<ul>
-<li>How <code>BeaverDB</code> acts as a factory.</li>
-<li>How managers (e.g., <code>DictManager</code>) are initialized with a reference to the core <code>BeaverDB</code> connection pool.</li>
-<li>How all tables are prefixed with <code>beaver_</code> to avoid user-space conflicts.</li>
-</ul></li>
-<li><strong>9.3. Type-Safe Models (<code>beaver.Model</code>)</strong>
-<ul>
-<li>Using the <code>model=...</code> parameter for automatic serialization and deserialization.</li>
-<li>Inheriting from <code>beaver.Model</code> for a lightweight, Pydantic-compatible solution.</li>
-</ul></li>
+<li><strong>Facade:</strong> It provides factory methods (<code>.dict()</code>, <code>.list()</code>, <code>.collection()</code>) that hide the complexity of initializing specific managers.</li>
+<li><strong>Resource Manager:</strong> It holds the persistent SQLite connection pool and manages thread safety.</li>
 </ul>
+<section id="the-manager-pattern" class="level3">
+<h3 class="anchored" data-anchor-id="the-manager-pattern">The Manager Pattern</h3>
+<p>BeaverDB does not implement data logic itself. Instead, it delegates to <strong>Managers</strong>.</p>
+<p>When you call <code>db.dict("settings")</code>, BeaverDB: 1. Checks its internal <code>_manager_cache</code> to see if a manager for “settings” already exists. 2. If not, it initializes a <code>DictManager(name="settings", db=self)</code>. 3. Returns the singleton instance.</p>
+<p>This ensures that multiple calls to <code>db.dict("settings")</code> in the same process return the <strong>same python object</strong>, sharing locks and caches.</p>
+</section>
+</section>
+<section id="schema-design" class="level2">
+<h2 class="anchored" data-anchor-id="schema-design">Schema Design</h2>
+<p>BeaverDB uses a fixed set of internal tables to store user data. These tables are created automatically on initialization.</p>
+<section id="key-value-storage" class="level3">
+<h3 class="anchored" data-anchor-id="key-value-storage">Key-Value &amp; Storage</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Table</th>
+<th style="text-align: left;">Purpose</th>
+<th style="text-align: left;">Schema</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><code>beaver_dicts</code></td>
+<td style="text-align: left;">Stores all dictionaries</td>
+<td style="text-align: left;"><code>dict_name, key, value, expires_at</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>beaver_lists</code></td>
+<td style="text-align: left;">Stores all lists</td>
+<td style="text-align: left;"><code>list_name, item_order, item_value</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>beaver_blobs</code></td>
+<td style="text-align: left;">Stores binary files</td>
+<td style="text-align: left;"><code>store_name, key, data, metadata</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>beaver_sketches</code></td>
+<td style="text-align: left;">Probabilistic structures</td>
+<td style="text-align: left;"><code>name, type, config, data (BLOB)</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="search-vectors" class="level3">
+<h3 class="anchored" data-anchor-id="search-vectors">Search &amp; Vectors</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Table</th>
+<th style="text-align: left;">Purpose</th>
+<th style="text-align: left;">Schema</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><code>beaver_collections</code></td>
+<td style="text-align: left;">Main document storage</td>
+<td style="text-align: left;"><code>collection, item_id, item_vector, metadata</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>beaver_fts_index</code></td>
+<td style="text-align: left;">Virtual table for Full-Text Search</td>
+<td style="text-align: left;"><code>(FTS5 Virtual Table)</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>beaver_trigrams</code></td>
+<td style="text-align: left;">N-grams for fuzzy matching</td>
+<td style="text-align: left;"><code>collection, trigram, item_id</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>beaver_edges</code></td>
+<td style="text-align: left;">Graph connections</td>
+<td style="text-align: left;"><code>collection, source, target, label, weight</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="streams-queues" class="level3">
+<h3 class="anchored" data-anchor-id="streams-queues">Streams &amp; Queues</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Table</th>
+<th style="text-align: left;">Purpose</th>
+<th style="text-align: left;">Schema</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><code>beaver_logs</code></td>
+<td style="text-align: left;">Time-series logs</td>
+<td style="text-align: left;"><code>log_name, timestamp, data</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>beaver_priority_queues</code></td>
+<td style="text-align: left;">Job queues</td>
+<td style="text-align: left;"><code>queue_name, priority, timestamp, data</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>beaver_pubsub_log</code></td>
+<td style="text-align: left;">Message bus history</td>
+<td style="text-align: left;"><code>channel_name, timestamp, message_payload</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="system" class="level3">
+<h3 class="anchored" data-anchor-id="system">System</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Table</th>
+<th style="text-align: left;">Purpose</th>
+<th style="text-align: left;">Schema</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><code>beaver_lock_waiters</code></td>
+<td style="text-align: left;">Inter-process locks</td>
+<td style="text-align: left;"><code>lock_name, waiter_id, expires_at</code></td>
+</tr>
+</tbody>
+</table>
 
 
+</section>
+</section>
 </section>
 
 </main> <!-- /main -->

@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>guide-collections – BeaverDB</title>
+<title>guide-locks – BeaverDB</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -235,31 +235,24 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#collections-multi-modal-search" id="toc-collections-multi-modal-search" class="nav-link active" data-scroll-target="#collections-multi-modal-search">Collections (Multi-Modal Search)</a>
+  <li><a href="#locks-concurrency-control" id="toc-locks-concurrency-control" class="nav-link active" data-scroll-target="#locks-concurrency-control">Locks (Concurrency Control)</a>
   <ul class="collapse">
   <li><a href="#quick-start" id="toc-quick-start" class="nav-link" data-scroll-target="#quick-start">Quick Start</a></li>
-  <li><a href="#managing-documents" id="toc-managing-documents" class="nav-link" data-scroll-target="#managing-documents">Managing Documents</a>
+  <li><a href="#how-it-works" id="toc-how-it-works" class="nav-link" data-scroll-target="#how-it-works">How It Works</a></li>
+  <li><a href="#re-entrancy-recursive-locking" id="toc-re-entrancy-recursive-locking" class="nav-link" data-scroll-target="#re-entrancy-recursive-locking">Re-entrancy (Recursive Locking)</a>
   <ul class="collapse">
-  <li><a href="#the-document-object" id="toc-the-document-object" class="nav-link" data-scroll-target="#the-document-object">The <code>Document</code> Object</a></li>
-  <li><a href="#indexing" id="toc-indexing" class="nav-link" data-scroll-target="#indexing">Indexing</a></li>
-  <li><a href="#deleting-clearing" id="toc-deleting-clearing" class="nav-link" data-scroll-target="#deleting-clearing">Deleting &amp; Clearing</a></li>
+  <li><a href="#important-instance-vs.-name" id="toc-important-instance-vs.-name" class="nav-link" data-scroll-target="#important-instance-vs.-name">Important: Instance vs.&nbsp;Name</a></li>
   </ul></li>
-  <li><a href="#search-capabilities" id="toc-search-capabilities" class="nav-link" data-scroll-target="#search-capabilities">Search Capabilities</a>
+  <li><a href="#basic-operations" id="toc-basic-operations" class="nav-link" data-scroll-target="#basic-operations">Basic Operations</a>
   <ul class="collapse">
-  <li><a href="#vector-search-semantic" id="toc-vector-search-semantic" class="nav-link" data-scroll-target="#vector-search-semantic">1. Vector Search (Semantic)</a></li>
-  <li><a href="#full-text-search-fts" id="toc-full-text-search-fts" class="nav-link" data-scroll-target="#full-text-search-fts">2. Full-Text Search (FTS)</a></li>
-  <li><a href="#fuzzy-search-typo-tolerance" id="toc-fuzzy-search-typo-tolerance" class="nav-link" data-scroll-target="#fuzzy-search-typo-tolerance">3. Fuzzy Search (Typo Tolerance)</a></li>
-  <li><a href="#hybrid-search-reranking" id="toc-hybrid-search-reranking" class="nav-link" data-scroll-target="#hybrid-search-reranking">4. Hybrid Search (Reranking)</a></li>
+  <li><a href="#blocking-acquire" id="toc-blocking-acquire" class="nav-link" data-scroll-target="#blocking-acquire">Blocking Acquire</a></li>
+  <li><a href="#timeout" id="toc-timeout" class="nav-link" data-scroll-target="#timeout">Timeout</a></li>
+  <li><a href="#non-blocking-acquire" id="toc-non-blocking-acquire" class="nav-link" data-scroll-target="#non-blocking-acquire">Non-Blocking Acquire</a></li>
   </ul></li>
-  <li><a href="#graph-relationships" id="toc-graph-relationships" class="nav-link" data-scroll-target="#graph-relationships">Graph &amp; Relationships</a>
+  <li><a href="#advanced-configuration" id="toc-advanced-configuration" class="nav-link" data-scroll-target="#advanced-configuration">Advanced Configuration</a>
   <ul class="collapse">
-  <li><a href="#linking-documents" id="toc-linking-documents" class="nav-link" data-scroll-target="#linking-documents">Linking Documents</a></li>
-  <li><a href="#neighbors-traversal" id="toc-neighbors-traversal" class="nav-link" data-scroll-target="#neighbors-traversal">Neighbors &amp; Traversal</a></li>
-  </ul></li>
-  <li><a href="#maintenance" id="toc-maintenance" class="nav-link" data-scroll-target="#maintenance">Maintenance</a>
-  <ul class="collapse">
-  <li><a href="#compaction" id="toc-compaction" class="nav-link" data-scroll-target="#compaction">Compaction</a></li>
-  <li><a href="#exporting" id="toc-exporting" class="nav-link" data-scroll-target="#exporting">Exporting</a></li>
+  <li><a href="#heartbeats-renewing-locks" id="toc-heartbeats-renewing-locks" class="nav-link" data-scroll-target="#heartbeats-renewing-locks">Heartbeats (Renewing Locks)</a></li>
+  <li><a href="#manual-cleanup" id="toc-manual-cleanup" class="nav-link" data-scroll-target="#manual-cleanup">Manual Cleanup</a></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -271,166 +264,123 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 
-<section id="collections-multi-modal-search" class="level1">
-<h1>Collections (Multi-Modal Search)</h1>
-<p>The <code>CollectionManager</code> is the powerhouse of BeaverDB. It provides a unified interface for storing Documents and performing <strong>Vector Search</strong>, <strong>Full-Text Search (FTS)</strong>, <strong>Fuzzy Matching</strong>, and <strong>Graph Traversal</strong> on them.</p>
-<p>This is ideal for building RAG (Retrieval Augmented Generation) applications, search engines, knowledge graphs, or recommendation systems.</p>
+<section id="locks-concurrency-control" class="level1">
+<h1>Locks (Concurrency Control)</h1>
+<p>BeaverDB is designed to be <strong>Process-Safe</strong>. Multiple Python processes (e.g., web workers, scripts, background jobs) can read and write to the same database file simultaneously without corrupting it.</p>
+<p>However, sometimes you need to synchronize <em>logic</em> across these processes. For example: * “Only one worker should run the daily report generation.” * “Only one process should perform database compaction.” * “Wait until the current job is finished before starting the next.”</p>
+<p>The <code>LockManager</code> provides a simple, persistent, dead-lock safe locking primitive to handle these cases.</p>
 <section id="quick-start" class="level2">
 <h2 class="anchored" data-anchor-id="quick-start">Quick Start</h2>
-<p>A Collection stores <code>Document</code> objects. Each document has a unique <code>id</code>, an optional vector <code>embedding</code>, and a JSON-serializable <code>body</code>.</p>
+<p>Initialize a lock using <code>db.lock()</code>.</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver <span class="im">import</span> BeaverDB</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver.collections <span class="im">import</span> Document</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> time</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>db <span class="op">=</span> BeaverDB(<span class="st">"app.db"</span>)</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>docs <span class="op">=</span> db.collection(<span class="st">"articles"</span>)</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Index a Document (with embedding for semantic search)</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>doc <span class="op">=</span> Document(</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">id</span><span class="op">=</span><span class="st">"doc_1"</span>,</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    body<span class="op">=</span>{<span class="st">"title"</span>: <span class="st">"Introduction to AI"</span>, <span class="st">"content"</span>: <span class="st">"AI is changing the world..."</span>},</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    embedding<span class="op">=</span>[<span class="fl">0.1</span>, <span class="fl">0.2</span>, <span class="fl">0.8</span>, ...] <span class="co"># 768-dim vector</span></span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>docs.index(doc)</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Semantic Search (Vector)</span></span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Finds documents semantically similar to the query vector</span></span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> docs.search(query_vector, top_k<span class="op">=</span><span class="dv">5</span>)</span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Keyword Search (FTS)</span></span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Finds documents containing specific words</span></span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>matches <span class="op">=</span> docs.match(<span class="st">"artificial intelligence"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Define the critical section</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># The lock name is global across all processes using this database file.</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> db.lock(<span class="st">"report_generation"</span>, timeout<span class="op">=</span><span class="fl">10.0</span>):</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Lock acquired! I am the only process running this block."</span>)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Simulate work</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    time.sleep(<span class="dv">5</span>)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Work done. Releasing lock."</span>)</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Another process trying to acquire "report_generation"</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="co"># will wait here until the first process finishes or the timeout expires.</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="managing-documents" class="level2">
-<h2 class="anchored" data-anchor-id="managing-documents">Managing Documents</h2>
-<section id="the-document-object" class="level3">
-<h3 class="anchored" data-anchor-id="the-document-object">The <code>Document</code> Object</h3>
-<p>BeaverDB uses a strict Pydantic model for items.</p>
+<section id="how-it-works" class="level2">
+<h2 class="anchored" data-anchor-id="how-it-works">How It Works</h2>
+<p>The lock is implemented using a persistent table in SQLite. It is:</p>
 <ul>
-<li><strong><code>id</code></strong>: String (UUID by default).</li>
-<li><strong><code>embedding</code></strong>: List of floats (or None).</li>
-<li><strong><code>body</code></strong>: Dictionary or Pydantic model (Metadata).</li>
+<li><strong>Fair (FIFO):</strong> Processes are served in the order they requested the lock.</li>
+<li><strong>Deadlock-Proof:</strong> Every lock has a Time-To-Live (TTL). If a process crashes while holding a lock, the lock will automatically expire after the TTL, allowing other processes to proceed.</li>
+<li><strong>Process-Aware:</strong> It works across different scripts, terminals, or containers sharing the same <code>.db</code> file.</li>
 </ul>
-<!-- end list -->
-<div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pydantic <span class="im">import</span> BaseModel</span>
+</section>
+<section id="re-entrancy-recursive-locking" class="level2">
+<h2 class="anchored" data-anchor-id="re-entrancy-recursive-locking">Re-entrancy (Recursive Locking)</h2>
+<p>Unlike standard Python <code>threading.Lock</code>, a BeaverDB <code>Lock</code> instance is <strong>re-entrant</strong>. This means if you try to acquire the lock again <em>using the same object instance</em>, it will succeed immediately without blocking.</p>
+<p>This design prevents self-deadlocks in complex code paths where a locked function calls another function that requires the same lock.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>lock <span class="op">=</span> db.lock(<span class="st">"resource"</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Article(BaseModel):</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    title: <span class="bu">str</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    tags: <span class="bu">list</span>[<span class="bu">str</span>]</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Typed Collection</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>articles <span class="op">=</span> db.collection(<span class="st">"news"</span>, model<span class="op">=</span>Article)</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Indexing</span></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>articles.index(Document(body<span class="op">=</span>Article(title<span class="op">=</span><span class="st">"New Release"</span>, tags<span class="op">=</span>[<span class="st">"tech"</span>])))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-<section id="indexing" class="level3">
-<h3 class="anchored" data-anchor-id="indexing">Indexing</h3>
-<p>The <code>.index()</code> method performs an atomic upsert. It updates the main storage, vector index, FTS index, and fuzzy n-gram index simultaneously.</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Index with specific FTS fields</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>docs.index(doc, fts<span class="op">=</span>[<span class="st">"title"</span>, <span class="st">"content"</span>])</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Enable Fuzzy Search support (slower indexing, robust matching)</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>docs.index(doc, fts<span class="op">=</span>[<span class="st">"title"</span>], fuzzy<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-<section id="deleting-clearing" class="level3">
-<h3 class="anchored" data-anchor-id="deleting-clearing">Deleting &amp; Clearing</h3>
-<div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Remove a single document</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>docs.drop(doc)</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Wipe the entire collection (Vectors, Graph, FTS)</span></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>docs.clear()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> lock:</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Lock acquired."</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    <span class="co"># This works perfectly!</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    <span class="co"># It detects that this specific 'lock' instance already holds it.</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> lock:</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="st">"Still holding the lock (Nested block)."</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="important-instance-vs.-name" class="level3">
+<h3 class="anchored" data-anchor-id="important-instance-vs.-name">Important: Instance vs.&nbsp;Name</h3>
+<p>Re-entrancy applies to the <strong>Lock Object Instance</strong>, not just the process.</p>
+<p>If you create <strong>two different lock objects</strong> with the same name in the same process, they act as distinct waiters. The second one <strong>will block</strong> waiting for the first one to release.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Two distinct instances for the SAME resource</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>lock_a <span class="op">=</span> db.lock(<span class="st">"my_resource"</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>lock_b <span class="op">=</span> db.lock(<span class="st">"my_resource"</span>)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> lock_a:</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="co"># This WILL BLOCK (and deadlock if no timeout is set)</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    <span class="co"># because lock_b sees that "my_resource" is held by lock_a.</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> lock_b:</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>        <span class="cf">pass</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
 </section>
-<section id="search-capabilities" class="level2">
-<h2 class="anchored" data-anchor-id="search-capabilities">Search Capabilities</h2>
-<section id="vector-search-semantic" class="level3">
-<h3 class="anchored" data-anchor-id="vector-search-semantic">1. Vector Search (Semantic)</h3>
-<p>Performs an Approximate Nearest Neighbor (ANN) search using Cosine Similarity.</p>
-<ul>
-<li><strong>Speed:</strong> Extremely fast (in-memory index).</li>
-<li><strong>Persistence:</strong> The index is fully persisted to disk and crash-safe.</li>
-</ul>
-<!-- end list -->
-<div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Returns list of (Document, score) tuples</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> docs.search(embedding_vector, top_k<span class="op">=</span><span class="dv">10</span>)</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> doc, score <span class="kw">in</span> results:</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>score<span class="sc">:.4f}</span><span class="ss">: </span><span class="sc">{</span>doc<span class="sc">.</span>body[<span class="st">'title'</span>]<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="basic-operations" class="level2">
+<h2 class="anchored" data-anchor-id="basic-operations">Basic Operations</h2>
+<section id="blocking-acquire" class="level3">
+<h3 class="anchored" data-anchor-id="blocking-acquire">Blocking Acquire</h3>
+<p>The default behavior is to block (wait) until the lock is available.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Waits forever until the lock is free</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> db.lock(<span class="st">"critical_resource"</span>):</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    process_resource()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="full-text-search-fts" class="level3">
-<h3 class="anchored" data-anchor-id="full-text-search-fts">2. Full-Text Search (FTS)</h3>
-<p>Uses SQLite’s FTS5 engine for powerful keyword matching. Supports boolean operators (<code>AND</code>, <code>OR</code>, <code>NOT</code>) and prefix matching.</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Simple match</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>docs.match(<span class="st">"python database"</span>)</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Specific fields</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>docs.match(<span class="st">"tutorial"</span>, on<span class="op">=</span>[<span class="st">"title"</span>])</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Boolean query</span></span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>docs.match(<span class="st">"python AND NOT java"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="timeout" class="level3">
+<h3 class="anchored" data-anchor-id="timeout">Timeout</h3>
+<p>You can specify a maximum wait time. If the lock isn’t acquired by then, it raises a <code>TimeoutError</code>.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="cf">try</span>:</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Wait up to 5 seconds</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> db.lock(<span class="st">"resource"</span>, timeout<span class="op">=</span><span class="fl">5.0</span>):</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>        process()</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="cf">except</span> <span class="pp">TimeoutError</span>:</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Could not acquire lock. Resource is busy."</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="fuzzy-search-typo-tolerance" class="level3">
-<h3 class="anchored" data-anchor-id="fuzzy-search-typo-tolerance">3. Fuzzy Search (Typo Tolerance)</h3>
-<p>If you indexed with <code>fuzzy=True</code>, you can find documents even with typos. BeaverDB uses a hybrid <strong>Trigram + Levenshtein</strong> approach for high performance.</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Finds "BeaverDB" even if user types "BaverDB"</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>docs.match(<span class="st">"BaverDB"</span>, fuzziness<span class="op">=</span><span class="dv">1</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-<section id="hybrid-search-reranking" class="level3">
-<h3 class="anchored" data-anchor-id="hybrid-search-reranking">4. Hybrid Search (Reranking)</h3>
-<p>To get the best of both worlds (semantic understanding + keyword precision), use <strong>Reverse Rank Fusion (RRF)</strong>. BeaverDB provides a built-in <code>rerank</code> helper.</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver.collections <span class="im">import</span> rerank</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Run searches in parallel</span></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>vector_hits <span class="op">=</span> [doc <span class="cf">for</span> doc, _ <span class="kw">in</span> docs.search(vec, top_k<span class="op">=</span><span class="dv">50</span>)]</span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>keyword_hits <span class="op">=</span> [doc <span class="cf">for</span> doc, _ <span class="kw">in</span> docs.match(<span class="st">"query"</span>, top_k<span class="op">=</span><span class="dv">50</span>)]</span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Fuse results</span></span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Scores are normalized based on rank position</span></span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>final_results <span class="op">=</span> rerank(vector_hits, keyword_hits, k<span class="op">=</span><span class="dv">60</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="non-blocking-acquire" class="level3">
+<h3 class="anchored" data-anchor-id="non-blocking-acquire">Non-Blocking Acquire</h3>
+<p>If you want to “try” to get the lock and fail immediately if it’s taken (e.g., for a cron job that shouldn’t overlap), use <code>block=False</code>.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>lock <span class="op">=</span> db.lock(<span class="st">"maintenance"</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> lock.acquire(block<span class="op">=</span><span class="va">False</span>):</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">try</span>:</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>        run_maintenance()</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">finally</span>:</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>        lock.release()</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span>:</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Maintenance is already running. Skipping."</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
 </section>
-<section id="graph-relationships" class="level2">
-<h2 class="anchored" data-anchor-id="graph-relationships">Graph &amp; Relationships</h2>
-<p>BeaverDB is also a <strong>Graph Database</strong>. You can link documents together and traverse the connections to find related context (e.g., for GraphRAG).</p>
-<section id="linking-documents" class="level3">
-<h3 class="anchored" data-anchor-id="linking-documents">Linking Documents</h3>
-<p>Create directed, labeled edges between documents.</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># d1 -&gt; d2 (d1 references d2)</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>docs.<span class="ex">connect</span>(d1, d2, label<span class="op">=</span><span class="st">"references"</span>)</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co"># d2 -&gt; d3 (d2 is the parent of d3)</span></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>docs.<span class="ex">connect</span>(d2, d3, label<span class="op">=</span><span class="st">"parent"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="advanced-configuration" class="level2">
+<h2 class="anchored" data-anchor-id="advanced-configuration">Advanced Configuration</h2>
+<section id="heartbeats-renewing-locks" class="level3">
+<h3 class="anchored" data-anchor-id="heartbeats-renewing-locks">Heartbeats (Renewing Locks)</h3>
+<p>If you have a long-running task (longer than the default TTL), you must periodically renew the lock to prevent it from expiring and letting another process in.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>lock <span class="op">=</span> db.lock(<span class="st">"long_task"</span>, lock_ttl<span class="op">=</span><span class="dv">60</span>) <span class="co"># 1 minute TTL</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> lock.acquire():</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">try</span>:</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">10</span>):</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>            do_step(i)</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Extend the lock for another 60 seconds</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>            lock.renew(lock_ttl<span class="op">=</span><span class="dv">60</span>)</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">finally</span>:</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>        lock.release()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="neighbors-traversal" class="level3">
-<h3 class="anchored" data-anchor-id="neighbors-traversal">Neighbors &amp; Traversal</h3>
-<p>Retrieve connected documents efficiently.</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get immediate neighbors</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>refs <span class="op">=</span> docs.neighbors(d1, label<span class="op">=</span><span class="st">"references"</span>)</span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Multi-hop Traversal (BFS)</span></span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="co"># "Find everything d1 connects to, up to 2 hops away"</span></span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co"># This runs a Recursive CTE in SQLite (Very Fast)</span></span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>context <span class="op">=</span> docs.walk(d1, labels<span class="op">=</span>[<span class="st">"references"</span>, <span class="st">"parent"</span>], depth<span class="op">=</span><span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-</section>
-<section id="maintenance" class="level2">
-<h2 class="anchored" data-anchor-id="maintenance">Maintenance</h2>
-<section id="compaction" class="level3">
-<h3 class="anchored" data-anchor-id="compaction">Compaction</h3>
-<p>The vector index uses a <strong>Hybrid Architecture</strong> (Base Snapshot + Delta Log). Over time, the delta log grows.</p>
-<ul>
-<li><strong>Auto-Compaction:</strong> Triggered automatically when the log gets too large.</li>
-<li><strong>Manual Compaction:</strong> You can force a merge of the log into the main index.</li>
-</ul>
-<div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>docs.compact()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-<section id="exporting" class="level3">
-<h3 class="anchored" data-anchor-id="exporting">Exporting</h3>
-<p>Dump the entire collection (vectors and metadata) to JSON for backup.</p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> docs.dump()</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="co"># OR write directly to file</span></span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> <span class="bu">open</span>(<span class="st">"backup.json"</span>, <span class="st">"w"</span>) <span class="im">as</span> f:</span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    docs.dump(f)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="manual-cleanup" class="level3">
+<h3 class="anchored" data-anchor-id="manual-cleanup">Manual Cleanup</h3>
+<p>In rare cases (e.g., testing or admin intervention), you might want to forcibly break a lock held by another process.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Force-release the lock, kicking out any current holder</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>db.lock(<span class="st">"stuck_job"</span>).clear()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 
 
 </section>

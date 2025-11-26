@@ -20,6 +20,41 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
@@ -67,6 +102,35 @@ ul.task-list li input[type="checkbox"] {
   }
 }</script>
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 </head>
 
@@ -111,29 +175,53 @@ ul.task-list li input[type="checkbox"] {
     <a class="dropdown-item" href="./guide.html">
  <span class="dropdown-text">Feature Summary</span></a>
   </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">Core Storage</li>
         <li>
-    <a class="dropdown-item" href="./guide-dicts-blobs.html">
- <span class="dropdown-text">Dictionaries &amp; Blobs</span></a>
+    <a class="dropdown-item" href="./guide-dicts.html">
+ <span class="dropdown-text">Dictionaries (KV)</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./guide-lists-queues.html">
- <span class="dropdown-text">Lists &amp; Queues</span></a>
+    <a class="dropdown-item" href="./guide-blobs.html">
+ <span class="dropdown-text">Blobs (Files)</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="./guide-lists.html">
+ <span class="dropdown-text">Lists</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">Search &amp; Graph</li>
         <li>
     <a class="dropdown-item" href="./guide-collections.html">
- <span class="dropdown-text">Collections (Vector/FTS/Graph)</span></a>
+ <span class="dropdown-text">Collections (Vector/Graph)</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./guide-realtime.html">
- <span class="dropdown-text">Real-Time Data (Pub/Sub)</span></a>
+    <a class="dropdown-item" href="./guide-sketches.html">
+ <span class="dropdown-text">Sketches (Probabilistic)</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">Real-Time</li>
+        <li>
+    <a class="dropdown-item" href="./guide-queues.html">
+ <span class="dropdown-text">Queues</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./guide-concurrency.html">
- <span class="dropdown-text">Concurrency &amp; Locking</span></a>
+    <a class="dropdown-item" href="./guide-logs.html">
+ <span class="dropdown-text">Logs (Time-Series)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./guide-channels.html">
+ <span class="dropdown-text">Channels (Pub/Sub)</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">System</li>
+        <li>
+    <a class="dropdown-item" href="./guide-locks.html">
+ <span class="dropdown-text">Locks &amp; Concurrency</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="./guide-deployment.html">
- <span class="dropdown-text">Deployment &amp; API</span></a>
+ <span class="dropdown-text">Deployment</span></a>
   </li>  
     </ul>
   </li>
@@ -176,7 +264,24 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#search-architecture" id="toc-search-architecture" class="nav-link active" data-scroll-target="#search-architecture">Search Architecture</a></li>
+  <li><a href="#search-internals" id="toc-search-internals" class="nav-link active" data-scroll-target="#search-internals">Search Internals</a>
+  <ul class="collapse">
+  <li><a href="#vector-engine-hybrid-architecture" id="toc-vector-engine-hybrid-architecture" class="nav-link" data-scroll-target="#vector-engine-hybrid-architecture">Vector Engine (Hybrid Architecture)</a>
+  <ul class="collapse">
+  <li><a href="#the-challenge" id="toc-the-challenge" class="nav-link" data-scroll-target="#the-challenge">The Challenge</a></li>
+  <li><a href="#the-solution-snapshot-log" id="toc-the-solution-snapshot-log" class="nav-link" data-scroll-target="#the-solution-snapshot-log">The Solution: Snapshot + Log</a></li>
+  <li><a href="#the-lifecycle" id="toc-the-lifecycle" class="nav-link" data-scroll-target="#the-lifecycle">The Lifecycle</a></li>
+  </ul></li>
+  <li><a href="#text-search-engine-fts5-trigrams" id="toc-text-search-engine-fts5-trigrams" class="nav-link" data-scroll-target="#text-search-engine-fts5-trigrams">Text Search Engine (FTS5 + Trigrams)</a>
+  <ul class="collapse">
+  <li><a href="#layer-1-exact-boolean-fts5" id="toc-layer-1-exact-boolean-fts5" class="nav-link" data-scroll-target="#layer-1-exact-boolean-fts5">Layer 1: Exact &amp; Boolean (FTS5)</a></li>
+  <li><a href="#layer-2-fuzzy-trigrams" id="toc-layer-2-fuzzy-trigrams" class="nav-link" data-scroll-target="#layer-2-fuzzy-trigrams">Layer 2: Fuzzy (Trigrams)</a></li>
+  </ul></li>
+  <li><a href="#graph-engine-recursive-ctes" id="toc-graph-engine-recursive-ctes" class="nav-link" data-scroll-target="#graph-engine-recursive-ctes">Graph Engine (Recursive CTEs)</a>
+  <ul class="collapse">
+  <li><a href="#recursive-common-table-expressions-ctes" id="toc-recursive-common-table-expressions-ctes" class="nav-link" data-scroll-target="#recursive-common-table-expressions-ctes">Recursive Common Table Expressions (CTEs)</a></li>
+  </ul></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -186,24 +291,97 @@ ul.task-list li input[type="checkbox"] {
 
 
 
-<section id="search-architecture" class="level1">
-<h1>Search Architecture</h1>
-<p><strong>Chapter Outline:</strong></p>
+<section id="search-internals" class="level1">
+<h1>Search Internals</h1>
+<p>The <code>CollectionManager</code> provides a unified search interface, but under the hood, it orchestrates three distinct query engines: 1. <strong>Vector Engine:</strong> For semantic similarity (dense retrieval). 2. <strong>FTS Engine:</strong> For keyword matching (sparse retrieval). 3. <strong>Graph Engine:</strong> For structural traversal (relational retrieval).</p>
+<p>This document details how each engine is implemented.</p>
+<section id="vector-engine-hybrid-architecture" class="level2">
+<h2 class="anchored" data-anchor-id="vector-engine-hybrid-architecture">Vector Engine (Hybrid Architecture)</h2>
+<p>The vector search implementation (<code>beaver.vectors.NumpyVectorIndex</code>) is designed to be <strong>Crash-Safe</strong>, <strong>Persistent</strong>, and <strong>Fast</strong>.</p>
+<p>To achieve this without an external vector database, BeaverDB uses a <strong>Hybrid Snapshot + Delta Log</strong> architecture.</p>
+<section id="the-challenge" class="level3">
+<h3 class="anchored" data-anchor-id="the-challenge">The Challenge</h3>
 <ul>
-<li><strong>11.1. Vector Search (ANN) Internals</strong>
+<li><strong>Naive Approach:</strong> Store vectors in SQLite rows. <code>SELECT</code> + compute distance in Python.
 <ul>
-<li>The “Hybrid Index System”: Base Index and Delta Index.</li>
-<li><strong>Crash-Safe Logging:</strong> How additions and deletions are written to SQLite logs (<code>_beaver_ann_...</code> tables).</li>
-<li><strong>Background Compaction:</strong> The <code>compact()</code> process.</li>
+<li><em>Problem:</em> Too slow. Serialization overhead for 100k vectors is massive.</li>
 </ul></li>
-<li><strong>11.2. Text Search (FTS &amp; Fuzzy) Internals</strong>
+<li><strong>Memory Approach:</strong> Load all vectors into a <code>numpy</code> matrix at startup.
 <ul>
-<li><strong>FTS:</strong> How <code>beaver_fts_index</code> is a <code>fts5</code> virtual table.</li>
-<li><strong>Fuzzy Search:</strong> How BeaverDB builds a custom trigram index (<code>beaver_trigrams</code> table) and uses Levenshtein distance.</li>
+<li><em>Problem:</em> Startup time is slow. Syncing writes across processes is hard.</li>
 </ul></li>
 </ul>
+</section>
+<section id="the-solution-snapshot-log" class="level3">
+<h3 class="anchored" data-anchor-id="the-solution-snapshot-log">The Solution: Snapshot + Log</h3>
+<p>We maintain two structures: 1. <strong>Base Index (Snapshot):</strong> A serialized, memory-mapped binary blob containing a pre-computed <code>numpy</code> matrix of vectors up to time <span class="math inline">\(T\)</span>. 2. <strong>Delta Log (Append-Only):</strong> A standard SQLite table (<code>beaver_vector_change_log</code>) recording every insertion and deletion since time <span class="math inline">\(T\)</span>.</p>
+</section>
+<section id="the-lifecycle" class="level3">
+<h3 class="anchored" data-anchor-id="the-lifecycle">The Lifecycle</h3>
+<ol type="1">
+<li><strong>Startup:</strong>
+<ul>
+<li>The manager loads the Base Index (fast binary load).</li>
+<li>It queries the Delta Log for changes <em>after</em> the snapshot’s version.</li>
+<li>It applies these changes to an in-memory “Delta Buffer”.</li>
+</ul></li>
+<li><strong>Search (<code>O(N)</code>):</strong>
+<ul>
+<li>The query vector is compared against the <strong>Base Matrix</strong> (using BLAS/SIMD).</li>
+<li>The query vector is compared against the <strong>Delta Buffer</strong>.</li>
+<li>Results are merged and sorted.</li>
+<li>Deleted items (Tombstones) are filtered out.</li>
+</ul></li>
+<li><strong>Write:</strong>
+<ul>
+<li>New vectors are simply <code>INSERT</code>ed into the Delta Log. This is atomic and fast.</li>
+</ul></li>
+<li><strong>Compaction:</strong>
+<ul>
+<li>When the Delta Log grows too large (&gt;100 items), a background thread merges the log into the Base Matrix and creates a new Snapshot.</li>
+</ul></li>
+</ol>
+</section>
+</section>
+<section id="text-search-engine-fts5-trigrams" class="level2">
+<h2 class="anchored" data-anchor-id="text-search-engine-fts5-trigrams">Text Search Engine (FTS5 + Trigrams)</h2>
+<p>BeaverDB provides robust text search using a two-layered approach.</p>
+<section id="layer-1-exact-boolean-fts5" class="level3">
+<h3 class="anchored" data-anchor-id="layer-1-exact-boolean-fts5">Layer 1: Exact &amp; Boolean (FTS5)</h3>
+<p>We use SQLite’s built-in <strong>FTS5</strong> virtual table (<code>beaver_fts_index</code>). * <strong>Tokenization:</strong> Uses the <code>porter</code> stemmer (e.g., “running” -&gt; “run”). * <strong>Storage:</strong> Maps <code>(collection, item_id)</code> to a bag-of-words index. * <strong>Querying:</strong> Supports fast boolean logic (<code>python AND NOT java</code>).</p>
+</section>
+<section id="layer-2-fuzzy-trigrams" class="level3">
+<h3 class="anchored" data-anchor-id="layer-2-fuzzy-trigrams">Layer 2: Fuzzy (Trigrams)</h3>
+<p>FTS5 fails on typos (“pytohn” won’t match “python”). To solve this, we implement a <strong>Trigram Index</strong> (<code>beaver_trigrams</code>). * <strong>Ingestion:</strong> The string “hello” is broken into <code>hel</code>, <code>ell</code>, <code>llo</code>. * <strong>Storage:</strong> Rows in <code>beaver_trigrams</code> map these 3-char chunks to document IDs. * <strong>Retrieval:</strong> 1. Break query “helo” -&gt; <code>hel</code>, <code>elo</code>. 2. Find IDs that contain a high percentage of these trigrams (Candidate Generation). 3. Compute <strong>Levenshtein Distance</strong> on these candidates only (Verification).</p>
+</section>
+</section>
+<section id="graph-engine-recursive-ctes" class="level2">
+<h2 class="anchored" data-anchor-id="graph-engine-recursive-ctes">Graph Engine (Recursive CTEs)</h2>
+<p>The graph capabilities rely on the <code>beaver_edges</code> table, which stores directed, labeled edges.</p>
+<p>To avoid the “N+1 Select Problem” (fetching a node, then fetching its neighbors in a loop), BeaverDB uses <strong>SQL-Native Recursion</strong>.</p>
+<section id="recursive-common-table-expressions-ctes" class="level3">
+<h3 class="anchored" data-anchor-id="recursive-common-table-expressions-ctes">Recursive Common Table Expressions (CTEs)</h3>
+<p>The <code>.walk()</code> and <code>.expand()</code> methods generate a single SQL query that executes the Breadth-First Search (BFS) entirely within the database engine.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> RECURSIVE bfs(item_id, current_depth) <span class="kw">AS</span> (</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">-- 1. Start at the source node</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> target_item_id, <span class="dv">1</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span> beaver_edges</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WHERE</span> source_item_id <span class="op">=</span> ?</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">UNION</span> <span class="kw">ALL</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    <span class="co">-- 2. Recursively find neighbors</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> edges.target_item_id, bfs.current_depth <span class="op">+</span> <span class="dv">1</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span> beaver_edges <span class="kw">AS</span> edges</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">JOIN</span> bfs <span class="kw">ON</span> edges.source_item_id <span class="op">=</span> bfs.item_id</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WHERE</span> bfs.current_depth <span class="op">&lt;</span> ?</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">DISTINCT</span> item_id <span class="kw">FROM</span> bfs;</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>This approach allows retrieving thousands of connected nodes in milliseconds without round-tripping data to Python.</p>
 
 
+</section>
+</section>
 </section>
 
 </main> <!-- /main -->

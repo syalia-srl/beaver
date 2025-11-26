@@ -20,6 +20,41 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
@@ -111,29 +146,53 @@ ul.task-list li input[type="checkbox"] {
     <a class="dropdown-item" href="./guide.html">
  <span class="dropdown-text">Feature Summary</span></a>
   </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">Core Storage</li>
         <li>
-    <a class="dropdown-item" href="./guide-dicts-blobs.html">
- <span class="dropdown-text">Dictionaries &amp; Blobs</span></a>
+    <a class="dropdown-item" href="./guide-dicts.html">
+ <span class="dropdown-text">Dictionaries (KV)</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./guide-lists-queues.html">
- <span class="dropdown-text">Lists &amp; Queues</span></a>
+    <a class="dropdown-item" href="./guide-blobs.html">
+ <span class="dropdown-text">Blobs (Files)</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="./guide-lists.html">
+ <span class="dropdown-text">Lists</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">Search &amp; Graph</li>
         <li>
     <a class="dropdown-item" href="./guide-collections.html">
- <span class="dropdown-text">Collections (Vector/FTS/Graph)</span></a>
+ <span class="dropdown-text">Collections (Vector/Graph)</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./guide-realtime.html">
- <span class="dropdown-text">Real-Time Data (Pub/Sub)</span></a>
+    <a class="dropdown-item" href="./guide-sketches.html">
+ <span class="dropdown-text">Sketches (Probabilistic)</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">Real-Time</li>
+        <li>
+    <a class="dropdown-item" href="./guide-queues.html">
+ <span class="dropdown-text">Queues</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./guide-concurrency.html">
- <span class="dropdown-text">Concurrency &amp; Locking</span></a>
+    <a class="dropdown-item" href="./guide-logs.html">
+ <span class="dropdown-text">Logs (Time-Series)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./guide-channels.html">
+ <span class="dropdown-text">Channels (Pub/Sub)</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">System</li>
+        <li>
+    <a class="dropdown-item" href="./guide-locks.html">
+ <span class="dropdown-text">Locks &amp; Concurrency</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="./guide-deployment.html">
- <span class="dropdown-text">Deployment &amp; API</span></a>
+ <span class="dropdown-text">Deployment</span></a>
   </li>  
     </ul>
   </li>
@@ -176,7 +235,45 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#deployment-access" id="toc-deployment-access" class="nav-link active" data-scroll-target="#deployment-access">Deployment &amp; Access</a></li>
+  <li><a href="#deployment-interfaces" id="toc-deployment-interfaces" class="nav-link active" data-scroll-target="#deployment-interfaces">Deployment &amp; Interfaces</a>
+  <ul class="collapse">
+  <li><a href="#the-single-file-philosophy" id="toc-the-single-file-philosophy" class="nav-link" data-scroll-target="#the-single-file-philosophy">The Single-File Philosophy</a>
+  <ul class="collapse">
+  <li><a href="#advantages" id="toc-advantages" class="nav-link" data-scroll-target="#advantages">Advantages</a></li>
+  </ul></li>
+  <li><a href="#command-line-interface-cli" id="toc-command-line-interface-cli" class="nav-link" data-scroll-target="#command-line-interface-cli">Command Line Interface (CLI)</a>
+  <ul class="collapse">
+  <li><a href="#installation" id="toc-installation" class="nav-link" data-scroll-target="#installation">Installation</a></li>
+  <li><a href="#usage" id="toc-usage" class="nav-link" data-scroll-target="#usage">Usage</a></li>
+  </ul></li>
+  <li><a href="#rest-api-server-beaver-serve" id="toc-rest-api-server-beaver-serve" class="nav-link" data-scroll-target="#rest-api-server-beaver-serve">REST API Server (Beaver Serve)</a>
+  <ul class="collapse">
+  <li><a href="#dependencies" id="toc-dependencies" class="nav-link" data-scroll-target="#dependencies">Dependencies</a></li>
+  <li><a href="#starting-the-server" id="toc-starting-the-server" class="nav-link" data-scroll-target="#starting-the-server">Starting the Server</a></li>
+  <li><a href="#connecting-via-client" id="toc-connecting-via-client" class="nav-link" data-scroll-target="#connecting-via-client">Connecting via Client</a></li>
+  </ul></li>
+  <li><a href="#deployment-strategies" id="toc-deployment-strategies" class="nav-link" data-scroll-target="#deployment-strategies">Deployment Strategies</a>
+  <ul class="collapse">
+  <li><a href="#scenario-a-embedded-recommended" id="toc-scenario-a-embedded-recommended" class="nav-link" data-scroll-target="#scenario-a-embedded-recommended">Scenario A: Embedded (Recommended)</a></li>
+  <li><a href="#scenario-b-multi-process-workers" id="toc-scenario-b-multi-process-workers" class="nav-link" data-scroll-target="#scenario-b-multi-process-workers">Scenario B: Multi-Process Workers</a></li>
+  </ul></li>
+  <li><a href="#dockerizing-beaverdb" id="toc-dockerizing-beaverdb" class="nav-link" data-scroll-target="#dockerizing-beaverdb">Dockerizing BeaverDB</a>
+  <ul class="collapse">
+  <li><a href="#dockerfile" id="toc-dockerfile" class="nav-link" data-scroll-target="#dockerfile"><code>Dockerfile</code></a></li>
+  <li><a href="#docker-compose.yml" id="toc-docker-compose.yml" class="nav-link" data-scroll-target="#docker-compose.yml"><code>docker-compose.yml</code></a></li>
+  </ul></li>
+  <li><a href="#backups-restore" id="toc-backups-restore" class="nav-link" data-scroll-target="#backups-restore">Backups &amp; Restore</a>
+  <ul class="collapse">
+  <li><a href="#hot-backup-recommended" id="toc-hot-backup-recommended" class="nav-link" data-scroll-target="#hot-backup-recommended">Hot Backup (Recommended)</a></li>
+  <li><a href="#restore" id="toc-restore" class="nav-link" data-scroll-target="#restore">Restore</a></li>
+  </ul></li>
+  <li><a href="#performance-tuning" id="toc-performance-tuning" class="nav-link" data-scroll-target="#performance-tuning">Performance Tuning</a>
+  <ul class="collapse">
+  <li><a href="#wal-mode-write-ahead-logging" id="toc-wal-mode-write-ahead-logging" class="nav-link" data-scroll-target="#wal-mode-write-ahead-logging">WAL Mode (Write-Ahead Logging)</a></li>
+  <li><a href="#memory-mapping-mmap" id="toc-memory-mapping-mmap" class="nav-link" data-scroll-target="#memory-mapping-mmap">Memory Mapping (<code>mmap</code>)</a></li>
+  <li><a href="#batching" id="toc-batching" class="nav-link" data-scroll-target="#batching">Batching</a></li>
+  </ul></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -186,29 +283,192 @@ ul.task-list li input[type="checkbox"] {
 
 
 
-<section id="deployment-access" class="level1">
-<h1>Deployment &amp; Access</h1>
-<p><strong>Chapter Outline:</strong></p>
+<section id="deployment-interfaces" class="level1">
+<h1>Deployment &amp; Interfaces</h1>
+<p>Deploying BeaverDB is fundamentally different from deploying client-server databases like Postgres or Redis. Because BeaverDB is <strong>embedded</strong>, there is no separate “Database Server” to install, configure, or maintain.</p>
+<p>Your database is just a file (<code>app.db</code>) that lives alongside your code.</p>
+<section id="the-single-file-philosophy" class="level2">
+<h2 class="anchored" data-anchor-id="the-single-file-philosophy">The Single-File Philosophy</h2>
+<p>In a traditional stack, you have:</p>
 <ul>
-<li><strong>8.1. The REST API Server (<code>beaver serve</code>)</strong>
+<li><strong>App Server:</strong> Python code (Stateless)</li>
+<li><strong>DB Server:</strong> Postgres/MySQL (Stateful)</li>
+<li><strong>Cache:</strong> Redis (Stateful)</li>
+</ul>
+<p>In a <strong>BeaverDB</strong> stack, you have:</p>
 <ul>
-<li>Exposing your database as a FastAPI application.</li>
-<li>Command: <code>beaver serve --database my.db --port 8000</code></li>
-<li>Accessing the interactive OpenAPI docs at <code>/docs</code>.</li>
-</ul></li>
-<li><strong>8.2. The Command-Line Client (<code>beaver client</code>)</strong>
+<li><strong>App Server:</strong> Python code + <code>app.db</code> (Stateful)</li>
+</ul>
+<section id="advantages" class="level3">
+<h3 class="anchored" data-anchor-id="advantages">Advantages</h3>
 <ul>
-<li>Interacting with your database from the terminal for admin and debugging.</li>
-<li>Example: <code>beaver client --database my.db dict config get theme</code></li>
-</ul></li>
-<li><strong>8.3. Docker Deployment</strong>
+<li><strong>Zero Latency:</strong> No network round-trips. Data access is instant.</li>
+<li><strong>Atomic Backups:</strong> Backing up your entire state (Users + Search Index + Logs) is just copying one file.</li>
+<li><strong>Simplified CI/CD:</strong> You don’t need to spin up DB containers in your GitHub Actions. Just run your tests.</li>
+</ul>
+</section>
+</section>
+<section id="command-line-interface-cli" class="level2">
+<h2 class="anchored" data-anchor-id="command-line-interface-cli">Command Line Interface (CLI)</h2>
+<p>BeaverDB comes with a rich CLI tool to manage your database files directly from the terminal. This is useful for inspection, debugging, and quick modifications without writing Python scripts.</p>
+<section id="installation" class="level3">
+<h3 class="anchored" data-anchor-id="installation">Installation</h3>
+<p>The CLI is installed automatically with the core package.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install beaver-db</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="usage" class="level3">
+<h3 class="anchored" data-anchor-id="usage">Usage</h3>
+<p>The main command is <code>beaver</code>. You can inspect the database or interact with specific data structures.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># General Information</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">beaver</span> info <span class="at">--database</span> my_app.db</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Dictionary Operations</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="ex">beaver</span> dicts list                   <span class="co"># List all dictionaries</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="ex">beaver</span> dicts get my_dict my_key     <span class="co"># Retrieve a value</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="ex">beaver</span> dicts set my_dict my_key val <span class="co"># Set a value</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Queue Inspection</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="ex">beaver</span> queues peek my_queue         <span class="co"># See the next job</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Use <code>beaver --help</code> to see all available commands.</p>
+</section>
+</section>
+<section id="rest-api-server-beaver-serve" class="level2">
+<h2 class="anchored" data-anchor-id="rest-api-server-beaver-serve">REST API Server (Beaver Serve)</h2>
+<p>If you need to access the database from multiple distinct machines, non-Python environments, or from a browser, you can run BeaverDB as a standalone REST API server.</p>
+<p>This exposes all features (Vectors, Logs, Pub/Sub, etc.) over a high-performance <strong>FastAPI</strong> interface.</p>
+<section id="dependencies" class="level3">
+<h3 class="anchored" data-anchor-id="dependencies">Dependencies</h3>
+<p>The server requires additional dependencies. Install them using the <code>remote</code> extra:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install <span class="st">"beaver-db[remote]"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="starting-the-server" class="level3">
+<h3 class="anchored" data-anchor-id="starting-the-server">Starting the Server</h3>
+<p>Use the <code>beaver serve</code> command to start the process.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Start server on port 8080</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">beaver</span> serve <span class="at">--database</span> ./my_app.db <span class="at">--host</span> 0.0.0.0 <span class="at">--port</span> 8080</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="connecting-via-client" class="level3">
+<h3 class="anchored" data-anchor-id="connecting-via-client">Connecting via Client</h3>
+<p>You can connect to this server using the <code>BeaverClient</code> in Python, which provides an API identical to the local <code>BeaverDB</code> class. This allows you to switch between local (embedded) and remote (server) modes by changing only one line of code.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver <span class="im">import</span> BeaverClient</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Connect to the remote server</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>db <span class="op">=</span> BeaverClient(<span class="st">"http://localhost:8080"</span>)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Use exactly like the local version</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>users <span class="op">=</span> db.<span class="bu">dict</span>(<span class="st">"users"</span>)</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>users[<span class="st">"alice"</span>] <span class="op">=</span> {<span class="st">"role"</span>: <span class="st">"admin"</span>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<hr>
+</section>
+</section>
+<section id="deployment-strategies" class="level2">
+<h2 class="anchored" data-anchor-id="deployment-strategies">Deployment Strategies</h2>
+<section id="scenario-a-embedded-recommended" class="level3">
+<h3 class="anchored" data-anchor-id="scenario-a-embedded-recommended">Scenario A: Embedded (Recommended)</h3>
+<p>The database runs inside your application process.</p>
 <ul>
-<li>Running the server in a container for stable deployment.</li>
-<li><code>docker run -p 8000:8000 -v $(pwd)/data:/app apiad/beaverdb</code></li>
-</ul></li>
+<li><strong>Use Case:</strong> CLI tools, Desktop apps, Single-instance web apps (e.g., a VPS running one FastAPI service).</li>
+<li><strong>Setup:</strong> Just ensure the process has <strong>Write Permissions</strong> to the directory containing the <code>.db</code> file.</li>
+</ul>
+</section>
+<section id="scenario-b-multi-process-workers" class="level3">
+<h3 class="anchored" data-anchor-id="scenario-b-multi-process-workers">Scenario B: Multi-Process Workers</h3>
+<p>You run multiple instances of your app (e.g., <code>gunicorn -w 4</code> or multiple background workers).</p>
+<ul>
+<li><strong>Setup:</strong> All processes must share access to the <strong>same filesystem volume</strong>.</li>
+<li><strong>Concurrency:</strong> BeaverDB handles the locking. You don’t need to do anything special.</li>
+<li><strong>Limitation:</strong> This works on a single machine (VPS/Dedicated Server). It does <em>not</em> work across different servers (e.g., AWS Lambda or Heroku Dynos) unless you mount a shared network file system like EFS.</li>
+</ul>
+<hr>
+</section>
+</section>
+<section id="dockerizing-beaverdb" class="level2">
+<h2 class="anchored" data-anchor-id="dockerizing-beaverdb">Dockerizing BeaverDB</h2>
+<p>Since the database is a file, you must ensure it persists when the container restarts. Use a <strong>Docker Volume</strong>.</p>
+<section id="dockerfile" class="level3">
+<h3 class="anchored" data-anchor-id="dockerfile"><code>Dockerfile</code></h3>
+<div class="sourceCode" id="cb6"><pre class="sourceCode dockerfile code-with-copy"><code class="sourceCode dockerfile"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> python:3.12-slim</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WORKDIR</span> /app</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Install dependencies</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="kw">COPY</span> pyproject.toml .</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="kw">RUN</span> <span class="ex">pip</span> install <span class="st">"beaver-db[all]"</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Copy app code</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="kw">COPY</span> . .</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a directory for the database</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="kw">RUN</span> <span class="fu">mkdir</span> /data</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Run the app (pointing DB to the volume)</span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a><span class="kw">CMD</span> [<span class="st">"python"</span>, <span class="st">"main.py"</span>, <span class="st">"--db-path"</span>, <span class="st">"/data/app.db"</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="docker-compose.yml" class="level3">
+<h3 class="anchored" data-anchor-id="docker-compose.yml"><code>docker-compose.yml</code></h3>
+<div class="sourceCode" id="cb7"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">services</span><span class="kw">:</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">app</span><span class="kw">:</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">build</span><span class="kw">:</span><span class="at"> .</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">volumes</span><span class="kw">:</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> beaver_data:/data</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">ports</span><span class="kw">:</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="st">"8000:8000"</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="fu">volumes</span><span class="kw">:</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">beaver_data</span><span class="kw">:</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<hr>
+</section>
+</section>
+<section id="backups-restore" class="level2">
+<h2 class="anchored" data-anchor-id="backups-restore">Backups &amp; Restore</h2>
+<section id="hot-backup-recommended" class="level3">
+<h3 class="anchored" data-anchor-id="hot-backup-recommended">Hot Backup (Recommended)</h3>
+<p>You cannot just copy the <code>.db</code> file while the app is writing to it (you might get a corrupted “torn page”). Use the SQLite Online Backup API.</p>
+<p><strong>Using Python:</strong></p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sqlite3</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> backup(source_db_path, backup_path):</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    src <span class="op">=</span> sqlite3.<span class="ex">connect</span>(source_db_path)</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    dst <span class="op">=</span> sqlite3.<span class="ex">connect</span>(backup_path)</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> dst:</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>        src.backup(dst)</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    dst.close()</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>    src.close()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="restore" class="level3">
+<h3 class="anchored" data-anchor-id="restore">Restore</h3>
+<p>To restore, simply stop your application and replace the <code>.db</code> file with your backup copy.</p>
+<hr>
+</section>
+</section>
+<section id="performance-tuning" class="level2">
+<h2 class="anchored" data-anchor-id="performance-tuning">Performance Tuning</h2>
+<p>For high-throughput production environments, consider these settings:</p>
+<section id="wal-mode-write-ahead-logging" class="level3">
+<h3 class="anchored" data-anchor-id="wal-mode-write-ahead-logging">WAL Mode (Write-Ahead Logging)</h3>
+<p>BeaverDB enables <code>WAL</code> mode by default. This allows concurrent readers and writers. <strong>Do not disable this.</strong></p>
+</section>
+<section id="memory-mapping-mmap" class="level3">
+<h3 class="anchored" data-anchor-id="memory-mapping-mmap">Memory Mapping (<code>mmap</code>)</h3>
+<p>If your database fits within your server’s RAM, enabling memory mapping can significantly boost read performance. BeaverDB enables this by default with a 256MB limit.</p>
+<p>You can adjust this limit during initialization:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Enable mmap for a 2GB database</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>db <span class="op">=</span> BeaverDB(</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"app.db"</span>,</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    pragma_mmap_size<span class="op">=</span><span class="dv">2</span> <span class="op">*</span> <span class="dv">1024</span> <span class="op">*</span> <span class="dv">1024</span> <span class="op">*</span> <span class="dv">1024</span>  <span class="co"># 2GB</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="batching" class="level3">
+<h3 class="anchored" data-anchor-id="batching">Batching</h3>
+<p>For bulk ingestion (ETL jobs), always use <code>.batched()</code>.</p>
+<ul>
+<li><strong>Bad:</strong> 10,000 <code>db.dict["key"] = val</code> calls = 10,000 transactions (~20s).</li>
+<li><strong>Good:</strong> <code>with db.dict.batched()...</code> = 1 transaction (~0.1s).</li>
 </ul>
 
 
+</section>
+</section>
 </section>
 
 </main> <!-- /main -->

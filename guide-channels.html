@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>guide-collections – BeaverDB</title>
+<title>guide-channels – BeaverDB</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -235,31 +235,21 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#collections-multi-modal-search" id="toc-collections-multi-modal-search" class="nav-link active" data-scroll-target="#collections-multi-modal-search">Collections (Multi-Modal Search)</a>
+  <li><a href="#channels-pubsub" id="toc-channels-pubsub" class="nav-link active" data-scroll-target="#channels-pubsub">Channels (Pub/Sub)</a>
   <ul class="collapse">
   <li><a href="#quick-start" id="toc-quick-start" class="nav-link" data-scroll-target="#quick-start">Quick Start</a></li>
-  <li><a href="#managing-documents" id="toc-managing-documents" class="nav-link" data-scroll-target="#managing-documents">Managing Documents</a>
+  <li><a href="#basic-operations" id="toc-basic-operations" class="nav-link" data-scroll-target="#basic-operations">Basic Operations</a>
   <ul class="collapse">
-  <li><a href="#the-document-object" id="toc-the-document-object" class="nav-link" data-scroll-target="#the-document-object">The <code>Document</code> Object</a></li>
-  <li><a href="#indexing" id="toc-indexing" class="nav-link" data-scroll-target="#indexing">Indexing</a></li>
-  <li><a href="#deleting-clearing" id="toc-deleting-clearing" class="nav-link" data-scroll-target="#deleting-clearing">Deleting &amp; Clearing</a></li>
+  <li><a href="#publishing-messages" id="toc-publishing-messages" class="nav-link" data-scroll-target="#publishing-messages">Publishing Messages</a></li>
+  <li><a href="#subscribing" id="toc-subscribing" class="nav-link" data-scroll-target="#subscribing">Subscribing</a></li>
+  <li><a href="#listening" id="toc-listening" class="nav-link" data-scroll-target="#listening">Listening</a></li>
   </ul></li>
-  <li><a href="#search-capabilities" id="toc-search-capabilities" class="nav-link" data-scroll-target="#search-capabilities">Search Capabilities</a>
+  <li><a href="#advanced-features" id="toc-advanced-features" class="nav-link" data-scroll-target="#advanced-features">Advanced Features</a>
   <ul class="collapse">
-  <li><a href="#vector-search-semantic" id="toc-vector-search-semantic" class="nav-link" data-scroll-target="#vector-search-semantic">1. Vector Search (Semantic)</a></li>
-  <li><a href="#full-text-search-fts" id="toc-full-text-search-fts" class="nav-link" data-scroll-target="#full-text-search-fts">2. Full-Text Search (FTS)</a></li>
-  <li><a href="#fuzzy-search-typo-tolerance" id="toc-fuzzy-search-typo-tolerance" class="nav-link" data-scroll-target="#fuzzy-search-typo-tolerance">3. Fuzzy Search (Typo Tolerance)</a></li>
-  <li><a href="#hybrid-search-reranking" id="toc-hybrid-search-reranking" class="nav-link" data-scroll-target="#hybrid-search-reranking">4. Hybrid Search (Reranking)</a></li>
-  </ul></li>
-  <li><a href="#graph-relationships" id="toc-graph-relationships" class="nav-link" data-scroll-target="#graph-relationships">Graph &amp; Relationships</a>
-  <ul class="collapse">
-  <li><a href="#linking-documents" id="toc-linking-documents" class="nav-link" data-scroll-target="#linking-documents">Linking Documents</a></li>
-  <li><a href="#neighbors-traversal" id="toc-neighbors-traversal" class="nav-link" data-scroll-target="#neighbors-traversal">Neighbors &amp; Traversal</a></li>
-  </ul></li>
-  <li><a href="#maintenance" id="toc-maintenance" class="nav-link" data-scroll-target="#maintenance">Maintenance</a>
-  <ul class="collapse">
-  <li><a href="#compaction" id="toc-compaction" class="nav-link" data-scroll-target="#compaction">Compaction</a></li>
-  <li><a href="#exporting" id="toc-exporting" class="nav-link" data-scroll-target="#exporting">Exporting</a></li>
+  <li><a href="#async-support" id="toc-async-support" class="nav-link" data-scroll-target="#async-support">Async Support</a></li>
+  <li><a href="#process-isolation" id="toc-process-isolation" class="nav-link" data-scroll-target="#process-isolation">Process Isolation</a></li>
+  <li><a href="#efficiency" id="toc-efficiency" class="nav-link" data-scroll-target="#efficiency">Efficiency</a></li>
+  <li><a href="#history-cleanup" id="toc-history-cleanup" class="nav-link" data-scroll-target="#history-cleanup">History &amp; Cleanup</a></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -271,166 +261,103 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 
-<section id="collections-multi-modal-search" class="level1">
-<h1>Collections (Multi-Modal Search)</h1>
-<p>The <code>CollectionManager</code> is the powerhouse of BeaverDB. It provides a unified interface for storing Documents and performing <strong>Vector Search</strong>, <strong>Full-Text Search (FTS)</strong>, <strong>Fuzzy Matching</strong>, and <strong>Graph Traversal</strong> on them.</p>
-<p>This is ideal for building RAG (Retrieval Augmented Generation) applications, search engines, knowledge graphs, or recommendation systems.</p>
+<section id="channels-pubsub" class="level1">
+<h1>Channels (Pub/Sub)</h1>
+<p>The <code>ChannelManager</code> provides a high-performance <strong>Publish-Subscribe</strong> messaging system.</p>
+<p>Unlike Queues (where one item is processed by one worker), Channels implement a <strong>Fan-Out</strong> pattern: a message sent by one publisher is received by <strong>all</strong> active subscribers. This is perfect for event notifications, chat systems, or broadcasting updates to multiple services.</p>
 <section id="quick-start" class="level2">
 <h2 class="anchored" data-anchor-id="quick-start">Quick Start</h2>
-<p>A Collection stores <code>Document</code> objects. Each document has a unique <code>id</code>, an optional vector <code>embedding</code>, and a JSON-serializable <code>body</code>.</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver <span class="im">import</span> BeaverDB</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver.collections <span class="im">import</span> Document</span>
+<p>Initialize a channel using <code>db.channel()</code>.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> threading</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver <span class="im">import</span> BeaverDB</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>db <span class="op">=</span> BeaverDB(<span class="st">"app.db"</span>)</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>docs <span class="op">=</span> db.collection(<span class="st">"articles"</span>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>db <span class="op">=</span> BeaverDB(<span class="st">"chat.db"</span>)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>chat <span class="op">=</span> db.channel(<span class="st">"general_chat"</span>)</span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Index a Document (with embedding for semantic search)</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>doc <span class="op">=</span> Document(</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">id</span><span class="op">=</span><span class="st">"doc_1"</span>,</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    body<span class="op">=</span>{<span class="st">"title"</span>: <span class="st">"Introduction to AI"</span>, <span class="st">"content"</span>: <span class="st">"AI is changing the world..."</span>},</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    embedding<span class="op">=</span>[<span class="fl">0.1</span>, <span class="fl">0.2</span>, <span class="fl">0.8</span>, ...] <span class="co"># 768-dim vector</span></span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>docs.index(doc)</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Semantic Search (Vector)</span></span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Finds documents semantically similar to the query vector</span></span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> docs.search(query_vector, top_k<span class="op">=</span><span class="dv">5</span>)</span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Keyword Search (FTS)</span></span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Finds documents containing specific words</span></span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>matches <span class="op">=</span> docs.match(<span class="st">"artificial intelligence"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Subscriber (Listener)</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Runs in a background thread for this demo</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> listen():</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    <span class="co"># The 'with' block handles subscription cleanup automatically</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> chat.subscribe() <span class="im">as</span> sub:</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="st">"Listening for messages..."</span>)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Blocks until a message arrives</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> message <span class="kw">in</span> sub.listen():</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(<span class="ss">f"Received: </span><span class="sc">{</span>message<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>t <span class="op">=</span> threading.Thread(target<span class="op">=</span>listen, daemon<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>t.start()</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Publisher (Sender)</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="co"># Messages are serialized to JSON and persisted to disk</span></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>chat.publish({<span class="st">"user"</span>: <span class="st">"alice"</span>, <span class="st">"text"</span>: <span class="st">"Hello World!"</span>})</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>chat.publish({<span class="st">"user"</span>: <span class="st">"bob"</span>, <span class="st">"text"</span>: <span class="st">"Hi Alice!"</span>})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="managing-documents" class="level2">
-<h2 class="anchored" data-anchor-id="managing-documents">Managing Documents</h2>
-<section id="the-document-object" class="level3">
-<h3 class="anchored" data-anchor-id="the-document-object">The <code>Document</code> Object</h3>
-<p>BeaverDB uses a strict Pydantic model for items.</p>
-<ul>
-<li><strong><code>id</code></strong>: String (UUID by default).</li>
-<li><strong><code>embedding</code></strong>: List of floats (or None).</li>
-<li><strong><code>body</code></strong>: Dictionary or Pydantic model (Metadata).</li>
-</ul>
-<!-- end list -->
-<div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pydantic <span class="im">import</span> BaseModel</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Article(BaseModel):</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    title: <span class="bu">str</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    tags: <span class="bu">list</span>[<span class="bu">str</span>]</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Typed Collection</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>articles <span class="op">=</span> db.collection(<span class="st">"news"</span>, model<span class="op">=</span>Article)</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Indexing</span></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>articles.index(Document(body<span class="op">=</span>Article(title<span class="op">=</span><span class="st">"New Release"</span>, tags<span class="op">=</span>[<span class="st">"tech"</span>])))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="basic-operations" class="level2">
+<h2 class="anchored" data-anchor-id="basic-operations">Basic Operations</h2>
+<section id="publishing-messages" class="level3">
+<h3 class="anchored" data-anchor-id="publishing-messages">Publishing Messages</h3>
+<p>Use <code>.publish(payload)</code> to broadcast a message. The payload can be any JSON-serializable object (dict, list, string).</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Broadcast a system event</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>db.channel(<span class="st">"system"</span>).publish({</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"event"</span>: <span class="st">"maintenance_started"</span>,</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"duration_minutes"</span>: <span class="dv">60</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="indexing" class="level3">
-<h3 class="anchored" data-anchor-id="indexing">Indexing</h3>
-<p>The <code>.index()</code> method performs an atomic upsert. It updates the main storage, vector index, FTS index, and fuzzy n-gram index simultaneously.</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Index with specific FTS fields</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>docs.index(doc, fts<span class="op">=</span>[<span class="st">"title"</span>, <span class="st">"content"</span>])</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Enable Fuzzy Search support (slower indexing, robust matching)</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>docs.index(doc, fts<span class="op">=</span>[<span class="st">"title"</span>], fuzzy<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="subscribing" class="level3">
+<h3 class="anchored" data-anchor-id="subscribing">Subscribing</h3>
+<p>To receive messages, call <code>.subscribe()</code>. This returns a <code>Subscriber</code> object. It is highly recommended to use it as a <strong>Context Manager</strong> (<code>with</code> statement) to ensure you strictly unsubscribe when done.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>channel <span class="op">=</span> db.channel(<span class="st">"system"</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> channel.subscribe() <span class="im">as</span> subscriber:</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ... listen for messages ...</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">pass</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Automatically unsubscribed here</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="deleting-clearing" class="level3">
-<h3 class="anchored" data-anchor-id="deleting-clearing">Deleting &amp; Clearing</h3>
-<div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Remove a single document</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>docs.drop(doc)</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Wipe the entire collection (Vectors, Graph, FTS)</span></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>docs.clear()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="listening" class="level3">
+<h3 class="anchored" data-anchor-id="listening">Listening</h3>
+<p>The <code>.listen()</code> method returns a blocking iterator. It yields messages as soon as they are written to the database.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Infinite loop (blocks forever)</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> msg <span class="kw">in</span> subscriber.listen():</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    process(msg)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Timeout (blocks for N seconds, then stops if no message)</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Note: It raises queue.Empty or TimeoutError depending on implementation</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="cf">try</span>:</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> msg <span class="kw">in</span> subscriber.listen(timeout<span class="op">=</span><span class="fl">5.0</span>):</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(msg)</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="cf">except</span> <span class="pp">TimeoutError</span>:</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"No messages received."</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
 </section>
-<section id="search-capabilities" class="level2">
-<h2 class="anchored" data-anchor-id="search-capabilities">Search Capabilities</h2>
-<section id="vector-search-semantic" class="level3">
-<h3 class="anchored" data-anchor-id="vector-search-semantic">1. Vector Search (Semantic)</h3>
-<p>Performs an Approximate Nearest Neighbor (ANN) search using Cosine Similarity.</p>
-<ul>
-<li><strong>Speed:</strong> Extremely fast (in-memory index).</li>
-<li><strong>Persistence:</strong> The index is fully persisted to disk and crash-safe.</li>
-</ul>
-<!-- end list -->
-<div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Returns list of (Document, score) tuples</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> docs.search(embedding_vector, top_k<span class="op">=</span><span class="dv">10</span>)</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> doc, score <span class="kw">in</span> results:</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>score<span class="sc">:.4f}</span><span class="ss">: </span><span class="sc">{</span>doc<span class="sc">.</span>body[<span class="st">'title'</span>]<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="advanced-features" class="level2">
+<h2 class="anchored" data-anchor-id="advanced-features">Advanced Features</h2>
+<section id="async-support" class="level3">
+<h3 class="anchored" data-anchor-id="async-support">Async Support</h3>
+<p>BeaverDB channels work seamlessly with <code>asyncio</code>. Use <code>.as_async()</code> to get an awaitable interface.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> asyncio</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> watch_events():</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    async_channel <span class="op">=</span> db.channel(<span class="st">"events"</span>).as_async()</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Async Context Manager</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">async</span> <span class="cf">with</span> async_channel.subscribe() <span class="im">as</span> sub:</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Async Iterator</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>        <span class="cf">async</span> <span class="cf">for</span> message <span class="kw">in</span> sub.listen():</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(<span class="ss">f"Got event: </span><span class="sc">{</span>message<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="full-text-search-fts" class="level3">
-<h3 class="anchored" data-anchor-id="full-text-search-fts">2. Full-Text Search (FTS)</h3>
-<p>Uses SQLite’s FTS5 engine for powerful keyword matching. Supports boolean operators (<code>AND</code>, <code>OR</code>, <code>NOT</code>) and prefix matching.</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Simple match</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>docs.match(<span class="st">"python database"</span>)</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Specific fields</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>docs.match(<span class="st">"tutorial"</span>, on<span class="op">=</span>[<span class="st">"title"</span>])</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Boolean query</span></span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>docs.match(<span class="st">"python AND NOT java"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="process-isolation" class="level3">
+<h3 class="anchored" data-anchor-id="process-isolation">Process Isolation</h3>
+<p>Channels are <strong>Process-Safe</strong>. You can have a publisher script running in one terminal and multiple subscriber scripts running in other terminals. They will all receive the messages in real-time via the shared SQLite file.</p>
 </section>
-<section id="fuzzy-search-typo-tolerance" class="level3">
-<h3 class="anchored" data-anchor-id="fuzzy-search-typo-tolerance">3. Fuzzy Search (Typo Tolerance)</h3>
-<p>If you indexed with <code>fuzzy=True</code>, you can find documents even with typos. BeaverDB uses a hybrid <strong>Trigram + Levenshtein</strong> approach for high performance.</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Finds "BeaverDB" even if user types "BaverDB"</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>docs.match(<span class="st">"BaverDB"</span>, fuzziness<span class="op">=</span><span class="dv">1</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="efficiency" class="level3">
+<h3 class="anchored" data-anchor-id="efficiency">Efficiency</h3>
+<p>BeaverDB uses a smart polling architecture. Regardless of how many subscribers you have in a single process (e.g., 100 WebSocket connections listening to a channel), BeaverDB runs only <strong>one</strong> background thread to poll the database. It then “fans out” the data to the 100 listeners in memory. This keeps CPU usage extremely low.</p>
 </section>
-<section id="hybrid-search-reranking" class="level3">
-<h3 class="anchored" data-anchor-id="hybrid-search-reranking">4. Hybrid Search (Reranking)</h3>
-<p>To get the best of both worlds (semantic understanding + keyword precision), use <strong>Reverse Rank Fusion (RRF)</strong>. BeaverDB provides a built-in <code>rerank</code> helper.</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver.collections <span class="im">import</span> rerank</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Run searches in parallel</span></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>vector_hits <span class="op">=</span> [doc <span class="cf">for</span> doc, _ <span class="kw">in</span> docs.search(vec, top_k<span class="op">=</span><span class="dv">50</span>)]</span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>keyword_hits <span class="op">=</span> [doc <span class="cf">for</span> doc, _ <span class="kw">in</span> docs.match(<span class="st">"query"</span>, top_k<span class="op">=</span><span class="dv">50</span>)]</span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Fuse results</span></span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Scores are normalized based on rank position</span></span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>final_results <span class="op">=</span> rerank(vector_hits, keyword_hits, k<span class="op">=</span><span class="dv">60</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-</section>
-<section id="graph-relationships" class="level2">
-<h2 class="anchored" data-anchor-id="graph-relationships">Graph &amp; Relationships</h2>
-<p>BeaverDB is also a <strong>Graph Database</strong>. You can link documents together and traverse the connections to find related context (e.g., for GraphRAG).</p>
-<section id="linking-documents" class="level3">
-<h3 class="anchored" data-anchor-id="linking-documents">Linking Documents</h3>
-<p>Create directed, labeled edges between documents.</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># d1 -&gt; d2 (d1 references d2)</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>docs.<span class="ex">connect</span>(d1, d2, label<span class="op">=</span><span class="st">"references"</span>)</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co"># d2 -&gt; d3 (d2 is the parent of d3)</span></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>docs.<span class="ex">connect</span>(d2, d3, label<span class="op">=</span><span class="st">"parent"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-<section id="neighbors-traversal" class="level3">
-<h3 class="anchored" data-anchor-id="neighbors-traversal">Neighbors &amp; Traversal</h3>
-<p>Retrieve connected documents efficiently.</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get immediate neighbors</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>refs <span class="op">=</span> docs.neighbors(d1, label<span class="op">=</span><span class="st">"references"</span>)</span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Multi-hop Traversal (BFS)</span></span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="co"># "Find everything d1 connects to, up to 2 hops away"</span></span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co"># This runs a Recursive CTE in SQLite (Very Fast)</span></span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>context <span class="op">=</span> docs.walk(d1, labels<span class="op">=</span>[<span class="st">"references"</span>, <span class="st">"parent"</span>], depth<span class="op">=</span><span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-</section>
-<section id="maintenance" class="level2">
-<h2 class="anchored" data-anchor-id="maintenance">Maintenance</h2>
-<section id="compaction" class="level3">
-<h3 class="anchored" data-anchor-id="compaction">Compaction</h3>
-<p>The vector index uses a <strong>Hybrid Architecture</strong> (Base Snapshot + Delta Log). Over time, the delta log grows.</p>
-<ul>
-<li><strong>Auto-Compaction:</strong> Triggered automatically when the log gets too large.</li>
-<li><strong>Manual Compaction:</strong> You can force a merge of the log into the main index.</li>
-</ul>
-<div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>docs.compact()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-<section id="exporting" class="level3">
-<h3 class="anchored" data-anchor-id="exporting">Exporting</h3>
-<p>Dump the entire collection (vectors and metadata) to JSON for backup.</p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> docs.dump()</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="co"># OR write directly to file</span></span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> <span class="bu">open</span>(<span class="st">"backup.json"</span>, <span class="st">"w"</span>) <span class="im">as</span> f:</span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    docs.dump(f)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="history-cleanup" class="level3">
+<h3 class="anchored" data-anchor-id="history-cleanup">History &amp; Cleanup</h3>
+<p>Messages are persisted to the <code>beaver_pubsub_log</code> table. By default, new subscribers only see messages sent <em>after</em> they subscribed. To reclaim disk space, you can clear the channel history.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Delete all old messages for this channel</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>db.channel(<span class="st">"general_chat"</span>).clear()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 
 
 </section>

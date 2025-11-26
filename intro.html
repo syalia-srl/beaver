@@ -111,29 +111,53 @@ ul.task-list li input[type="checkbox"] {
     <a class="dropdown-item" href="./guide.html">
  <span class="dropdown-text">Feature Summary</span></a>
   </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">Core Storage</li>
         <li>
-    <a class="dropdown-item" href="./guide-dicts-blobs.html">
- <span class="dropdown-text">Dictionaries &amp; Blobs</span></a>
+    <a class="dropdown-item" href="./guide-dicts.html">
+ <span class="dropdown-text">Dictionaries (KV)</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./guide-lists-queues.html">
- <span class="dropdown-text">Lists &amp; Queues</span></a>
+    <a class="dropdown-item" href="./guide-blobs.html">
+ <span class="dropdown-text">Blobs (Files)</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="./guide-lists.html">
+ <span class="dropdown-text">Lists</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">Search &amp; Graph</li>
         <li>
     <a class="dropdown-item" href="./guide-collections.html">
- <span class="dropdown-text">Collections (Vector/FTS/Graph)</span></a>
+ <span class="dropdown-text">Collections (Vector/Graph)</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./guide-realtime.html">
- <span class="dropdown-text">Real-Time Data (Pub/Sub)</span></a>
+    <a class="dropdown-item" href="./guide-sketches.html">
+ <span class="dropdown-text">Sketches (Probabilistic)</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">Real-Time</li>
+        <li>
+    <a class="dropdown-item" href="./guide-queues.html">
+ <span class="dropdown-text">Queues</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./guide-concurrency.html">
- <span class="dropdown-text">Concurrency &amp; Locking</span></a>
+    <a class="dropdown-item" href="./guide-logs.html">
+ <span class="dropdown-text">Logs (Time-Series)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./guide-channels.html">
+ <span class="dropdown-text">Channels (Pub/Sub)</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">System</li>
+        <li>
+    <a class="dropdown-item" href="./guide-locks.html">
+ <span class="dropdown-text">Locks &amp; Concurrency</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="./guide-deployment.html">
- <span class="dropdown-text">Deployment &amp; API</span></a>
+ <span class="dropdown-text">Deployment</span></a>
   </li>  
     </ul>
   </li>
@@ -249,7 +273,7 @@ ul.task-list li input[type="checkbox"] {
 <p>This guide is split into two main parts:</p>
 <ul>
 <li><p><strong>Part 1: The User Guide</strong></p>
-<p>This is your starting point. After the Quickstart, this is where you’ll find an in-depth guide that walks you through how to use every single feature of BeaverDB. We’ll explore each “modality” one by one with practical examples.</p></li>
+<p>This is your starting point. After the Quickstart, this is where you’ll find an in-depth guide that walks you through how to use every single feature of BeaverDB. We’ll explore each modality one by one with practical examples.</p></li>
 <li><p><strong>Part 2: The Developer Guide</strong></p>
 <p>This part is for power users and contributors. We’ll go under the hood to look at the why behind the design. This is where we do deep dives into the core architecture, the concurrency model (threading and locking), and the internals of how features like vector search are implemented.</p></li>
 </ul>

@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>guide-collections – BeaverDB</title>
+<title>guide-logs – BeaverDB</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -235,31 +235,23 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#collections-multi-modal-search" id="toc-collections-multi-modal-search" class="nav-link active" data-scroll-target="#collections-multi-modal-search">Collections (Multi-Modal Search)</a>
+  <li><a href="#logs-time-series-stream" id="toc-logs-time-series-stream" class="nav-link active" data-scroll-target="#logs-time-series-stream">Logs (Time-Series &amp; Stream)</a>
   <ul class="collapse">
   <li><a href="#quick-start" id="toc-quick-start" class="nav-link" data-scroll-target="#quick-start">Quick Start</a></li>
-  <li><a href="#managing-documents" id="toc-managing-documents" class="nav-link" data-scroll-target="#managing-documents">Managing Documents</a>
+  <li><a href="#reading-data" id="toc-reading-data" class="nav-link" data-scroll-target="#reading-data">Reading Data</a>
   <ul class="collapse">
-  <li><a href="#the-document-object" id="toc-the-document-object" class="nav-link" data-scroll-target="#the-document-object">The <code>Document</code> Object</a></li>
-  <li><a href="#indexing" id="toc-indexing" class="nav-link" data-scroll-target="#indexing">Indexing</a></li>
-  <li><a href="#deleting-clearing" id="toc-deleting-clearing" class="nav-link" data-scroll-target="#deleting-clearing">Deleting &amp; Clearing</a></li>
+  <li><a href="#time-range-queries" id="toc-time-range-queries" class="nav-link" data-scroll-target="#time-range-queries">Time Range Queries</a></li>
+  <li><a href="#full-iteration" id="toc-full-iteration" class="nav-link" data-scroll-target="#full-iteration">Full Iteration</a></li>
   </ul></li>
-  <li><a href="#search-capabilities" id="toc-search-capabilities" class="nav-link" data-scroll-target="#search-capabilities">Search Capabilities</a>
+  <li><a href="#real-time-analysis-live-views" id="toc-real-time-analysis-live-views" class="nav-link" data-scroll-target="#real-time-analysis-live-views">Real-Time Analysis (Live Views)</a>
   <ul class="collapse">
-  <li><a href="#vector-search-semantic" id="toc-vector-search-semantic" class="nav-link" data-scroll-target="#vector-search-semantic">1. Vector Search (Semantic)</a></li>
-  <li><a href="#full-text-search-fts" id="toc-full-text-search-fts" class="nav-link" data-scroll-target="#full-text-search-fts">2. Full-Text Search (FTS)</a></li>
-  <li><a href="#fuzzy-search-typo-tolerance" id="toc-fuzzy-search-typo-tolerance" class="nav-link" data-scroll-target="#fuzzy-search-typo-tolerance">3. Fuzzy Search (Typo Tolerance)</a></li>
-  <li><a href="#hybrid-search-reranking" id="toc-hybrid-search-reranking" class="nav-link" data-scroll-target="#hybrid-search-reranking">4. Hybrid Search (Reranking)</a></li>
-  </ul></li>
-  <li><a href="#graph-relationships" id="toc-graph-relationships" class="nav-link" data-scroll-target="#graph-relationships">Graph &amp; Relationships</a>
-  <ul class="collapse">
-  <li><a href="#linking-documents" id="toc-linking-documents" class="nav-link" data-scroll-target="#linking-documents">Linking Documents</a></li>
-  <li><a href="#neighbors-traversal" id="toc-neighbors-traversal" class="nav-link" data-scroll-target="#neighbors-traversal">Neighbors &amp; Traversal</a></li>
+  <li><a href="#how-it-works" id="toc-how-it-works" class="nav-link" data-scroll-target="#how-it-works">How it Works</a></li>
+  <li><a href="#async-support" id="toc-async-support" class="nav-link" data-scroll-target="#async-support">Async Support</a></li>
   </ul></li>
   <li><a href="#maintenance" id="toc-maintenance" class="nav-link" data-scroll-target="#maintenance">Maintenance</a>
   <ul class="collapse">
-  <li><a href="#compaction" id="toc-compaction" class="nav-link" data-scroll-target="#compaction">Compaction</a></li>
-  <li><a href="#exporting" id="toc-exporting" class="nav-link" data-scroll-target="#exporting">Exporting</a></li>
+  <li><a href="#batching" id="toc-batching" class="nav-link" data-scroll-target="#batching">Batching</a></li>
+  <li><a href="#clearing" id="toc-clearing" class="nav-link" data-scroll-target="#clearing">Clearing</a></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -271,166 +263,116 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 
-<section id="collections-multi-modal-search" class="level1">
-<h1>Collections (Multi-Modal Search)</h1>
-<p>The <code>CollectionManager</code> is the powerhouse of BeaverDB. It provides a unified interface for storing Documents and performing <strong>Vector Search</strong>, <strong>Full-Text Search (FTS)</strong>, <strong>Fuzzy Matching</strong>, and <strong>Graph Traversal</strong> on them.</p>
-<p>This is ideal for building RAG (Retrieval Augmented Generation) applications, search engines, knowledge graphs, or recommendation systems.</p>
+<section id="logs-time-series-stream" class="level1">
+<h1>Logs (Time-Series &amp; Stream)</h1>
+<p>The <code>LogManager</code> is a specialized data structure for <strong>Time-Series Data</strong>. Unlike a dictionary (where keys are unique) or a list (ordered by insertion), a Log is ordered by <strong>Timestamp</strong>.</p>
+<p>This is ideal for:</p>
+<ul>
+<li><strong>System Telemetry:</strong> CPU usage, memory stats, sensor readings.</li>
+<li><strong>Audit Trails:</strong> “User X changed setting Y at Time Z”.</li>
+<li><strong>Chat History:</strong> Storing messages chronologically.</li>
+<li><strong>Event Sourcing:</strong> Storing a sequence of state-changing events.</li>
+</ul>
 <section id="quick-start" class="level2">
 <h2 class="anchored" data-anchor-id="quick-start">Quick Start</h2>
-<p>A Collection stores <code>Document</code> objects. Each document has a unique <code>id</code>, an optional vector <code>embedding</code>, and a JSON-serializable <code>body</code>.</p>
+<p>Initialize a log using <code>db.log()</code>.</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver <span class="im">import</span> BeaverDB</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver.collections <span class="im">import</span> Document</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> datetime <span class="im">import</span> datetime, timedelta</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>db <span class="op">=</span> BeaverDB(<span class="st">"app.db"</span>)</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>docs <span class="op">=</span> db.collection(<span class="st">"articles"</span>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>db <span class="op">=</span> BeaverDB(<span class="st">"telemetry.db"</span>)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>metrics <span class="op">=</span> db.log(<span class="st">"server_metrics"</span>)</span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Index a Document (with embedding for semantic search)</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>doc <span class="op">=</span> Document(</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">id</span><span class="op">=</span><span class="st">"doc_1"</span>,</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    body<span class="op">=</span>{<span class="st">"title"</span>: <span class="st">"Introduction to AI"</span>, <span class="st">"content"</span>: <span class="st">"AI is changing the world..."</span>},</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    embedding<span class="op">=</span>[<span class="fl">0.1</span>, <span class="fl">0.2</span>, <span class="fl">0.8</span>, ...] <span class="co"># 768-dim vector</span></span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>docs.index(doc)</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Semantic Search (Vector)</span></span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Finds documents semantically similar to the query vector</span></span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> docs.search(query_vector, top_k<span class="op">=</span><span class="dv">5</span>)</span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Keyword Search (FTS)</span></span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Finds documents containing specific words</span></span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>matches <span class="op">=</span> docs.match(<span class="st">"artificial intelligence"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Log Events</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co"># BeaverDB automatically records the current UTC timestamp.</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>metrics.log({<span class="st">"cpu"</span>: <span class="fl">12.5</span>, <span class="st">"ram"</span>: <span class="dv">64</span>})</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>metrics.log({<span class="st">"cpu"</span>: <span class="fl">45.0</span>, <span class="st">"ram"</span>: <span class="dv">70</span>})</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Log with explicit timestamp</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="co"># You can backfill data by providing a datetime object.</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>yesterday <span class="op">=</span> datetime.now() <span class="op">-</span> timedelta(days<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>metrics.log({<span class="st">"cpu"</span>: <span class="fl">10.0</span>, <span class="st">"ram"</span>: <span class="dv">60</span>}, timestamp<span class="op">=</span>yesterday)</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Iterate (Chronological Order)</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> timestamp, data <span class="kw">in</span> metrics:</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"[</span><span class="sc">{</span>timestamp<span class="sc">}</span><span class="ss">] CPU: </span><span class="sc">{</span>data[<span class="st">'cpu'</span>]<span class="sc">}</span><span class="ss">%"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="managing-documents" class="level2">
-<h2 class="anchored" data-anchor-id="managing-documents">Managing Documents</h2>
-<section id="the-document-object" class="level3">
-<h3 class="anchored" data-anchor-id="the-document-object">The <code>Document</code> Object</h3>
-<p>BeaverDB uses a strict Pydantic model for items.</p>
-<ul>
-<li><strong><code>id</code></strong>: String (UUID by default).</li>
-<li><strong><code>embedding</code></strong>: List of floats (or None).</li>
-<li><strong><code>body</code></strong>: Dictionary or Pydantic model (Metadata).</li>
-</ul>
-<!-- end list -->
-<div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pydantic <span class="im">import</span> BaseModel</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Article(BaseModel):</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    title: <span class="bu">str</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    tags: <span class="bu">list</span>[<span class="bu">str</span>]</span>
+<section id="reading-data" class="level2">
+<h2 class="anchored" data-anchor-id="reading-data">Reading Data</h2>
+<section id="time-range-queries" class="level3">
+<h3 class="anchored" data-anchor-id="time-range-queries">Time Range Queries</h3>
+<p>The most common operation on logs is fetching data for a specific window (e.g., “Show me errors from the last hour”).</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>now <span class="op">=</span> datetime.now()</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>one_hour_ago <span class="op">=</span> now <span class="op">-</span> timedelta(hours<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Efficiently queries the index for this range</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>recent_logs <span class="op">=</span> metrics.<span class="bu">range</span>(start<span class="op">=</span>one_hour_ago, end<span class="op">=</span>now)</span>
 <span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Typed Collection</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>articles <span class="op">=</span> db.collection(<span class="st">"news"</span>, model<span class="op">=</span>Article)</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Indexing</span></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>articles.index(Document(body<span class="op">=</span>Article(title<span class="op">=</span><span class="st">"New Release"</span>, tags<span class="op">=</span>[<span class="st">"tech"</span>])))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Found </span><span class="sc">{</span><span class="bu">len</span>(recent_logs)<span class="sc">}</span><span class="ss"> entries in the last hour."</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="indexing" class="level3">
-<h3 class="anchored" data-anchor-id="indexing">Indexing</h3>
-<p>The <code>.index()</code> method performs an atomic upsert. It updates the main storage, vector index, FTS index, and fuzzy n-gram index simultaneously.</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Index with specific FTS fields</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>docs.index(doc, fts<span class="op">=</span>[<span class="st">"title"</span>, <span class="st">"content"</span>])</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Enable Fuzzy Search support (slower indexing, robust matching)</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>docs.index(doc, fts<span class="op">=</span>[<span class="st">"title"</span>], fuzzy<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-<section id="deleting-clearing" class="level3">
-<h3 class="anchored" data-anchor-id="deleting-clearing">Deleting &amp; Clearing</h3>
-<div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Remove a single document</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>docs.drop(doc)</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Wipe the entire collection (Vectors, Graph, FTS)</span></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>docs.clear()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="full-iteration" class="level3">
+<h3 class="anchored" data-anchor-id="full-iteration">Full Iteration</h3>
+<p>You can iterate over the entire history of the log.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ts, entry <span class="kw">in</span> metrics:</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    process(entry)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
 </section>
-<section id="search-capabilities" class="level2">
-<h2 class="anchored" data-anchor-id="search-capabilities">Search Capabilities</h2>
-<section id="vector-search-semantic" class="level3">
-<h3 class="anchored" data-anchor-id="vector-search-semantic">1. Vector Search (Semantic)</h3>
-<p>Performs an Approximate Nearest Neighbor (ANN) search using Cosine Similarity.</p>
-<ul>
-<li><strong>Speed:</strong> Extremely fast (in-memory index).</li>
-<li><strong>Persistence:</strong> The index is fully persisted to disk and crash-safe.</li>
-</ul>
+<section id="real-time-analysis-live-views" class="level2">
+<h2 class="anchored" data-anchor-id="real-time-analysis-live-views">Real-Time Analysis (Live Views)</h2>
+<p>The “Killer Feature” of the LogManager is the <code>.live()</code> iterator. It allows you to build <strong>Real-Time Dashboards</strong> or <strong>Monitoring Alerts</strong> without writing complex polling loops or maintaining state.</p>
+<p>It works by maintaining a <strong>Rolling Window</strong> over the most recent data and applying an <strong>Aggregator Function</strong> to it periodically.</p>
+<section id="how-it-works" class="level3">
+<h3 class="anchored" data-anchor-id="how-it-works">How it Works</h3>
+<ol type="1">
+<li><strong>Window:</strong> “Look at the last 5 minutes of data.”</li>
+<li><strong>Period:</strong> “Update the result every 1 second.”</li>
+<li><strong>Aggregator:</strong> “Calculate the average CPU usage.”</li>
+</ol>
 <!-- end list -->
-<div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Returns list of (Document, score) tuples</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> docs.search(embedding_vector, top_k<span class="op">=</span><span class="dv">10</span>)</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> doc, score <span class="kw">in</span> results:</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>score<span class="sc">:.4f}</span><span class="ss">: </span><span class="sc">{</span>doc<span class="sc">.</span>body[<span class="st">'title'</span>]<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> statistics</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Define how to summarize the window</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> calculate_avg_cpu(entries: <span class="bu">list</span>[<span class="bu">dict</span>]) <span class="op">-&gt;</span> <span class="bu">float</span>:</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> entries:</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="fl">0.0</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    values <span class="op">=</span> [e[<span class="st">"cpu"</span>] <span class="cf">for</span> e <span class="kw">in</span> entries]</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> statistics.mean(values)</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Create the live view</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="co"># This returns an infinite iterator that blocks until the next period</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>live_view <span class="op">=</span> metrics.live(</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    window<span class="op">=</span>timedelta(minutes<span class="op">=</span><span class="dv">5</span>),   <span class="co"># 5-minute rolling window</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    period<span class="op">=</span>timedelta(seconds<span class="op">=</span><span class="dv">1</span>),   <span class="co"># Yield a new result every second</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    aggregator<span class="op">=</span>calculate_avg_cpu</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Starting Live Dashboard..."</span>)</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> avg_cpu <span class="kw">in</span> live_view:</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Live CPU (5min avg): </span><span class="sc">{</span>avg_cpu<span class="sc">:.2f}</span><span class="ss">%"</span>)</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>    <span class="co"># This loop runs forever. Press Ctrl+C to stop.</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="full-text-search-fts" class="level3">
-<h3 class="anchored" data-anchor-id="full-text-search-fts">2. Full-Text Search (FTS)</h3>
-<p>Uses SQLite’s FTS5 engine for powerful keyword matching. Supports boolean operators (<code>AND</code>, <code>OR</code>, <code>NOT</code>) and prefix matching.</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Simple match</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>docs.match(<span class="st">"python database"</span>)</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Specific fields</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>docs.match(<span class="st">"tutorial"</span>, on<span class="op">=</span>[<span class="st">"title"</span>])</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Boolean query</span></span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>docs.match(<span class="st">"python AND NOT java"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-<section id="fuzzy-search-typo-tolerance" class="level3">
-<h3 class="anchored" data-anchor-id="fuzzy-search-typo-tolerance">3. Fuzzy Search (Typo Tolerance)</h3>
-<p>If you indexed with <code>fuzzy=True</code>, you can find documents even with typos. BeaverDB uses a hybrid <strong>Trigram + Levenshtein</strong> approach for high performance.</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Finds "BeaverDB" even if user types "BaverDB"</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>docs.match(<span class="st">"BaverDB"</span>, fuzziness<span class="op">=</span><span class="dv">1</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-<section id="hybrid-search-reranking" class="level3">
-<h3 class="anchored" data-anchor-id="hybrid-search-reranking">4. Hybrid Search (Reranking)</h3>
-<p>To get the best of both worlds (semantic understanding + keyword precision), use <strong>Reverse Rank Fusion (RRF)</strong>. BeaverDB provides a built-in <code>rerank</code> helper.</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beaver.collections <span class="im">import</span> rerank</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Run searches in parallel</span></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>vector_hits <span class="op">=</span> [doc <span class="cf">for</span> doc, _ <span class="kw">in</span> docs.search(vec, top_k<span class="op">=</span><span class="dv">50</span>)]</span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>keyword_hits <span class="op">=</span> [doc <span class="cf">for</span> doc, _ <span class="kw">in</span> docs.match(<span class="st">"query"</span>, top_k<span class="op">=</span><span class="dv">50</span>)]</span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Fuse results</span></span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Scores are normalized based on rank position</span></span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>final_results <span class="op">=</span> rerank(vector_hits, keyword_hits, k<span class="op">=</span><span class="dv">60</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-</section>
-<section id="graph-relationships" class="level2">
-<h2 class="anchored" data-anchor-id="graph-relationships">Graph &amp; Relationships</h2>
-<p>BeaverDB is also a <strong>Graph Database</strong>. You can link documents together and traverse the connections to find related context (e.g., for GraphRAG).</p>
-<section id="linking-documents" class="level3">
-<h3 class="anchored" data-anchor-id="linking-documents">Linking Documents</h3>
-<p>Create directed, labeled edges between documents.</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># d1 -&gt; d2 (d1 references d2)</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>docs.<span class="ex">connect</span>(d1, d2, label<span class="op">=</span><span class="st">"references"</span>)</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co"># d2 -&gt; d3 (d2 is the parent of d3)</span></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>docs.<span class="ex">connect</span>(d2, d3, label<span class="op">=</span><span class="st">"parent"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-<section id="neighbors-traversal" class="level3">
-<h3 class="anchored" data-anchor-id="neighbors-traversal">Neighbors &amp; Traversal</h3>
-<p>Retrieve connected documents efficiently.</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get immediate neighbors</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>refs <span class="op">=</span> docs.neighbors(d1, label<span class="op">=</span><span class="st">"references"</span>)</span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Multi-hop Traversal (BFS)</span></span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="co"># "Find everything d1 connects to, up to 2 hops away"</span></span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co"># This runs a Recursive CTE in SQLite (Very Fast)</span></span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>context <span class="op">=</span> docs.walk(d1, labels<span class="op">=</span>[<span class="st">"references"</span>, <span class="st">"parent"</span>], depth<span class="op">=</span><span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="async-support" class="level3">
+<h3 class="anchored" data-anchor-id="async-support">Async Support</h3>
+<p>For modern web applications (FastAPI, etc.), you can use the async version to stream updates via WebSockets/SSE.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>async_logs <span class="op">=</span> db.log(<span class="st">"metrics"</span>).as_async()</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="cf">for</span> avg_cpu <span class="kw">in</span> async_logs.live(..., aggregator<span class="op">=</span>calculate_avg_cpu):</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">await</span> websocket.send_json({<span class="st">"cpu"</span>: avg_cpu})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
 </section>
 <section id="maintenance" class="level2">
 <h2 class="anchored" data-anchor-id="maintenance">Maintenance</h2>
-<section id="compaction" class="level3">
-<h3 class="anchored" data-anchor-id="compaction">Compaction</h3>
-<p>The vector index uses a <strong>Hybrid Architecture</strong> (Base Snapshot + Delta Log). Over time, the delta log grows.</p>
-<ul>
-<li><strong>Auto-Compaction:</strong> Triggered automatically when the log gets too large.</li>
-<li><strong>Manual Compaction:</strong> You can force a merge of the log into the main index.</li>
-</ul>
-<div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>docs.compact()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="batching" class="level3">
+<h3 class="anchored" data-anchor-id="batching">Batching</h3>
+<p>Just like other managers, use <code>.batched()</code> when ingesting high-frequency logs (e.g., 1000 requests/sec) to prevent database lock contention.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Ingest a batch of 1,000 sensor readings</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> metrics.batched() <span class="im">as</span> batch:</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> reading <span class="kw">in</span> sensor_stream:</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>        batch.log(reading)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="exporting" class="level3">
-<h3 class="anchored" data-anchor-id="exporting">Exporting</h3>
-<p>Dump the entire collection (vectors and metadata) to JSON for backup.</p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> docs.dump()</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="co"># OR write directly to file</span></span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> <span class="bu">open</span>(<span class="st">"backup.json"</span>, <span class="st">"w"</span>) <span class="im">as</span> f:</span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    docs.dump(f)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="clearing" class="level3">
+<h3 class="anchored" data-anchor-id="clearing">Clearing</h3>
+<p>To rotate logs or wipe history:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>metrics.clear()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 
 
 </section>
