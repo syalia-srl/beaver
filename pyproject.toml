@@ -1,6 +1,6 @@
 [project]
 name = "beaver-db"
-version = "1.1.1"
+version = "1.2.0"
 description = "Fast, embedded, and multi-modal DB based on SQLite for AI-powered applications."
 readme = "README.md"
 requires-python = ">=3.13"
