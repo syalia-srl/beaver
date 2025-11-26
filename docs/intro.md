@@ -82,7 +82,7 @@ This guide is split into two main parts:
 
 - **Part 1: The User Guide**
 
-    This is your starting point. After the Quickstart, this is where you'll find an in-depth guide that walks you through how to use every single feature of BeaverDB. We'll explore each "modality" one by one with practical examples.
+    This is your starting point. After the Quickstart, this is where you'll find an in-depth guide that walks you through how to use every single feature of BeaverDB. We'll explore each modality one by one with practical examples.
 
 - **Part 2: The Developer Guide**
 

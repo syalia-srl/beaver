@@ -26,18 +26,42 @@ website:
         menu:
           - href: guide.md
             text: Feature Summary
-          - href: guide-dicts-blobs.md
-            text: Dictionaries & Blobs
-          - href: guide-lists-queues.md
-            text: Lists & Queues
+
+          # --- Core Storage ---
+          - text: "---"
+          - text: "Core Storage"
+          - href: guide-dicts.md
+            text: Dictionaries (KV)
+          - href: guide-blobs.md
+            text: Blobs (Files)
+          - href: guide-lists.md
+            text: Lists
+
+          # --- Search & Graph ---
+          - text: "---"
+          - text: "Search & Graph"
           - href: guide-collections.md
-            text: Collections (Vector/FTS/Graph)
-          - href: guide-realtime.md
-            text: Real-Time Data (Pub/Sub)
-          - href: guide-concurrency.md
-            text: Concurrency & Locking
+            text: Collections (Vector/Graph)
+          - href: guide-sketches.md
+            text: Sketches (Probabilistic)
+
+          # --- Real-Time ---
+          - text: "---"
+          - text: "Real-Time"
+          - href: guide-queues.md
+            text: Queues
+          - href: guide-logs.md
+            text: Logs (Time-Series)
+          - href: guide-channels.md
+            text: Channels (Pub/Sub)
+
+          # --- System & Admin ---
+          - text: "---"
+          - text: "System"
+          - href: guide-locks.md
+            text: Locks & Concurrency
           - href: guide-deployment.md
-            text: Deployment & API
+            text: Deployment
       - text: "Developer Guide"
         menu:
           - href: dev-architecture.md
