@@ -1,3 +1,4 @@
+import base64
 from datetime import datetime, timezone
 import json
 import time
@@ -6,10 +7,124 @@ from typing import IO, Any, Iterator, Tuple, overload
 from pydantic import BaseModel
 
 from .manager import ManagerBase, synced, emits
+from .security import Cipher
 
 
 class DictManager[T: BaseModel](ManagerBase[T]):
     """A wrapper providing a Pythonic interface to a dictionary in the database."""
+
+    def __init__(
+        self,
+        name: str,
+        db: Any,
+        model: type[T] | None = None,
+        secret: str | None = None,
+    ):
+        super().__init__(name, db, model)
+        self._cipher: Cipher | None = None
+
+        # Validating: If no secret provided, verify it's NOT an encrypted dict
+        if secret is None and not self.is_system():
+            # Access the internal security registry
+            security_store = self._db._security_dict  # type: ignore
+
+            if self._name in security_store:
+                raise ValueError(
+                    f"Dictionary '{self._name}' is encrypted. You must provide a secret to open it."
+                )
+
+        if secret:
+            self._setup_security(secret)
+
+    def is_system(self):
+        return self._name in [
+            "__metadata__",
+            "__security__",
+            "__beaver_event_registry__",
+        ]
+
+    def _setup_security(self, secret: str):
+        """
+        Initializes the encryption cipher.
+        Loads (or creates) the salt and verifier from the internal __security__ dict.
+        """
+        if self._name == "__security__":
+            raise ValueError(
+                "The internal '__security__' dictionary cannot be encrypted."
+            )
+
+        # Access the internal security registry (plain text)
+        security_store = self._db._security_dict  # type: ignore
+        metadata = security_store.get(self._name)
+
+        if metadata:
+            # Case 1: Existing secure dictionary. Load and verify.
+            try:
+                salt = base64.b64decode(metadata["salt"])
+                verifier_encrypted = base64.b64decode(metadata["verifier"])
+            except (KeyError, TypeError, ValueError):
+                raise ValueError(
+                    f"Corrupted security metadata for dictionary '{self._name}'."
+                )
+
+            cipher = Cipher(secret, salt=salt)
+
+            # Verify the secret by attempting to decrypt the known token
+            try:
+                decrypted = cipher.decrypt(verifier_encrypted)
+                if decrypted != b"beaver-secure":
+                    raise ValueError("Invalid secret.")
+            except Exception:
+                raise ValueError(
+                    f"Invalid secret for dictionary '{self._name}' (or corrupted data)."
+                )
+
+            self._cipher = cipher
+
+        else:
+            # Case 2: New secure dictionary. Initialize and store metadata.
+            cipher = Cipher(secret)
+            salt = cipher.salt
+
+            # Create a verifier token (encrypt a known value)
+            verifier_encrypted = cipher.encrypt(b"beaver-secure")
+
+            # Store metadata
+            security_store[self._name] = {
+                "salt": base64.b64encode(salt).decode("utf-8"),
+                "verifier": base64.b64encode(verifier_encrypted).decode("utf-8"),
+                "created_at": time.time(),
+            }
+            self._cipher = cipher
+
+    def _serialize(self, value: T) -> str:
+        """Serializes and optionally encrypts the value."""
+        # 1. Base serialization (Pydantic/JSON -> str)
+        json_str = super()._serialize(value)
+
+        # 2. Encryption (str -> encrypted bytes -> base64 str)
+        if self._cipher:
+            encrypted_bytes = self._cipher.encrypt(json_str.encode("utf-8"))
+            return base64.urlsafe_b64encode(encrypted_bytes).decode("utf-8")
+
+        return json_str
+
+    def _deserialize(self, value: str) -> T:
+        """Optionally decrypts and then deserializes the value."""
+        # 1. Decryption (base64 str -> encrypted bytes -> decrypted bytes -> str)
+        json_str = value
+        if self._cipher:
+            try:
+                encrypted_bytes = base64.urlsafe_b64decode(value)
+                json_str = self._cipher.decrypt(encrypted_bytes).decode("utf-8")
+            except Exception as e:
+                raise ValueError(
+                    f"Failed to decrypt value in dictionary '{self._name}'. "
+                    "Data may be corrupted or from a different encryption session."
+                ) from e
+
+        # 2. Base deserialization (str -> T)
+        return super()._deserialize(json_str)
 
     def _get_dump_object(self) -> dict:
         """Builds the JSON-compatible dump object."""
@@ -31,6 +146,7 @@ class DictManager[T: BaseModel](ManagerBase[T]):
             "name": self._name,
             "count": len(items),
             "dump_date": datetime.now(timezone.utc).isoformat(),
+            "encrypted": self._cipher is not None,
         }
 
         return {"metadata": metadata, "items": items}
@@ -81,9 +197,12 @@ class DictManager[T: BaseModel](ManagerBase[T]):
 
             expires_at = time.time() + ttl_seconds
 
+        # Serialization (and encryption) happens here
+        serialized_value = self._serialize(value)
+
         self.connection.execute(
             "INSERT OR REPLACE INTO beaver_dicts (dict_name, key, value, expires_at) VALUES (?, ?, ?, ?)",
-            (self._name, key, self._serialize(value), expires_at),
+            (self._name, key, serialized_value, expires_at),
         )
 
         self.cache.set(key, (value, expires_at))
@@ -125,7 +244,7 @@ class DictManager[T: BaseModel](ManagerBase[T]):
             cursor.close()
             raise KeyError(f"Key '{key}' not found in dictionary '{self._name}'")
 
-        value, expires_at = result["value"], result["expires_at"]
+        raw_value, expires_at = result["value"], result["expires_at"]
 
         if expires_at is not None and time.time() > expires_at:
             # Expired: delete the key and raise KeyError
@@ -144,11 +263,13 @@ class DictManager[T: BaseModel](ManagerBase[T]):
             )
 
         cursor.close()
-        result = self._deserialize(value)
+
+        # Deserialization (and decryption) happens here
+        result_obj = self._deserialize(raw_value)
 
         # Update cache
-        cache.set(key, (result, expires_at))
-        return result
+        cache.set(key, (result_obj, expires_at))
+        return result_obj
 
     @synced
     def pop(self, key: str, default: Any = None) -> T | Any:
@@ -222,7 +343,8 @@ class DictManager[T: BaseModel](ManagerBase[T]):
         cursor.close()
 
     def __repr__(self) -> str:
-        return f"DictManager(name='{self._name}')"
+        secure_tag = " [Secure]" if self._cipher else ""
+        return f"DictManager(name='{self._name}'{secure_tag})"
 
     def __contains__(self, key: str) -> bool:
         """Checks if a key exists in the dictionary."""

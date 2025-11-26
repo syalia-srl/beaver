@@ -30,7 +30,8 @@ packages = ["beaver"]
 
 [project.optional-dependencies]
 remote = ["fastapi[standard]>=0.118.0"]
-full = ["beaver-db[remote]"]
+security = ["cryptography>=46.0.3"]
+full = ["beaver-db[remote]", "beaver-db[security]"]
 
 [dependency-groups]
 dev = [

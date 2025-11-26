@@ -100,6 +100,10 @@ class BeaverDB:
         # connection for the main thread via the `connection` property.
         self._create_all_tables()
 
+        self._security_dict = self.dict("__security__")
+        self._metadata_dict = self.dict("__security__")
+        self._events_dict = self.dict("__events__")
+
         # check current version against the version stored
         self._check_version()
 
@@ -149,7 +153,7 @@ class BeaverDB:
             # Add the callback to the local dispatch table
             self._event_callbacks.setdefault(full_topic_key, []).append(callback)
 
-            with self.dict("__beaver_event_registry__") as registry:
+            with self._events_dict as registry:
                 global_count = registry.get(full_topic_key, 0)
                 registry[full_topic_key] = global_count + 1
 
@@ -168,7 +172,7 @@ class BeaverDB:
                 return  # Already removed
 
             # We MUST decrement the global count
-            with self.dict("__beaver_event_registry__") as registry:
+            with self._events_dict as registry:
                 global_count = registry.get(full_topic_key, 1)
 
                 if global_count <= 1:
@@ -621,7 +625,7 @@ class BeaverDB:
         full_topic_key = f"{topic}:{event}"
 
         # Check the global, cross-process registry.
-        registry = self.dict("__beaver_event_registry__")
+        registry = self._events_dict
 
         if registry.get(full_topic_key, 0) <= 0:
             return False  # No one is listening anywhere, so do nothing.
@@ -651,13 +655,14 @@ class BeaverDB:
     # --- Factory and Passthrough Methods ---
 
     def dict[T: BaseModel](
-        self, name: str, model: type[T] | None = None
+        self, name: str, model: type[T] | None = None, secret: str | None = None
     ) -> DictManager[T]:
         """
         Returns a wrapper object for interacting with a named dictionary.
         If model is defined, it should be a type used for automatic (de)serialization.
+        If secret is provided, the dictionary will be encrypted (requires 'security' extra).
         """
-        return self.singleton(DictManager, name, model)
+        return self.singleton(DictManager, name, model, secret=secret)
 
     def list[T: BaseModel](
         self, name: str, model: type[T] | None = None
