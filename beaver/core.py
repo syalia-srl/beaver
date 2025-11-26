@@ -2,6 +2,7 @@ import sqlite3
 import threading
 import time
 import warnings
+from typing import Any, Callable, List, Type
 
 from pydantic import BaseModel
 
@@ -16,7 +17,7 @@ from .logs import LogManager
 from .manager import ManagerBase
 from .queues import QueueManager
 from .types import IDatabase, ICache, IResourceManager
-from typing import Any, Callable, List, Type
+from .sketches import SketchManager
 
 
 class Event(BaseModel):
@@ -316,6 +317,21 @@ class BeaverDB:
             self._create_trigrams_table()
             self._create_vector_change_log_table()
             self._create_versions_table()
+            self._create_sketches_table()
+
+    def _create_sketches_table(self):
+        """Creates the table for probabilistic sketches."""
+        self.connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS beaver_sketches (
+                name TEXT PRIMARY KEY,
+                type TEXT NOT NULL,
+                capacity INTEGER NOT NULL,
+                error_rate REAL NOT NULL,
+                data BLOB NOT NULL
+            )
+            """
+        )
 
     def _create_cache_table(self):
         """Creates a table to track the version of each data manager for caching."""
@@ -716,6 +732,30 @@ class BeaverDB:
             raise ConnectionError("BeaverDB instance is closed.")
 
         return LockManager(self, name, timeout, lock_ttl, poll_interval)
+
+    def sketch[T: BaseModel](
+        self,
+        name: str,
+        capacity: int = 1_000_000,
+        error_rate: float = 0.01,
+        model: type[T] | None = None,
+    ) -> SketchManager:
+        """
+        Returns a wrapper for interacting with a probabilistic sketch (ApproximateSet).
+
+        Args:
+            name: Unique name of the sketch.
+            capacity: Expected number of items (configures Bloom Filter size).
+            error_rate: Desired error probability (configures Bloom & HLL precision).
+            model: The optional Pydantic model to use for item serialization.
+        """
+        return self.singleton(
+            SketchManager,
+            name,
+            capacity=capacity,
+            error_rate=error_rate,
+            model=model,
+        )
 
     # --- Properties for Name Discovery ---
 
