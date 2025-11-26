@@ -693,14 +693,3 @@ You can also use the CLI to dump data:
 ```bash
 beaver --database data.db collection my_documents dump > my_documents.json
 ```
-
-## Further Reading
-
-Keep exploring BeaverDB with these in-depth guides:
-
-- [Key-Value Dictionaries and Blob Storage](guide-dicts-blobs.md)
-- [Persistent Lists and Priority Queues](guide-lists-queues.md)
-- [Document Collections (Vectors, FTS, Graphs)](guide-collections.md)
-- [Real-Time Data (Pub/Sub and Live Logs)](guide-realtime.md)
-- [Concurrency and Inter-Process Locking](guide-concurrency.md)
-- [Deployment with the REST Server and CLI](guide-deployment.md)
