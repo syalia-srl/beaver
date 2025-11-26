@@ -34,7 +34,7 @@ wheels = [
 
 [[package]]
 name = "beaver-db"
-version = "1.0.0"
+version = "1.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "numpy" },
