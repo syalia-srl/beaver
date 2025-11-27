@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from .blobs import AsyncBeaverBlob, IBeaverBlob
 from .cache import DummyCache, LocalCache
 from .channels import AsyncBeaverChannel, IBeaverChannel
-from .collections import CollectionManager, Document
+from .docs import AsyncBeaverDocuments, IBeaverDocuments
 from .dicts import AsyncBeaverDict, IBeaverDict
 from .lists import AsyncBeaverList, IBeaverList
 from .locks import AsyncBeaverLock, IBeaverLock
@@ -227,19 +227,6 @@ class AsyncBeaverDB:
         """
         )
 
-        # Collections (Vectors)
-        await c.execute(
-            """
-            CREATE TABLE IF NOT EXISTS __beaver_collections__ (
-                collection TEXT NOT NULL,
-                item_id TEXT NOT NULL,
-                item_vector BLOB,
-                metadata TEXT,
-                PRIMARY KEY (collection, item_id)
-            )
-        """
-        )
-
         # Dicts
         await c.execute(
             """
@@ -249,33 +236,6 @@ class AsyncBeaverDB:
                 value TEXT NOT NULL,
                 expires_at REAL,
                 PRIMARY KEY (dict_name, key)
-            )
-        """
-        )
-
-        # Edges (Graph)
-        await c.execute(
-            """
-            CREATE TABLE IF NOT EXISTS __beaver_edges__ (
-                collection TEXT NOT NULL,
-                source_item_id TEXT NOT NULL,
-                target_item_id TEXT NOT NULL,
-                label TEXT NOT NULL,
-                metadata TEXT,
-                PRIMARY KEY (collection, source_item_id, target_item_id, label)
-            )
-        """
-        )
-
-        # FTS (Virtual Table)
-        await c.execute(
-            """
-            CREATE VIRTUAL TABLE IF NOT EXISTS __beaver_fts_index__ USING fts5(
-                collection,
-                item_id,
-                field_path,
-                field_content,
-                tokenize = 'porter'
             )
         """
         )
@@ -355,47 +315,6 @@ class AsyncBeaverDB:
             "CREATE INDEX IF NOT EXISTS idx_pubsub_channel_timestamp ON __beaver_pubsub_log__ (channel_name, timestamp)"
         )
 
-        # Trigrams (Fuzzy)
-        await c.execute(
-            """
-            CREATE TABLE IF NOT EXISTS __beaver_trigrams__ (
-                collection TEXT NOT NULL,
-                item_id TEXT NOT NULL,
-                field_path TEXT NOT NULL,
-                trigram TEXT NOT NULL,
-                PRIMARY KEY (collection, field_path, trigram, item_id)
-            )
-        """
-        )
-        await c.execute(
-            "CREATE INDEX IF NOT EXISTS idx_trigram_lookup ON __beaver_trigrams__ (collection, trigram, field_path)"
-        )
-
-        # Vector Change Log
-        await c.execute(
-            """
-            CREATE TABLE IF NOT EXISTS __beaver_vector_change_log__ (
-                log_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                collection_name TEXT NOT NULL,
-                item_id TEXT NOT NULL,
-                operation_type INTEGER NOT NULL
-            )
-        """
-        )
-        await c.execute(
-            "CREATE INDEX IF NOT EXISTS idx_vcl_lookup ON __beaver_vector_change_log__ (collection_name, log_id)"
-        )
-
-        # Collection Versions
-        await c.execute(
-            """
-            CREATE TABLE IF NOT EXISTS __beaver_collection_versions__ (
-                collection_name TEXT PRIMARY KEY,
-                base_version INTEGER NOT NULL DEFAULT 0
-            )
-        """
-        )
-
         # Sketches
         await c.execute(
             """
@@ -408,6 +327,39 @@ class AsyncBeaverDB:
             )
         """
         )
+
+        # Main Storage
+        await c.execute("""
+            CREATE TABLE IF NOT EXISTS __beaver_documents__ (
+                collection TEXT NOT NULL,
+                item_id TEXT NOT NULL,
+                data TEXT NOT NULL,
+                PRIMARY KEY (collection, item_id)
+            )
+        """)
+
+        # FTS Index
+        await c.execute("""
+            CREATE VIRTUAL TABLE IF NOT EXISTS __beaver_fts_index__ USING fts5(
+                collection,
+                item_id,
+                field_path,
+                field_content,
+                tokenize = 'porter'
+            )
+        """)
+
+        # Fuzzy Index (Trigrams)
+        await c.execute("""
+            CREATE TABLE IF NOT EXISTS __beaver_trigrams__ (
+                collection TEXT NOT NULL,
+                item_id TEXT NOT NULL,
+                trigram TEXT NOT NULL,
+                PRIMARY KEY (collection, item_id, trigram)
+            )
+        """)
+        await c.execute("CREATE INDEX IF NOT EXISTS idx_trigram_lookup ON __beaver_trigrams__ (collection, trigram)")
+
 
         await self.connection.commit()
 
@@ -440,8 +392,8 @@ class AsyncBeaverDB:
     def queue(self, name: str, model: type | None = None) -> AsyncBeaverQueue:
         return self.singleton(AsyncBeaverQueue, name, model=model)
 
-    def collection(self, name: str, model: Type | None = None):
-        return self.singleton(CollectionManager, name, model=model)
+    def docs(self, name: str, model: Type | None = None) -> AsyncBeaverDocuments:
+        return self.singleton(AsyncBeaverDocuments, name, model=model)
 
     def channel(self, name: str, model: type | None = None) -> AsyncBeaverChannel:
         return self.singleton(AsyncBeaverChannel, name, model=model)
