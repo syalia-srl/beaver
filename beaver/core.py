@@ -18,7 +18,7 @@ from .lists import AsyncBeaverList, IBeaverList
 from .locks import AsyncBeaverLock, IBeaverLock
 from .logs import LogManager
 from .manager import AsyncBeaverBase
-from .queues import QueueManager
+from .queues import AsyncBeaverQueue, IBeaverQueue
 from .sketches import SketchManager
 from .bridge import BeaverBridge
 
@@ -437,8 +437,8 @@ class AsyncBeaverDB:
     def list(self, name: str, model: type | None = None) -> AsyncBeaverList:
         return self.singleton(AsyncBeaverList, name, model=model)
 
-    def queue(self, name: str, model: type | None = None):
-        return self.singleton(QueueManager, name, model=model)
+    def queue(self, name: str, model: type | None = None) -> AsyncBeaverQueue:
+        return self.singleton(AsyncBeaverQueue, name, model=model)
 
     def collection(self, name: str, model: Type | None = None):
         return self.singleton(CollectionManager, name, model=model)
