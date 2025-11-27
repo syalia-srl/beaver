@@ -5,7 +5,7 @@ from typing import Callable, Type, Optional, Self
 import weakref
 from pydantic import BaseModel
 from .types import IDatabase
-from .locks import LockManager
+from .locks import AsyncBeaverLock
 from .cache import ICache
 
 

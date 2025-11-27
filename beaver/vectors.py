@@ -5,7 +5,7 @@ import random
 from typing import List, Tuple, Set, Dict, Optional
 
 from .types import IDatabase
-from .locks import LockManager
+from .locks import AsyncBeaverLock
 
 import numpy as np
 

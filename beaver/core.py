@@ -15,7 +15,7 @@ from .channels import ChannelManager
 from .collections import CollectionManager, Document
 from .dicts import DictManager
 from .lists import ListManager
-from .locks import LockManager
+from .locks import AsyncBeaverLock
 from .logs import LogManager
 from .manager import ManagerBase
 from .queues import QueueManager
@@ -425,8 +425,10 @@ class AsyncBeaverDB:
     def log(self, name: str, model: type | None = None):
         return self.singleton(LogManager, name, model=model)
 
-    def lock(self, name: str, timeout=None, lock_ttl=60.0, poll_interval=0.1):
-        return LockManager(self, name, timeout, lock_ttl, poll_interval)
+    def lock(
+        self, name: str, timeout=None, lock_ttl=60.0, poll_interval=0.1
+    ) -> AsyncBeaverLock:
+        return AsyncBeaverLock(self, name, timeout, lock_ttl, poll_interval)
 
     def sketch(self, name: str, capacity=1_000_000, error_rate=0.01, model=None):
         return self.singleton(

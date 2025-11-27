@@ -15,7 +15,7 @@ from typing import (
     overload,
 )
 from .types import IDatabase
-from .locks import LockManager
+from .locks import AsyncBeaverLock
 from .vectors import NumpyVectorIndex as VectorIndex
 from .manager import ManagerBase, synced, emits
 

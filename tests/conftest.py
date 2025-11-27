@@ -1,7 +1,8 @@
 import os
 import uuid
 import pytest
-from beaver import BeaverDB
+import asyncio
+from beaver.core import BeaverDB, AsyncBeaverDB
 
 
 @pytest.fixture
@@ -21,52 +22,70 @@ def db_path():
         os.remove(db_file)
 
 
+# --- SYNC FIXTURES ---
+
+
 @pytest.fixture
 def db(db_path):
     """
-    A fixture that provides an initialized BeaverDB instance
-    using the temporary db_path. It ensures the database
-    is properly closed after the test.
+    File-based synchronous BeaverDB.
     """
-    # Setup: Initialize the database
     db_instance = BeaverDB(db_path)
-
-    # Yield the instance to the test
     yield db_instance
+    db_instance.close()
 
-    # Teardown: Close the database connection
+
+@pytest.fixture
+def db_mem():
+    """
+    In-memory synchronous BeaverDB.
+    Fastest option for logic tests that don't check persistence.
+    """
+    db_instance = BeaverDB(":memory:")
+    yield db_instance
     db_instance.close()
 
 
 @pytest.fixture
 def db_cached(db_path):
     """
-    A fixture that provides an initialized BeaverDB instance
-    using the temporary db_path. It ensures the database
-    is properly closed after the test.
+    File-based synchronous BeaverDB with caching enabled.
     """
-    # Setup: Initialize the database
     db_instance = BeaverDB(db_path, cache_timeout=0.1)
-
-    # Yield the instance to the test
     yield db_instance
-
-    # Teardown: Close the database connection
     db_instance.close()
+
+
+# --- ASYNC FIXTURES ---
 
 
 @pytest.fixture
-def db_memory():
-    """
-    A fixture that provides an initialized BeaverDB instance
-    using memory. It ensures the database
-    is properly closed after the test.
-    """
-    # Setup: Initialize the database
-    db_instance = BeaverDB(":memory:")
+def event_loop():
+    """Create an instance of the default event loop for each test case."""
+    loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
 
-    # Yield the instance to the test
-    yield db_instance
 
-    # Teardown: Close the database connection
-    db_instance.close()
+@pytest.fixture
+async def async_db(db_path):
+    """
+    File-based AsyncBeaverDB.
+    Use this for tests that verify disk persistence or file locking.
+    """
+    db = AsyncBeaverDB(db_path)
+    await db.connect()
+    yield db
+    await db.close()
+
+
+@pytest.fixture
+async def async_db_mem():
+    """
+    In-memory AsyncBeaverDB.
+    Use this for the majority of unit tests (Locks, Dicts, Lists) for maximum speed.
+    """
+    db = AsyncBeaverDB(":memory:")
+    await db.connect()
+    yield db
+    await db.close()
