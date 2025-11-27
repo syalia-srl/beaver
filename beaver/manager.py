@@ -106,12 +106,14 @@ class AsyncBeaverBase[T: BaseModel]:
         """Serializes the given value to a JSON string (Sync CPU bound)."""
         if isinstance(value, BaseModel):
             return value.model_dump_json()
+
         return json.dumps(value)
 
     def _deserialize(self, value: str) -> T:
         """Deserializes a JSON string (Sync CPU bound)."""
         if self._model:
             return self._model.model_validate_json(value)
+
         return json.loads(value)
 
     # --- Public Lock Interface ---
@@ -208,5 +210,4 @@ def emits(event: str | None = None, payload: Callable | None = None):
             return result
 
         return wrapper
-
     return decorator

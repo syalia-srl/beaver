@@ -19,7 +19,7 @@ from .locks import AsyncBeaverLock, IBeaverLock
 from .logs import AsyncBeaverLog, IBeaverLog
 from .manager import AsyncBeaverBase
 from .queues import AsyncBeaverQueue, IBeaverQueue
-from .sketches import SketchManager
+from .sketches import AsyncBeaverSketch, IBeaverSketch
 from .bridge import BeaverBridge
 
 
@@ -457,9 +457,15 @@ class AsyncBeaverDB:
     ) -> AsyncBeaverLock:
         return AsyncBeaverLock(self, name, timeout, lock_ttl, poll_interval)
 
-    def sketch(self, name: str, capacity=1_000_000, error_rate=0.01, model=None):
+    def sketch(
+        self, name: str, capacity=1_000_000, error_rate=0.01, model=None
+    ) -> AsyncBeaverSketch:
         return self.singleton(
-            SketchManager, name, capacity=capacity, error_rate=error_rate, model=model
+            AsyncBeaverSketch,
+            name,
+            capacity=capacity,
+            error_rate=error_rate,
+            model=model,
         )
 
     def cache(self, key: str = "global"):
@@ -560,5 +566,7 @@ class BeaverDB:
     ) -> IBeaverLock:
         return self._get_manager("lock", name, timeout, lock_ttl, poll_interval)
 
-    def sketch(self, name: str, capacity=1_000_000, error_rate=0.01, model=None):
+    def sketch(
+        self, name: str, capacity=1_000_000, error_rate=0.01, model=None
+    ) -> IBeaverSketch:
         return self._get_manager("sketch", name, capacity, error_rate, model)
