@@ -14,7 +14,7 @@ from .cache import DummyCache, LocalCache
 from .channels import ChannelManager
 from .collections import CollectionManager, Document
 from .dicts import AsyncBeaverDict, IBeaverDict
-from .lists import ListManager
+from .lists import AsyncBeaverList, IBeaverList
 from .locks import AsyncBeaverLock, IBeaverLock
 from .logs import LogManager
 from .manager import AsyncBeaverBase
@@ -411,7 +411,7 @@ class AsyncBeaverDB:
 
         await self.connection.commit()
 
-    def singleton(self, cls, name, **kwargs):
+    def singleton[T: AsyncBeaverBase](self, cls: type[T], name, **kwargs) -> T:
         """
         Factory method to get a singleton manager.
         Since this runs on the event loop, no locks are needed.
@@ -434,8 +434,8 @@ class AsyncBeaverDB:
     ) -> AsyncBeaverDict:
         return self.singleton(AsyncBeaverDict, name, model=model, secret=secret)
 
-    def list(self, name: str, model: type | None = None):
-        return self.singleton(ListManager, name, model=model)
+    def list(self, name: str, model: type | None = None) -> AsyncBeaverList:
+        return self.singleton(AsyncBeaverList, name, model=model)
 
     def queue(self, name: str, model: type | None = None):
         return self.singleton(QueueManager, name, model=model)
