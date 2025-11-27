@@ -4,7 +4,7 @@ BeaverDB follows a **"Simplicity First"** philosophy not just in its API, but al
 
 ## Environment Setup
 
-To contribute, you'll need Python 3.13+. We recommend using a virtual environment.
+To contribute, you'll need Python 3.12+. We recommend using a virtual environment.
 
 ```bash
 # 1. Clone the repository

@@ -1,7 +1,7 @@
 # Stage 1: The "Builder" stage
 # This stage installs all build tools, copies the source code,
 # and builds the application with all its dependencies into a virtual environment.
-FROM python:3.13-slim as builder
+FROM python:3.12-slim as builder
 
 # Install curl first, as root, and clean up apt cache
 RUN apt-get update && \
@@ -34,7 +34,7 @@ RUN uv pip install .[full]
 # Stage 2: The "Final" stage
 # This is a clean Python image that will only contain the
 # virtual environment with the installed application.
-FROM python:3.13-slim
+FROM python:3.12-slim
 
 # Set the working directory
 WORKDIR /app
