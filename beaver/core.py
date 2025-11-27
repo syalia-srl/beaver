@@ -11,12 +11,12 @@ from pydantic import BaseModel
 # as we progress through the file-by-file refactor.
 from .blobs import AsyncBeaverBlob, IBeaverBlob
 from .cache import DummyCache, LocalCache
-from .channels import ChannelManager
+from .channels import AsyncBeaverChannel, IBeaverChannel
 from .collections import CollectionManager, Document
 from .dicts import AsyncBeaverDict, IBeaverDict
 from .lists import AsyncBeaverList, IBeaverList
 from .locks import AsyncBeaverLock, IBeaverLock
-from .logs import LogManager
+from .logs import AsyncBeaverLog, IBeaverLog
 from .manager import AsyncBeaverBase
 from .queues import AsyncBeaverQueue, IBeaverQueue
 from .sketches import SketchManager
@@ -443,14 +443,14 @@ class AsyncBeaverDB:
     def collection(self, name: str, model: Type | None = None):
         return self.singleton(CollectionManager, name, model=model)
 
-    def channel(self, name: str, model: type | None = None):
-        return self.singleton(ChannelManager, name, model=model)
+    def channel(self, name: str, model: type | None = None) -> AsyncBeaverChannel:
+        return self.singleton(AsyncBeaverChannel, name, model=model)
 
     def blob(self, name: str, model: type | None = None) -> AsyncBeaverBlob:
         return self.singleton(AsyncBeaverBlob, name, model=model)
 
-    def log(self, name: str, model: type | None = None):
-        return self.singleton(LogManager, name, model=model)
+    def log(self, name: str, model: type | None = None) -> AsyncBeaverLog:
+        return self.singleton(AsyncBeaverLog, name, model=model)
 
     def lock(
         self, name: str, timeout=None, lock_ttl=60.0, poll_interval=0.1
@@ -546,13 +546,13 @@ class BeaverDB:
     def collection(self, name: str, model: Type | None = None):
         return self._get_manager("collection", name, model)
 
-    def channel(self, name: str, model: type | None = None):
+    def channel(self, name: str, model: type | None = None) -> IBeaverChannel:
         return self._get_manager("channel", name, model)
 
     def blob(self, name: str, model: type | None = None) -> IBeaverBlob:
         return self._get_manager("blob", name, model)
 
-    def log(self, name: str, model: type | None = None):
+    def log(self, name: str, model: type | None = None) -> IBeaverLog:
         return self._get_manager("log", name, model)
 
     def lock(

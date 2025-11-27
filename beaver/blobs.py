@@ -181,14 +181,12 @@ class AsyncBeaverBlob[T: BaseModel](AsyncBeaverBase[T]):
             yield (row["key"], row["data"])
 
     async def dump(
-        self, fp: IO[str] | None = None, payload: bool = False
+        self, fp: IO[str] | None = None, *, payload: bool = False
     ) -> dict | None:
         """
         Dumps blobs to a JSON-compatible object.
-        Note: Binary data is not serialized here to avoid huge JSONs.
-        Ideally we would base64 encode, but for simplicity we dump metadata only or summary.
-        Given the previous implementation didn't specify dump logic for blobs clearly,
-        we'll implement a metadata dump.
+        Note: Binary data is serialized to base-64 strings, *only* when payload=True.
+        Otherwise, only metadata is dumped.
         """
         items = []
         async for key in self.keys():

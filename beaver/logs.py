@@ -1,366 +1,187 @@
 import asyncio
-import collections
 import json
-import threading
-import weakref
 import time
-from datetime import datetime, timedelta, timezone
-from queue import Empty, Queue
-from typing import IO, Any, AsyncIterator, Callable, Iterator, Type, TypeVar, overload
+import sqlite3
+from typing import (
+    IO,
+    Iterator,
+    AsyncIterator,
+    Protocol,
+    runtime_checkable,
+    TYPE_CHECKING,
+    NamedTuple,
+)
 
 from pydantic import BaseModel
 
-from .types import IDatabase
-from .manager import AsyncBeaverBase, atomic
+from .manager import AsyncBeaverBase, atomic, emits
 
-# A special message object used to signal the iterator to gracefully shut down.
-_SHUTDOWN_SENTINEL = object()
+if TYPE_CHECKING:
+    from .core import AsyncBeaverDB
 
 
-class LiveIterator[T, R]:
+class LogEntry[T](NamedTuple):
+    """A single log entry with timestamp and data."""
+
+    timestamp: float
+    data: T
+
+
+@runtime_checkable
+class IBeaverLog[T](Protocol):
     """
-    A thread-safe, blocking iterator that yields aggregated results from a
-    rolling window of log data.
+    The Synchronous Protocol exposed to the user via BeaverBridge.
     """
 
-    def __init__(
+    def log(self, data: T, timestamp: float | None = None) -> None: ...
+    def range(
         self,
-        db: IDatabase,
-        log_name: str,
-        window: timedelta,
-        period: timedelta,
-        aggregator: Callable[[list[T]], R],
-        deserializer: Callable[[str], T],
-    ):
-        self._db = db
-        self._log_name = log_name
-        self._window_duration_seconds = window.total_seconds()
-        self._sampling_period_seconds = period.total_seconds()
-        self._aggregator = aggregator
-        self._deserializer = deserializer
-        self._queue: Queue = Queue()
-        self._stop_event = threading.Event()
-        self._thread: threading.Thread | None = None
+        start: float | None = None,
+        end: float | None = None,
+        limit: int | None = None,
+    ) -> list[LogEntry[T]]: ...
 
-    def _polling_loop(self):
-        """The main loop for the background thread that queries and aggregates data."""
-        # Each thread needs its own database connection.
-        thread_conn = self._db.connection
-        window_deque: collections.deque[tuple[float, T]] = collections.deque()
-        last_seen_timestamp = 0.0
+    def live(self, poll_interval: float = 0.1) -> Iterator[LogEntry[T]]: ...
 
-        # --- Initial window population ---
-        now = datetime.now(timezone.utc).timestamp()
-        start_time = now - self._window_duration_seconds
-        cursor = thread_conn.cursor()
-        cursor.execute(
-            "SELECT timestamp, data FROM beaver_logs WHERE log_name = ? AND timestamp >= ? ORDER BY timestamp ASC",
-            (self._log_name, start_time),
-        )
-        for row in cursor:
-            ts, data_str = row
-            window_deque.append((ts, self._deserializer(data_str)))
-            last_seen_timestamp = max(last_seen_timestamp, ts)
-
-        # Yield the first result
-        try:
-            initial_result = self._aggregator([item[1] for item in window_deque])
-            self._queue.put(initial_result)
-        except Exception as e:
-            # Propagate aggregator errors to the main thread
-            self._queue.put(e)
-
-        # --- Continuous polling loop ---
-        while not self._stop_event.is_set():
-            time.sleep(self._sampling_period_seconds)
-
-            # Fetch only new data since the last check
-            cursor.execute(
-                "SELECT timestamp, data FROM beaver_logs WHERE log_name = ? AND timestamp > ? ORDER BY timestamp ASC",
-                (self._log_name, last_seen_timestamp),
-            )
-            for row in cursor:
-                ts, data_str = row
-                window_deque.append((ts, self._deserializer(data_str)))
-                last_seen_timestamp = max(last_seen_timestamp, ts)
-
-            # Evict old data from the left of the deque
-            now = datetime.now(timezone.utc).timestamp()
-            eviction_time = now - self._window_duration_seconds
-            while window_deque and window_deque[0][0] < eviction_time:
-                window_deque.popleft()
-
-            # Run aggregator and yield the new result
-            try:
-                new_result = self._aggregator([item[1] for item in window_deque])
-                self._queue.put(new_result)
-            except Exception as e:
-                self._queue.put(e)
-
-        thread_conn.close()
-
-    def __iter__(self) -> "LiveIterator[T,R]":
-        self._thread = threading.Thread(target=self._polling_loop, daemon=True)
-        self._thread.start()
-        return self
-
-    def __next__(self) -> R:
-        result = self._queue.get()
-
-        if result is _SHUTDOWN_SENTINEL:
-            raise StopIteration
-
-        if isinstance(result, Exception):
-            # If the background thread put an exception in the queue, re-raise it
-            raise result
-
-        return result
-
-    def close(self):
-        """Stops the background polling thread."""
-        if self._stop_event.is_set():
-            return
-
-        self._stop_event.set()
-        self._queue.put(_SHUTDOWN_SENTINEL)
-
-        if self._thread:
-            self._thread.join()
-            self._thread = None
-
-    def __enter__(self) -> "LiveIterator[T,R]":
-        return self.__iter__()
-
-    def __exit__(self, *args):
-        self.close()
+    def clear(self) -> None: ...
+    def count(self) -> int: ...
+    def dump(self, fp: IO[str] | None = None) -> dict | None: ...
 
 
-class AsyncLiveIterator[T, R]:
-    """An async wrapper for the LiveIterator."""
-
-    def __init__(self, sync_iterator: LiveIterator[T, R]):
-        self._sync_iterator = sync_iterator
-
-    async def __anext__(self) -> R:
-        try:
-            return await asyncio.to_thread(self._sync_iterator.__next__)
-        except StopIteration:
-            raise StopAsyncIteration
-
-    def __aiter__(self) -> "AsyncLiveIterator[T,R]":
-        # The synchronous iterator's __iter__ method starts the thread.
-        # This is non-blocking, so it's safe to call directly.
-        self._sync_iterator.__iter__()
-        return self
-
-    def close(self):
-        self._sync_iterator.close()
-
-
-class AsyncLogManager[T]:
-    """An async-compatible wrapper for the LogManager."""
-
-    def __init__(self, sync_manager: "LogManager[T]"):
-        self._sync_manager = sync_manager
-
-    async def log(self, data: T, timestamp: datetime | None = None) -> None:
-        """Asynchronously adds a new entry to the log."""
-        await asyncio.to_thread(self._sync_manager.log, data, timestamp)
-
-    async def range(self, start: datetime, end: datetime) -> list[T]:
-        """Asynchronously retrieves all log entries within a specific time window."""
-        return await asyncio.to_thread(self._sync_manager.range, start, end)
-
-    def live[R](
-        self,
-        window: timedelta,
-        period: timedelta,
-        aggregator: Callable[[list[T]], R],
-    ) -> AsyncIterator[R]:
-        """Returns an async, infinite iterator for real-time log analysis."""
-        sync_iterator = self._sync_manager.live(window, period, aggregator)
-        return AsyncLiveIterator(sync_iterator)
-
-
-class LogManager[T: BaseModel](AsyncBeaverBase[T]):
+class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T]):
     """
-    A wrapper for interacting with a named, time-indexed log, providing
-    type-safe and async-compatible methods.
+    A wrapper providing a Pythonic interface to a time-indexed log.
+    Refactored for Async-First architecture (v2.0).
     """
 
-    def __init__(self, name: str, db: IDatabase, model: Type[T] | None = None):
-        super().__init__(name, db, model)
-        # Use WeakSet so we don't keep iterators alive if the user drops them
-        self._active_iterators = weakref.WeakSet[LiveIterator]()
-
+    @emits("log", payload=lambda data, *args, **kwargs: dict(data=data))
     @atomic
-    def log(self, data: T, timestamp: datetime | None = None) -> None:
+    async def log(self, data: T, timestamp: float | None = None):
         """
-        Adds a new entry to the log.
-
-        Args:
-            data: The JSON-serializable data to store. If a model is used, this
-                  should be an instance of that model.
-            timestamp: A timezone-naive datetime object. If not provided,
-                       `datetime.now()` is used.
+        Appends an entry to the log.
+        Ensures timestamp uniqueness (PK constraint) by micro-incrementing on collision.
         """
-        ts = timestamp or datetime.now(timezone.utc)
-        ts_float = ts.timestamp()
+        ts = timestamp or time.time()
+        serialized_data = self._serialize(data)
 
-        self.connection.execute(
-            "INSERT INTO beaver_logs (log_name, timestamp, data) VALUES (?, ?, ?)",
-            (self._name, ts_float, self._serialize(data)),
-        )
+        # Retry loop to handle PK collisions (same microsecond)
+        while True:
+            try:
+                await self.connection.execute(
+                    "INSERT INTO __beaver_logs__ (log_name, timestamp, data) VALUES (?, ?, ?)",
+                    (self._name, ts, serialized_data),
+                )
+                break
+            except sqlite3.IntegrityError:
+                # Collision detected: shift by 1 microsecond and retry
+                ts += 0.000001
 
-    def range(self, start: datetime, end: datetime) -> list[T]:
-        """
-        Retrieves all log entries within a specific time window.
-
-        Args:
-            start: The start of the time range (inclusive).
-            end: The end of the time range (inclusive).
-
-        Returns:
-            A list of log entries, deserialized into the specified model if provided.
-        """
-        start_ts = start.timestamp()
-        end_ts = end.timestamp()
-
-        cursor = self.connection.cursor()
-        cursor.execute(
-            "SELECT data FROM beaver_logs WHERE log_name = ? AND timestamp BETWEEN ? AND ? ORDER BY timestamp ASC",
-            (self._name, start_ts, end_ts),
-        )
-        return [self._deserialize(row["data"]) for row in cursor.fetchall()]
-
-    def live[R](
+    async def range(
         self,
-        window: timedelta,
-        period: timedelta,
-        aggregator: Callable[[list[T]], R],
-    ) -> Iterator[R]:
+        start: float | None = None,
+        end: float | None = None,
+        limit: int | None = None,
+    ) -> list[LogEntry[T]]:
         """
-        Returns a blocking, infinite iterator for real-time log analysis.
-
-        This maintains a sliding window of log entries and yields the result
-        of an aggregator function at specified intervals.
-
-        Args:
-            window: The duration of the sliding window (e.g., `timedelta(minutes=5)`).
-            period: The interval at which to update and yield a new result
-                             (e.g., `timedelta(seconds=10)`).
-            aggregator: A function that takes a list of log entries (the window) and
-                        returns a single, aggregated result.
-
-        Returns:
-            An iterator that yields the results of the aggregator.
+        Retrieves a list of log entries within a time range.
         """
-        iterator = LiveIterator(
-            db=self._db,
-            log_name=self._name,
-            window=window,
-            period=period,
-            aggregator=aggregator,
-            deserializer=self._deserialize,
+        query = "SELECT timestamp, data FROM __beaver_logs__ WHERE log_name = ?"
+        params = [self._name]
+
+        if start is not None:
+            query += " AND timestamp >= ?"
+            params.append(start)
+
+        if end is not None:
+            query += " AND timestamp <= ?"
+            params.append(end)
+
+        query += " ORDER BY timestamp ASC"
+
+        if limit is not None:
+            query += " LIMIT ?"
+            params.append(limit)
+
+        cursor = await self.connection.execute(query, tuple(params))
+        rows = await cursor.fetchall()
+
+        return [
+            LogEntry(timestamp=row["timestamp"], data=self._deserialize(row["data"]))
+            for row in rows
+        ]
+
+    async def live(self, poll_interval: float = 0.1) -> AsyncIterator[LogEntry[T]]:
+        """
+        Yields new log entries as they are added in real-time.
+        This is an infinite async generator.
+        """
+        # Start trailing from "now"
+        last_ts = time.time()
+
+        while True:
+            # Poll for new items since last_ts
+            cursor = await self.connection.execute(
+                """
+                SELECT timestamp, data FROM __beaver_logs__
+                WHERE log_name = ? AND timestamp > ?
+                ORDER BY timestamp ASC
+                """,
+                (self._name, last_ts),
+            )
+            rows = await cursor.fetchall()
+
+            if rows:
+                last_ts = rows[-1]["timestamp"]
+                for row in rows:
+                    yield LogEntry(
+                        timestamp=row["timestamp"], data=self._deserialize(row["data"])
+                    )
+
+            # Non-blocking sleep yields control to the event loop
+            await asyncio.sleep(poll_interval)
+
+    async def count(self) -> int:
+        """Returns the total number of entries in the log."""
+        cursor = await self.connection.execute(
+            "SELECT COUNT(*) FROM __beaver_logs__ WHERE log_name = ?", (self._name,)
         )
-        self._active_iterators.add(iterator)
-        return iterator
+        row = await cursor.fetchone()
+        return row[0] if row else 0
 
-    def as_async(self) -> AsyncLogManager[T]:
-        """Returns an async-compatible version of the log manager."""
-        return AsyncLogManager(self)
-
-    def __iter__(self) -> Iterator[tuple[float, T]]:
-        """Returns an iterator over all log entries, in chronological order.
-
-        Yields:
-            A dictionary for each log entry with keys "timestamp" and "data".
-            The "data" is deserialized.
-        """
-        cursor = self.connection.cursor()
-        cursor.execute(
-            "SELECT timestamp, data FROM beaver_logs WHERE log_name = ? ORDER BY timestamp ASC",
-            (self._name,),
+    @emits("clear", payload=lambda *args, **kwargs: dict())
+    @atomic
+    async def clear(self):
+        """Clears all entries in this log."""
+        await self.connection.execute(
+            "DELETE FROM __beaver_logs__ WHERE log_name = ?", (self._name,)
         )
-        try:
-            for row in cursor:
-                yield (row["timestamp"], self._deserialize(row["data"]))
-        finally:
-            cursor.close()
 
-    def _get_dump_object(self) -> dict:
-        """Builds the JSON-compatible dump object."""
+    async def dump(self, fp: IO[str] | None = None) -> dict | None:
+        """
+        Dumps the entire log to a JSON-compatible object.
+        """
+        # Retrieve all items
+        entries = await self.range()
 
         items_list = []
-        # Use the new __iter__ method
-        for timestamp, data in self:
+        for entry in entries:
+            val = entry.data
+            if self._model and isinstance(val, BaseModel):
+                val = json.loads(val.model_dump_json())
 
-            # Handle model instances
-            if self._model and isinstance(data, BaseModel):
-                data = json.loads(data.model_dump_json())
+            items_list.append({"timestamp": entry.timestamp, "data": val})
 
-            items_list.append(
-                {
-                    "timestamp": timestamp,
-                    "data": data,
-                }
-            )
-
-        metadata = {
-            "type": "Log",
-            "name": self._name,
-            "count": len(items_list),
-            "dump_date": datetime.now(timezone.utc).isoformat(),
+        dump_obj = {
+            "metadata": {
+                "type": "Log",
+                "name": self._name,
+                "count": len(items_list),
+            },
+            "items": items_list,
         }
 
-        return {"metadata": metadata, "items": items_list}
-
-    @overload
-    def dump(self) -> dict:
-        pass
-
-    @overload
-    def dump(self, fp: IO[str]) -> None:
-        pass
-
-    def dump(self, fp: IO[str] | None = None) -> dict | None:
-        """
-        Dumps the entire contents of the log to a JSON-compatible
-        Python object or a file-like object.
-
-        Args:
-            fp: A file-like object opened in text mode (e.g., with 'w').
-                If provided, the JSON dump will be written to this file.
-                If None (default), the dump will be returned as a dictionary.
-
-        Returns:
-            A dictionary containing the dump if fp is None.
-            None if fp is provided.
-        """
-        dump_object = self._get_dump_object()
-
         if fp:
-            json.dump(dump_object, fp, indent=2)
+            json.dump(dump_obj, fp, indent=2)
             return None
 
-        return dump_object
-
-    @atomic
-    def clear(self):
-        """
-        Atomically removes all entries from this log.
-        """
-        self.connection.execute(
-            "DELETE FROM beaver_logs WHERE log_name = ?",
-            (self._name,),
-        )
-
-    def close(self):
-        """Stops all active background polling threads for this log."""
-        for iterator in self._active_iterators:
-            try:
-                iterator.close()
-            except Exception:
-                pass
-
-        self._active_iterators.clear()
+        return dump_obj
