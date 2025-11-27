@@ -1,40 +1,64 @@
 import base64
-from datetime import datetime, timezone
 import json
 import time
-from typing import IO, Any, Iterator, Tuple, overload
+from typing import IO, Any, Iterator, Tuple, overload, Protocol, runtime_checkable, TYPE_CHECKING
 
 from pydantic import BaseModel
 
-from .manager import ManagerBase, synced, emits
+from .manager import AsyncBeaverBase, atomic, emits
 from .security import Cipher
 
+if TYPE_CHECKING:
+    from .core import AsyncBeaverDB
 
-class DictManager[T: BaseModel](ManagerBase[T]):
-    """A wrapper providing a Pythonic interface to a dictionary in the database."""
+
+@runtime_checkable
+class IBeaverDict[T](Protocol):
+    """
+    The Synchronous Protocol exposed to the user via BeaverBridge.
+    """
+    def __getitem__(self, key: str) -> T: ...
+    def __setitem__(self, key: str, value: T) -> None: ...
+    def __delitem__(self, key: str) -> None: ...
+    def __len__(self) -> int: ...
+    def __contains__(self, key: str) -> bool: ...
+    def __iter__(self) -> Iterator[str]: ...
+
+    def get(self, key: str) -> T: ...
+    def set(self, key: str, value: T, ttl_seconds: float | None = None) -> None: ...
+    def delete(self, key: str) -> None: ...
+
+    def fetch(self, key: str, default: Any = None) -> T | Any: ...
+    def pop(self, key: str, default: Any = None) -> T | Any: ...
+    def keys(self) -> Iterator[str]: ...
+    def values(self) -> Iterator[T]: ...
+    def items(self) -> Iterator[Tuple[str, T]]: ...
+    def clear(self) -> None: ...
+    def count(self) -> int: ...
+    def dump(self, fp: IO[str] | None = None) -> dict | None: ...
+
+
+class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T]):
+    """
+    A wrapper providing a Pythonic interface to a dictionary in the database.
+    Refactored for Async-First architecture (v2.0).
+    """
 
     def __init__(
         self,
         name: str,
-        db: Any,
+        db: "AsyncBeaverDB",
         model: type[T] | None = None,
         secret: str | None = None,
     ):
         super().__init__(name, db, model)
         self._cipher: Cipher | None = None
+        self._secret_arg = secret
 
-        # Validating: If no secret provided, verify it's NOT an encrypted dict
-        if secret is None and not self.is_system():
-            # Access the internal security registry
-            security_store = self._db._security_dict  # type: ignore
-
-            if self._name in security_store:
-                raise ValueError(
-                    f"Dictionary '{self._name}' is encrypted. You must provide a secret to open it."
-                )
-
-        if secret:
-            self._setup_security(secret)
+    async def _init(self):
+        """Async initialization hook."""
+        if self._secret_arg or not self.is_system():
+            await self._setup_security(self._secret_arg)
 
     def is_system(self):
         return self._name in [
@@ -43,75 +67,73 @@ class DictManager[T: BaseModel](ManagerBase[T]):
             "__beaver_event_registry__",
         ]
 
-    def _setup_security(self, secret: str):
+    async def _setup_security(self, secret: str | None):
         """
         Initializes the encryption cipher.
-        Loads (or creates) the salt and verifier from the internal __security__ dict.
+        Reads directly from the internal __beaver_dicts__ table to avoid recursion.
         """
         if self._name == "__security__":
-            raise ValueError(
-                "The internal '__security__' dictionary cannot be encrypted."
-            )
+            if secret:
+                raise ValueError("The internal '__security__' dictionary cannot be encrypted.")
+            return
 
-        # Access the internal security registry (plain text)
-        security_store = self._db._security_dict  # type: ignore
-        metadata = security_store.get(self._name)
+        cursor = await self.connection.execute(
+            "SELECT value FROM __beaver_dicts__ WHERE dict_name = ? AND key = ?",
+            ("__security__", self._name)
+        )
+        row = await cursor.fetchone()
+        metadata = json.loads(row["value"]) if row else None
+
+        if secret is None:
+            if metadata:
+                raise ValueError(
+                    f"Dictionary '{self._name}' is encrypted. You must provide a secret to open it."
+                )
+            return
 
         if metadata:
-            # Case 1: Existing secure dictionary. Load and verify.
             try:
                 salt = base64.b64decode(metadata["salt"])
                 verifier_encrypted = base64.b64decode(metadata["verifier"])
             except (KeyError, TypeError, ValueError):
-                raise ValueError(
-                    f"Corrupted security metadata for dictionary '{self._name}'."
-                )
+                raise ValueError(f"Corrupted security metadata for dictionary '{self._name}'.")
 
             cipher = Cipher(secret, salt=salt)
 
-            # Verify the secret by attempting to decrypt the known token
             try:
                 decrypted = cipher.decrypt(verifier_encrypted)
                 if decrypted != b"beaver-secure":
                     raise ValueError("Invalid secret.")
             except Exception:
-                raise ValueError(
-                    f"Invalid secret for dictionary '{self._name}' (or corrupted data)."
-                )
+                raise ValueError(f"Invalid secret for dictionary '{self._name}'.")
 
             self._cipher = cipher
-
         else:
-            # Case 2: New secure dictionary. Initialize and store metadata.
             cipher = Cipher(secret)
             salt = cipher.salt
-
-            # Create a verifier token (encrypt a known value)
             verifier_encrypted = cipher.encrypt(b"beaver-secure")
 
-            # Store metadata
-            security_store[self._name] = {
+            new_metadata = {
                 "salt": base64.b64encode(salt).decode("utf-8"),
                 "verifier": base64.b64encode(verifier_encrypted).decode("utf-8"),
                 "created_at": time.time(),
             }
+
+            await self.connection.execute(
+                "INSERT OR REPLACE INTO __beaver_dicts__ (dict_name, key, value, expires_at) VALUES (?, ?, ?, ?)",
+                ("__security__", self._name, json.dumps(new_metadata), None)
+            )
+            await self.connection.commit()
             self._cipher = cipher
 
     def _serialize(self, value: T) -> str:
-        """Serializes and optionally encrypts the value."""
-        # 1. Base serialization (Pydantic/JSON -> str)
         json_str = super()._serialize(value)
-
-        # 2. Encryption (str -> encrypted bytes -> base64 str)
         if self._cipher:
             encrypted_bytes = self._cipher.encrypt(json_str.encode("utf-8"))
             return base64.urlsafe_b64encode(encrypted_bytes).decode("utf-8")
-
         return json_str
 
     def _deserialize(self, value: str) -> T:
-        """Optionally decrypts and then deserializes the value."""
-        # 1. Decryption (base64 str -> encrypted bytes -> decrypted bytes -> str)
         json_str = value
         if self._cipher:
             try:
@@ -119,248 +141,158 @@ class DictManager[T: BaseModel](ManagerBase[T]):
                 json_str = self._cipher.decrypt(encrypted_bytes).decode("utf-8")
             except Exception as e:
                 raise ValueError(
-                    f"Failed to decrypt value in dictionary '{self._name}'. "
-                    "Data may be corrupted or from a different encryption session."
+                    f"Failed to decrypt value in dictionary '{self._name}'."
                 ) from e
-
-        # 2. Base deserialization (str -> T)
         return super()._deserialize(json_str)
 
-    def _get_dump_object(self) -> dict:
-        """Builds the JSON-compatible dump object."""
-        items = []
-
-        for k, v in self.items():
-            item_value = v
-            # Check if a model is defined and the value is a model instance
-            if self._model and isinstance(v, BaseModel):
-                # Use the model's serializer to get its string representation,
-                # then parse that string back into a dict.
-                # This ensures the dump contains serializable dicts, not model objects.
-                item_value = json.loads(v.model_dump_json())
-
-            items.append({"key": k, "value": item_value})
-
-        metadata = {
-            "type": "Dict",
-            "name": self._name,
-            "count": len(items),
-            "dump_date": datetime.now(timezone.utc).isoformat(),
-            "encrypted": self._cipher is not None,
-        }
-
-        return {"metadata": metadata, "items": items}
-
-    @overload
-    def dump(self) -> dict:
-        pass
-
-    @overload
-    def dump(self, fp: IO[str]) -> None:
-        pass
-
-    def dump(self, fp: IO[str] | None = None) -> dict | None:
-        """
-        Dumps the entire contents of the dictionary to a JSON-compatible
-        Python object or a file-like object.
-
-        Args:
-            fp: A file-like object opened in text mode (e.g., with 'w').
-                If provided, the JSON dump will be written to this file.
-                If None (default), the dump will be returned as a dictionary.
-
-        Returns:
-            A dictionary containing the dump if fp is None.
-            None if fp is provided.
-        """
-        dump_object = self._get_dump_object()
-
-        if fp:
-            json.dump(dump_object, fp, indent=2)
-            return None
-
-        return dump_object
-
-    def set(self, key: str, value: T, ttl_seconds: float | None = None):
-        """Sets a value for a key, with an optional TTL."""
-        self.__setitem__(key, value, ttl_seconds=ttl_seconds)
+    # --- Core Async API ---
 
     @emits("set", payload=lambda key, *args, **kwargs: dict(key=key))
-    @synced
-    def __setitem__(self, key: str, value: T, ttl_seconds: float | None = None):
-        """Sets a value for a key (e.g., `my_dict[key] = value`)."""
-        expires_at = None
+    @atomic
+    async def set(self, key: str, value: T, ttl_seconds: float | None = None):
+        """Sets a value for a key."""
+        if self._secret_arg and not self._cipher:
+            await self._setup_security(self._secret_arg)
 
+        expires_at = None
         if ttl_seconds is not None:
             if not isinstance(ttl_seconds, (int, float)) or ttl_seconds <= 0:
-                raise ValueError("ttl_seconds must be a positive integer or float.")
-
+                raise ValueError("ttl_seconds must be a positive number.")
             expires_at = time.time() + ttl_seconds
 
-        # Serialization (and encryption) happens here
         serialized_value = self._serialize(value)
 
-        self.connection.execute(
-            "INSERT OR REPLACE INTO beaver_dicts (dict_name, key, value, expires_at) VALUES (?, ?, ?, ?)",
+        await self.connection.execute(
+            """
+            INSERT OR REPLACE INTO __beaver_dicts__
+            (dict_name, key, value, expires_at)
+            VALUES (?, ?, ?, ?)
+            """,
             (self._name, key, serialized_value, expires_at),
         )
 
-        self.cache.set(key, (value, expires_at))
-        self.cache.touch()
+    @atomic
+    async def get(self, key: str) -> T:
+        """Retrieves a value for a key. Raises KeyError if missing or expired."""
+        if self._secret_arg and not self._cipher:
+            await self._setup_security(self._secret_arg)
 
-    def get(self, key: str, default: Any = None) -> T | Any:
-        """Gets a value for a key, with a default if it doesn't exist or is expired."""
-        try:
-            return self[key]
-        except KeyError:
-            return default
-
-    @synced
-    def __getitem__(self, key: str) -> T:
-        """Retrieves a value for a given key, raising KeyError if expired."""
-        cache = self.cache
-
-        # Cache HIT
-        if (cached := cache.get(key)) is not None:
-            value, expires_at = cached
-
-            if expires_at is None or time.time() < expires_at:
-                return value
-            else:
-                cache.pop(key)
-                raise KeyError(
-                    f"Key '{key}' not found in dictionary '{self._name}' (expired)"
-                )
-
-        # Cache MISS
-        cursor = self.connection.cursor()
-        cursor.execute(
-            "SELECT value, expires_at FROM beaver_dicts WHERE dict_name = ? AND key = ?",
+        cursor = await self.connection.execute(
+            "SELECT value, expires_at FROM __beaver_dicts__ WHERE dict_name = ? AND key = ?",
             (self._name, key),
         )
-        result = cursor.fetchone()
+        result = await cursor.fetchone()
 
         if result is None:
-            cursor.close()
             raise KeyError(f"Key '{key}' not found in dictionary '{self._name}'")
 
         raw_value, expires_at = result["value"], result["expires_at"]
 
         if expires_at is not None and time.time() > expires_at:
-            # Expired: delete the key and raise KeyError
-            with self.connection:
-                cursor.execute(
-                    "DELETE FROM beaver_dicts WHERE dict_name = ? AND key = ?",
-                    (self._name, key),
-                )
-            cursor.close()
-
-            # Evict from cache if it was there
-            cache.pop(f"dict:{self._name}.{key}")
-
-            raise KeyError(
-                f"Key '{key}' not found in dictionary '{self._name}' (expired)"
+            await self.connection.execute(
+                "DELETE FROM __beaver_dicts__ WHERE dict_name = ? AND key = ?",
+                (self._name, key),
             )
+            raise KeyError(f"Key '{key}' not found in dictionary '{self._name}' (expired)")
 
-        cursor.close()
-
-        # Deserialization (and decryption) happens here
-        result_obj = self._deserialize(raw_value)
-
-        # Update cache
-        cache.set(key, (result_obj, expires_at))
-        return result_obj
-
-    @synced
-    def pop(self, key: str, default: Any = None) -> T | Any:
-        """Deletes an item if it exists and returns its value."""
-        try:
-            value = self[key]
-            self.__delitem__(key)
-            return value
-        except KeyError:
-            return default
+        return self._deserialize(raw_value)
 
     @emits("del", payload=lambda key, *args, **kwargs: dict(key=key))
-    @synced
-    def __delitem__(self, key: str):
-        """Deletes a key-value pair (e.g., `del my_dict[key]`)."""
-        cursor = self.connection.cursor()
-        cursor.execute(
-            "DELETE FROM beaver_dicts WHERE dict_name = ? AND key = ?",
+    @atomic
+    async def delete(self, key: str):
+        """Deletes a key. Raises KeyError if missing."""
+        cursor = await self.connection.execute(
+            "DELETE FROM __beaver_dicts__ WHERE dict_name = ? AND key = ?",
             (self._name, key),
         )
-
-        # Evict from cache
-        self.cache.pop(key)
-        self.cache.touch()
 
         if cursor.rowcount == 0:
             raise KeyError(f"Key '{key}' not found in dictionary '{self._name}'")
 
-    def __len__(self) -> int:
-        """Returns the number of items in the dictionary."""
-        cursor = self.connection.cursor()
-        cursor.execute(
-            "SELECT COUNT(*) FROM beaver_dicts WHERE dict_name = ?", (self._name,)
-        )
-        count = cursor.fetchone()[0]
-        cursor.close()
-        return count
-
-    def __iter__(self) -> Iterator[str]:
-        """Returns an iterator over the keys of the dictionary."""
-        return self.keys()
-
-    def keys(self) -> Iterator[str]:
-        """Returns an iterator over the dictionary's keys."""
-        cursor = self.connection.cursor()
-        cursor.execute(
-            "SELECT key FROM beaver_dicts WHERE dict_name = ?", (self._name,)
-        )
-        for row in cursor:
-            yield row["key"]
-        cursor.close()
-
-    def values(self) -> Iterator[T]:
-        """Returns an iterator over the dictionary's values."""
-        cursor = self.connection.cursor()
-        cursor.execute(
-            "SELECT value FROM beaver_dicts WHERE dict_name = ?", (self._name,)
-        )
-        for row in cursor:
-            yield self._deserialize(row["value"])
-        cursor.close()
-
-    def items(self) -> Iterator[Tuple[str, T]]:
-        """Returns an iterator over the dictionary's items (key-value pairs)."""
-        cursor = self.connection.cursor()
-        cursor.execute(
-            "SELECT key, value FROM beaver_dicts WHERE dict_name = ?", (self._name,)
-        )
-        for row in cursor:
-            yield (row["key"], self._deserialize(row["value"]))
-        cursor.close()
-
-    def __repr__(self) -> str:
-        secure_tag = " [Secure]" if self._cipher else ""
-        return f"DictManager(name='{self._name}'{secure_tag})"
-
-    def __contains__(self, key: str) -> bool:
-        """Checks if a key exists in the dictionary."""
+    async def fetch(self, key: str, default: Any = None) -> T | Any:
         try:
-            _ = self[key]
-            return True
+            return await self.get(key)
         except KeyError:
-            return False
+            return default
+
+    @atomic
+    async def pop(self, key: str, default: Any = None) -> T | Any:
+        try:
+            value = await self.get(key)
+            await self.delete(key)
+            return value
+        except KeyError:
+            return default
+
+    async def count(self) -> int:
+        cursor = await self.connection.execute(
+            "SELECT COUNT(*) FROM __beaver_dicts__ WHERE dict_name = ?", (self._name,)
+        )
+        row = await cursor.fetchone()
+        return row[0] if row else 0
+
+    async def contains(self, key: str) -> bool:
+        cursor = await self.connection.execute(
+            "SELECT 1 FROM __beaver_dicts__ WHERE dict_name = ? AND key = ? LIMIT 1",
+            (self._name, key)
+        )
+        return await cursor.fetchone() is not None
 
     @emits("clear", payload=lambda *args, **kwargs: dict())
-    @synced
-    def clear(self):
-        """
-        Atomically removes all key-value pairs from this dictionary.
-        """
-        self.connection.execute(
-            "DELETE FROM beaver_dicts WHERE dict_name = ?",
+    @atomic
+    async def clear(self):
+        await self.connection.execute(
+            "DELETE FROM __beaver_dicts__ WHERE dict_name = ?",
             (self._name,),
         )
+
+    # --- Iterators (Async Generators) ---
+
+    async def __aiter__(self):
+        async for key in self.keys():
+            yield key
+
+    async def keys(self):
+        cursor = await self.connection.execute(
+            "SELECT key FROM __beaver_dicts__ WHERE dict_name = ?", (self._name,)
+        )
+        async for row in cursor:
+            yield row["key"]
+
+    async def values(self):
+        cursor = await self.connection.execute(
+            "SELECT value FROM __beaver_dicts__ WHERE dict_name = ?", (self._name,)
+        )
+        async for row in cursor:
+            yield self._deserialize(row["value"])
+
+    async def items(self):
+        cursor = await self.connection.execute(
+            "SELECT key, value FROM __beaver_dicts__ WHERE dict_name = ?", (self._name,)
+        )
+        async for row in cursor:
+            yield (row["key"], self._deserialize(row["value"]))
+
+    async def dump(self, fp: IO[str] | None = None) -> dict | None:
+        items = []
+        async for k, v in self.items():
+            val = v
+            if self._model and isinstance(v, BaseModel):
+                val = json.loads(v.model_dump_json())
+            items.append({"key": k, "value": val})
+
+        dump_obj = {
+            "metadata": {
+                "type": "Dict",
+                "name": self._name,
+                "count": len(items),
+                "encrypted": self._cipher is not None
+            },
+            "items": items
+        }
+
+        if fp:
+            json.dump(dump_obj, fp, indent=2)
+            return None
+
+        return dump_obj
