@@ -69,7 +69,7 @@ class DocumentQuery:
         self._limit: int | None = None
         self._offset: int | None = None
 
-    def search(self, query: str, on: List[str] | None = None) -> "DocumentQuery":
+    def fts(self, query: str, on: List[str] | None = None) -> "DocumentQuery":
         """Adds a Full-Text Search (FTS) clause."""
         self._search_query = query
         self._search_fields = on
@@ -300,11 +300,13 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
     def query(self) -> DocumentQuery:
         return DocumentQuery(self)
 
-    async def search(self, query: str, on: List[str] | None = None):
-        return await self.query().search(query, on=on).execute()
-
-    def fuzzy(self, query: str) -> DocumentQuery:
-        return self.query().fuzzy(query)
+    async def search(
+        self, query: str, on: List[str] | None = None, fuzzy: bool = False
+    ):
+        if fuzzy:
+            return await self.query().fuzzy(query).execute()
+        else:
+            return await self.query().fts(query, on=on).execute()
 
     async def _execute_query(self, q: DocumentQuery) -> List[Document[T]]:
         """

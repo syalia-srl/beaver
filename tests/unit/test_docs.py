@@ -110,14 +110,14 @@ async def test_docs_fuzzy_search(async_db_mem: AsyncBeaverDB):
     await docs.index(body="Completely different text")
 
     # Exact search shouldn't find the typo
-    results_exact = await docs.search("quick").execute()
+    results_exact = await docs.search("quick")
     assert len(results_exact) == 1
 
     # Fuzzy search should find both "quick" and "qick" (similar trigrams)
     # "quick": qui, uic, ick
     # "qick": qic, ick
     # Overlap: ick
-    results_fuzzy = await docs.fuzzy("quick").execute()
+    results_fuzzy = await docs.search("quick", fuzzy=True)
     assert len(results_fuzzy) >= 2
     assert results_fuzzy[0].body == "The quick brown fox"
     assert results_fuzzy[1].body == "The qick brown fx"
