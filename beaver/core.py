@@ -34,6 +34,7 @@ class _TransactionContext:
     Helper context manager for AsyncBeaverDB.transaction().
     Ensures serializability on the shared aiosqlite connection.
     """
+
     def __init__(self, connection: aiosqlite.Connection, lock: asyncio.Lock):
         self.conn = connection
         self.lock = lock
@@ -127,7 +128,9 @@ class AsyncBeaverDB:
             await self._connection.execute("PRAGMA temp_store = MEMORY;")
 
         if self._pragma_mmap_size > 0:
-            await self._connection.execute(f"PRAGMA mmap_size = {self._pragma_mmap_size};")
+            await self._connection.execute(
+                f"PRAGMA mmap_size = {self._pragma_mmap_size};"
+            )
 
         await self._create_all_tables()
         # await self._check_version()
@@ -156,7 +159,9 @@ class AsyncBeaverDB:
         Raises an error if not connected.
         """
         if self._connection is None:
-            raise ConnectionError("AsyncBeaverDB is not connected. Await .connect() first.")
+            raise ConnectionError(
+                "AsyncBeaverDB is not connected. Await .connect() first."
+            )
 
         return self._connection
 
@@ -175,7 +180,8 @@ class AsyncBeaverDB:
         c = self.connection
 
         # Blobs
-        await c.execute("""
+        await c.execute(
+            """
             CREATE TABLE IF NOT EXISTS __beaver_blobs__ (
                 store_name TEXT NOT NULL,
                 key TEXT NOT NULL,
@@ -183,18 +189,22 @@ class AsyncBeaverDB:
                 metadata TEXT,
                 PRIMARY KEY (store_name, key)
             )
-        """)
+        """
+        )
 
         # Cache Versioning
-        await c.execute("""
+        await c.execute(
+            """
             CREATE TABLE IF NOT EXISTS __beaver_manager_versions__ (
                 namespace TEXT PRIMARY KEY,
                 version INTEGER NOT NULL DEFAULT 0
             )
-        """)
+        """
+        )
 
         # Collections (Vectors)
-        await c.execute("""
+        await c.execute(
+            """
             CREATE TABLE IF NOT EXISTS __beaver_collections__ (
                 collection TEXT NOT NULL,
                 item_id TEXT NOT NULL,
@@ -202,10 +212,12 @@ class AsyncBeaverDB:
                 metadata TEXT,
                 PRIMARY KEY (collection, item_id)
             )
-        """)
+        """
+        )
 
         # Dicts
-        await c.execute("""
+        await c.execute(
+            """
             CREATE TABLE IF NOT EXISTS __beaver_dicts__ (
                 dict_name TEXT NOT NULL,
                 key TEXT NOT NULL,
@@ -213,10 +225,12 @@ class AsyncBeaverDB:
                 expires_at REAL,
                 PRIMARY KEY (dict_name, key)
             )
-        """)
+        """
+        )
 
         # Edges (Graph)
-        await c.execute("""
+        await c.execute(
+            """
             CREATE TABLE IF NOT EXISTS __beaver_edges__ (
                 collection TEXT NOT NULL,
                 source_item_id TEXT NOT NULL,
@@ -225,10 +239,12 @@ class AsyncBeaverDB:
                 metadata TEXT,
                 PRIMARY KEY (collection, source_item_id, target_item_id, label)
             )
-        """)
+        """
+        )
 
         # FTS (Virtual Table)
-        await c.execute("""
+        await c.execute(
+            """
             CREATE VIRTUAL TABLE IF NOT EXISTS __beaver_fts_index__ USING fts5(
                 collection,
                 item_id,
@@ -236,20 +252,24 @@ class AsyncBeaverDB:
                 field_content,
                 tokenize = 'porter'
             )
-        """)
+        """
+        )
 
         # Lists
-        await c.execute("""
+        await c.execute(
+            """
             CREATE TABLE IF NOT EXISTS __beaver_lists__ (
                 list_name TEXT NOT NULL,
                 item_order REAL NOT NULL,
                 item_value TEXT NOT NULL,
                 PRIMARY KEY (list_name, item_order)
             )
-        """)
+        """
+        )
 
         # Locks
-        await c.execute("""
+        await c.execute(
+            """
             CREATE TABLE IF NOT EXISTS __beaver_lock_waiters__ (
                 lock_name TEXT NOT NULL,
                 waiter_id TEXT NOT NULL,
@@ -257,44 +277,62 @@ class AsyncBeaverDB:
                 expires_at REAL NOT NULL,
                 PRIMARY KEY (lock_name, requested_at)
             )
-        """)
-        await c.execute("CREATE INDEX IF NOT EXISTS idx_lock_expires ON __beaver_lock_waiters__ (lock_name, expires_at)")
-        await c.execute("CREATE INDEX IF NOT EXISTS idx_lock_waiter_id ON __beaver_lock_waiters__ (lock_name, waiter_id)")
+        """
+        )
+        await c.execute(
+            "CREATE INDEX IF NOT EXISTS idx_lock_expires ON __beaver_lock_waiters__ (lock_name, expires_at)"
+        )
+        await c.execute(
+            "CREATE INDEX IF NOT EXISTS idx_lock_waiter_id ON __beaver_lock_waiters__ (lock_name, waiter_id)"
+        )
 
         # Logs
-        await c.execute("""
+        await c.execute(
+            """
             CREATE TABLE IF NOT EXISTS __beaver_logs__ (
                 log_name TEXT NOT NULL,
                 timestamp REAL NOT NULL,
                 data TEXT NOT NULL,
                 PRIMARY KEY (log_name, timestamp)
             )
-        """)
-        await c.execute("CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON __beaver_logs__ (log_name, timestamp)")
+        """
+        )
+        await c.execute(
+            "CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON __beaver_logs__ (log_name, timestamp)"
+        )
 
         # Priority Queues
-        await c.execute("""
+        await c.execute(
+            """
             CREATE TABLE IF NOT EXISTS __beaver_priority_queues__ (
                 queue_name TEXT NOT NULL,
                 priority REAL NOT NULL,
                 timestamp REAL NOT NULL,
                 data TEXT NOT NULL
             )
-        """)
-        await c.execute("CREATE INDEX IF NOT EXISTS idx_priority_queue_order ON __beaver_priority_queues__ (queue_name, priority ASC, timestamp ASC)")
+        """
+        )
+        await c.execute(
+            "CREATE INDEX IF NOT EXISTS idx_priority_queue_order ON __beaver_priority_queues__ (queue_name, priority ASC, timestamp ASC)"
+        )
 
         # PubSub
-        await c.execute("""
+        await c.execute(
+            """
             CREATE TABLE IF NOT EXISTS __beaver_pubsub_log__ (
                 timestamp REAL PRIMARY KEY,
                 channel_name TEXT NOT NULL,
                 message_payload TEXT NOT NULL
             )
-        """)
-        await c.execute("CREATE INDEX IF NOT EXISTS idx_pubsub_channel_timestamp ON __beaver_pubsub_log__ (channel_name, timestamp)")
+        """
+        )
+        await c.execute(
+            "CREATE INDEX IF NOT EXISTS idx_pubsub_channel_timestamp ON __beaver_pubsub_log__ (channel_name, timestamp)"
+        )
 
         # Trigrams (Fuzzy)
-        await c.execute("""
+        await c.execute(
+            """
             CREATE TABLE IF NOT EXISTS __beaver_trigrams__ (
                 collection TEXT NOT NULL,
                 item_id TEXT NOT NULL,
@@ -302,30 +340,40 @@ class AsyncBeaverDB:
                 trigram TEXT NOT NULL,
                 PRIMARY KEY (collection, field_path, trigram, item_id)
             )
-        """)
-        await c.execute("CREATE INDEX IF NOT EXISTS idx_trigram_lookup ON __beaver_trigrams__ (collection, trigram, field_path)")
+        """
+        )
+        await c.execute(
+            "CREATE INDEX IF NOT EXISTS idx_trigram_lookup ON __beaver_trigrams__ (collection, trigram, field_path)"
+        )
 
         # Vector Change Log
-        await c.execute("""
+        await c.execute(
+            """
             CREATE TABLE IF NOT EXISTS __beaver_vector_change_log__ (
                 log_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 collection_name TEXT NOT NULL,
                 item_id TEXT NOT NULL,
                 operation_type INTEGER NOT NULL
             )
-        """)
-        await c.execute("CREATE INDEX IF NOT EXISTS idx_vcl_lookup ON __beaver_vector_change_log__ (collection_name, log_id)")
+        """
+        )
+        await c.execute(
+            "CREATE INDEX IF NOT EXISTS idx_vcl_lookup ON __beaver_vector_change_log__ (collection_name, log_id)"
+        )
 
         # Collection Versions
-        await c.execute("""
+        await c.execute(
+            """
             CREATE TABLE IF NOT EXISTS __beaver_collection_versions__ (
                 collection_name TEXT PRIMARY KEY,
                 base_version INTEGER NOT NULL DEFAULT 0
             )
-        """)
+        """
+        )
 
         # Sketches
-        await c.execute("""
+        await c.execute(
+            """
             CREATE TABLE IF NOT EXISTS __beaver_sketches__ (
                 name TEXT PRIMARY KEY,
                 type TEXT NOT NULL,
@@ -333,7 +381,8 @@ class AsyncBeaverDB:
                 error_rate REAL NOT NULL,
                 data BLOB NOT NULL
             )
-        """)
+        """
+        )
 
         await self.connection.commit()
 
@@ -380,7 +429,9 @@ class AsyncBeaverDB:
         return LockManager(self, name, timeout, lock_ttl, poll_interval)
 
     def sketch(self, name: str, capacity=1_000_000, error_rate=0.01, model=None):
-        return self.singleton(SketchManager, name, capacity=capacity, error_rate=error_rate, model=model)
+        return self.singleton(
+            SketchManager, name, capacity=capacity, error_rate=error_rate, model=model
+        )
 
     def cache(self, key: str = "global"):
         # Temporary stub: Caching will be revisited
@@ -395,18 +446,11 @@ class BeaverDB:
     proxies all requests to the AsyncBeaverDB engine via BeaverBridge.
     """
 
-    def __init__(
-        self,
-        db_path: str,
-        /,
-        **kwargs
-    ):
+    def __init__(self, db_path: str, /, **kwargs):
         # 1. Start the Reactor Thread
         self._loop = asyncio.new_event_loop()
         self._thread = threading.Thread(
-            target=self._loop.run_forever,
-            daemon=True,
-            name="BeaverDB-Reactor"
+            target=self._loop.run_forever, daemon=True, name="BeaverDB-Reactor"
         )
         self._thread.start()
 
@@ -446,6 +490,7 @@ class BeaverDB:
         Helper to invoke a factory method on the Async Engine and wrap the result.
         Executing on the loop ensures the singleton cache is accessed safely.
         """
+
         async def factory_call():
             method = getattr(self._async_db, method_name)
             return method(*args, **kwargs)
