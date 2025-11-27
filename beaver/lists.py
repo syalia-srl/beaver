@@ -1,5 +1,14 @@
 import json
-from typing import Iterator, Union, IO, overload, Protocol, runtime_checkable, TYPE_CHECKING, List
+from typing import (
+    Iterator,
+    Union,
+    IO,
+    overload,
+    Protocol,
+    runtime_checkable,
+    TYPE_CHECKING,
+    List,
+)
 from datetime import datetime, timezone
 
 from pydantic import BaseModel
@@ -15,6 +24,7 @@ class IBeaverList[T](Protocol):
     """
     The Synchronous Protocol exposed to the user via BeaverBridge.
     """
+
     def __getitem__(self, index: int | slice) -> T | List[T]: ...
     def __setitem__(self, index: int, value: T) -> None: ...
     def __delitem__(self, index: int) -> None: ...
@@ -189,8 +199,7 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T]):
         rowid_to_delete = result["rowid"]
 
         await self.connection.execute(
-            "DELETE FROM __beaver_lists__ WHERE rowid = ?",
-            (rowid_to_delete,)
+            "DELETE FROM __beaver_lists__ WHERE rowid = ?", (rowid_to_delete,)
         )
 
     # --- Iterators ---
@@ -296,8 +305,7 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T]):
 
         rowid_to_delete, value_to_return = result
         await self.connection.execute(
-            "DELETE FROM __beaver_lists__ WHERE rowid = ?",
-            (rowid_to_delete,)
+            "DELETE FROM __beaver_lists__ WHERE rowid = ?", (rowid_to_delete,)
         )
         return self._deserialize(value_to_return)
 
@@ -315,8 +323,7 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T]):
 
         rowid_to_delete, value_to_return = result
         await self.connection.execute(
-            "DELETE FROM __beaver_lists__ WHERE rowid = ?",
-            (rowid_to_delete,)
+            "DELETE FROM __beaver_lists__ WHERE rowid = ?", (rowid_to_delete,)
         )
         return self._deserialize(value_to_return)
 

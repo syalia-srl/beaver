@@ -5,6 +5,7 @@ from beaver import AsyncBeaverDB
 # Mark all tests in this module to run with the asyncio loop
 pytestmark = pytest.mark.asyncio
 
+
 async def test_dict_basic_ops(async_db_mem: AsyncBeaverDB):
     """Test set, get, delete, and len/count."""
     d = async_db_mem.dict("users")
@@ -28,6 +29,7 @@ async def test_dict_basic_ops(async_db_mem: AsyncBeaverDB):
     with pytest.raises(KeyError):
         await d.get("alice")
 
+
 async def test_dict_fetch_pop(async_db_mem: AsyncBeaverDB):
     """Test fetch (safe get) and pop (get + delete)."""
     d = async_db_mem.dict("cache")
@@ -46,6 +48,7 @@ async def test_dict_fetch_pop(async_db_mem: AsyncBeaverDB):
     # Pop missing
     assert await d.pop("key1", default="empty") == "empty"
 
+
 async def test_dict_contains(async_db_mem: AsyncBeaverDB):
     """Test 'key in d' logic."""
     d = async_db_mem.dict("sets")
@@ -53,6 +56,7 @@ async def test_dict_contains(async_db_mem: AsyncBeaverDB):
 
     assert await d.contains("exists") is True
     assert await d.contains("missing") is False
+
 
 async def test_dict_ttl(async_db_mem: AsyncBeaverDB):
     """Test Time-To-Live expiration."""
@@ -82,6 +86,7 @@ async def test_dict_ttl(async_db_mem: AsyncBeaverDB):
     # Verify fetch handles it
     assert await d.fetch("quick") is None
 
+
 async def test_dict_iteration(async_db_mem: AsyncBeaverDB):
     """Test keys(), values(), items(), and __aiter__."""
     d = async_db_mem.dict("iter_test")
@@ -108,6 +113,7 @@ async def test_dict_iteration(async_db_mem: AsyncBeaverDB):
         items[k] = v
     assert items == data
 
+
 async def test_dict_clear(async_db_mem: AsyncBeaverDB):
     """Test clearing all items."""
     d = async_db_mem.dict("trash")
@@ -117,6 +123,7 @@ async def test_dict_clear(async_db_mem: AsyncBeaverDB):
     assert await d.count() == 2
     await d.clear()
     assert await d.count() == 0
+
 
 async def test_dict_dump(async_db_mem: AsyncBeaverDB):
     """Test dumping to dict."""

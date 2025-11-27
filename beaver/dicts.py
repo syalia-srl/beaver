@@ -1,7 +1,16 @@
 import base64
 import json
 import time
-from typing import IO, Any, Iterator, Tuple, overload, Protocol, runtime_checkable, TYPE_CHECKING
+from typing import (
+    IO,
+    Any,
+    Iterator,
+    Tuple,
+    overload,
+    Protocol,
+    runtime_checkable,
+    TYPE_CHECKING,
+)
 
 from pydantic import BaseModel
 
@@ -17,6 +26,7 @@ class IBeaverDict[T](Protocol):
     """
     The Synchronous Protocol exposed to the user via BeaverBridge.
     """
+
     def __getitem__(self, key: str) -> T: ...
     def __setitem__(self, key: str, value: T) -> None: ...
     def __delitem__(self, key: str) -> None: ...
@@ -74,12 +84,14 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T]):
         """
         if self._name == "__security__":
             if secret:
-                raise ValueError("The internal '__security__' dictionary cannot be encrypted.")
+                raise ValueError(
+                    "The internal '__security__' dictionary cannot be encrypted."
+                )
             return
 
         cursor = await self.connection.execute(
             "SELECT value FROM __beaver_dicts__ WHERE dict_name = ? AND key = ?",
-            ("__security__", self._name)
+            ("__security__", self._name),
         )
         row = await cursor.fetchone()
         metadata = json.loads(row["value"]) if row else None
@@ -96,7 +108,9 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T]):
                 salt = base64.b64decode(metadata["salt"])
                 verifier_encrypted = base64.b64decode(metadata["verifier"])
             except (KeyError, TypeError, ValueError):
-                raise ValueError(f"Corrupted security metadata for dictionary '{self._name}'.")
+                raise ValueError(
+                    f"Corrupted security metadata for dictionary '{self._name}'."
+                )
 
             cipher = Cipher(secret, salt=salt)
 
@@ -121,7 +135,7 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T]):
 
             await self.connection.execute(
                 "INSERT OR REPLACE INTO __beaver_dicts__ (dict_name, key, value, expires_at) VALUES (?, ?, ?, ?)",
-                ("__security__", self._name, json.dumps(new_metadata), None)
+                ("__security__", self._name, json.dumps(new_metadata), None),
             )
             await self.connection.commit()
             self._cipher = cipher
@@ -193,7 +207,9 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T]):
                 "DELETE FROM __beaver_dicts__ WHERE dict_name = ? AND key = ?",
                 (self._name, key),
             )
-            raise KeyError(f"Key '{key}' not found in dictionary '{self._name}' (expired)")
+            raise KeyError(
+                f"Key '{key}' not found in dictionary '{self._name}' (expired)"
+            )
 
         return self._deserialize(raw_value)
 
@@ -234,7 +250,7 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T]):
     async def contains(self, key: str) -> bool:
         cursor = await self.connection.execute(
             "SELECT 1 FROM __beaver_dicts__ WHERE dict_name = ? AND key = ? LIMIT 1",
-            (self._name, key)
+            (self._name, key),
         )
         return await cursor.fetchone() is not None
 
@@ -286,9 +302,9 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T]):
                 "type": "Dict",
                 "name": self._name,
                 "count": len(items),
-                "encrypted": self._cipher is not None
+                "encrypted": self._cipher is not None,
             },
-            "items": items
+            "items": items,
         }
 
         if fp:

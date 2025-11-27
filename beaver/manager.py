@@ -60,9 +60,9 @@ class AsyncBeaverBase[T: BaseModel]:
         # e.g., "DictManager" (Legacy) -> "dict"
         cls_name = self.__class__.__name__
         if "AsyncBeaver" in cls_name:
-             manager_type_prefix = cls_name.replace("AsyncBeaver", "").lower()
+            manager_type_prefix = cls_name.replace("AsyncBeaver", "").lower()
         else:
-             manager_type_prefix = cls_name.replace("Manager", "").lower()
+            manager_type_prefix = cls_name.replace("Manager", "").lower()
 
         if not isinstance(name, str) or not name:
             raise TypeError(
@@ -168,6 +168,7 @@ def atomic(func):
     2. Thread Safety: Via AsyncBeaverDB.transaction() (asyncio.Lock)
     3. ACID: Via SQLite 'BEGIN IMMEDIATE'
     """
+
     @functools.wraps(func)
     async def wrapper(self: AsyncBeaverBase, *args, **kwargs):
         # 1. Acquire Process Lock (Wait for other processes)
@@ -185,6 +186,7 @@ def emits(event: str | None = None, payload: Callable | None = None):
     A decorator to emit an event after a manager method completes.
     Updated to work with async functions.
     """
+
     def decorator(func):
         event_name = event or func.__name__
         payload_func = payload or (lambda *args, **kwargs: dict(args=args, **kwargs))

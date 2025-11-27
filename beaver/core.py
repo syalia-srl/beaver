@@ -37,6 +37,7 @@ class Transaction:
     this acts as a pass-through. The actual BEGIN/COMMIT only happens
     at the outermost level.
     """
+
     def __init__(self, db: "AsyncBeaverDB"):
         self.db = db
         self._is_root = False
