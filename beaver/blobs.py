@@ -4,7 +4,7 @@ import json
 from typing import IO, Iterator, NamedTuple, Optional, overload
 
 from pydantic import BaseModel
-from .manager import ManagerBase, synced
+from .manager import AsyncBeaverBase, atomic
 
 
 class Blob[M](NamedTuple):
@@ -15,10 +15,10 @@ class Blob[M](NamedTuple):
     metadata: Optional[M]
 
 
-class BlobManager[M: BaseModel](ManagerBase[M]):
+class BlobManager[M: BaseModel](AsyncBeaverBase[M]):
     """A wrapper providing a Pythonic interface to a blob store in the database."""
 
-    @synced
+    @atomic
     def get(self, key: str) -> Optional[Blob[M]]:
         """Retrieves a blob from the store."""
         # --- 1. Check cache first ---
@@ -47,7 +47,7 @@ class BlobManager[M: BaseModel](ManagerBase[M]):
 
         return blob_obj
 
-    @synced
+    @atomic
     def put(self, key: str, data: bytes, metadata: Optional[M] = None):
         """Stores or replaces a blob in the store."""
         if not isinstance(data, bytes):
@@ -65,7 +65,7 @@ class BlobManager[M: BaseModel](ManagerBase[M]):
         blob_obj = Blob(key=key, data=data, metadata=metadata)
         self.cache.set(key, blob_obj)
 
-    @synced
+    @atomic
     def delete(self, key: str):
         """Deletes a blob from the store."""
         cursor = self.connection.cursor()
@@ -175,7 +175,7 @@ class BlobManager[M: BaseModel](ManagerBase[M]):
 
         return dump_object
 
-    @synced
+    @atomic
     def clear(self):
         """Atomically removes all blobs from this store."""
         self.connection.execute(

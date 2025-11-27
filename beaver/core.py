@@ -13,11 +13,11 @@ from .blobs import BlobManager
 from .cache import DummyCache, LocalCache
 from .channels import ChannelManager
 from .collections import CollectionManager, Document
-from .dicts import DictManager
+from .dicts import AsyncBeaverDict, IBeaverDict
 from .lists import ListManager
-from .locks import AsyncBeaverLock
+from .locks import AsyncBeaverLock, IBeaverLock
 from .logs import LogManager
-from .manager import ManagerBase
+from .manager import AsyncBeaverBase
 from .queues import QueueManager
 from .sketches import SketchManager
 from .bridge import BeaverBridge
@@ -29,34 +29,51 @@ class Event(BaseModel):
     payload: dict
 
 
-class _TransactionContext:
+class Transaction:
     """
-    Helper context manager for AsyncBeaverDB.transaction().
-    Ensures serializability on the shared aiosqlite connection.
-    """
+    A Reentrant Async Context Manager for database transactions.
 
-    def __init__(self, connection: aiosqlite.Connection, lock: asyncio.Lock):
-        self.conn = connection
-        self.lock = lock
+    If a task already holds the transaction lock (nested @atomic calls),
+    this acts as a pass-through. The actual BEGIN/COMMIT only happens
+    at the outermost level.
+    """
+    def __init__(self, db: "AsyncBeaverDB"):
+        self.db = db
+        self._is_root = False
 
     async def __aenter__(self):
-        # 1. Wait for other coroutines to finish their transactions
-        await self.lock.acquire()
+        current_task = asyncio.current_task()
 
-        # 2. Start the DB transaction explicitly
-        # 'IMMEDIATE' is crucial to prevent deadlocks with other processes
-        await self.conn.execute("BEGIN IMMEDIATE")
+        # 1. Check Reentrancy: Do we already own the transaction?
+        if self.db._tx_owner_task == current_task:
+            self._is_root = False
+            return self
+
+        # 2. Acquire Lock (Wait for other tasks)
+        await self.db._tx_lock.acquire()
+
+        # 3. Mark ownership and start DB transaction
+        self.db._tx_owner_task = current_task
+        self._is_root = True
+
+        # Using isolation_level=None globally means we MUST start manually
+        await self.db.connection.execute("BEGIN IMMEDIATE")
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
+        # Only the root transaction performs the Commit/Rollback and Release
+        if not self._is_root:
+            return
+
         try:
             if exc_type:
-                await self.conn.rollback()
+                await self.db.connection.rollback()
             else:
-                await self.conn.commit()
+                await self.db.connection.commit()
         finally:
-            # 3. Always release the lock so the next task can run
-            self.lock.release()
+            # Always clear ownership and release lock
+            self.db._tx_owner_task = None
+            self.db._tx_lock.release()
 
 
 class AsyncBeaverDB:
@@ -90,7 +107,9 @@ class AsyncBeaverDB:
         # Transaction Serializer Lock
         # Ensures that "check-then-act" operations (like locks) are atomic
         # relative to other tasks on this loop.
+        # Locking Primitives
         self._tx_lock = asyncio.Lock()
+        self._tx_owner_task: asyncio.Task | None = None  # Track owner for reentrancy
 
         # Manager Singleton Cache
         self._manager_cache: dict[tuple[type, str], Any] = {}
@@ -112,7 +131,12 @@ class AsyncBeaverDB:
         if self._connection is not None:
             return
 
-        self._connection = await aiosqlite.connect(self._db_path, timeout=self._timeout)
+        self._connection = await aiosqlite.connect(
+            self._db_path,
+            timeout=self._timeout,
+            # We will manage transactions manually via .transaction()
+            isolation_level=None,
+        )
         self._connection.row_factory = aiosqlite.Row
 
         # Apply Pragmas
@@ -170,7 +194,7 @@ class AsyncBeaverDB:
         Returns an async context manager for an atomic transaction.
         Use: async with db.transaction(): ...
         """
-        return _TransactionContext(self.connection, self._tx_lock)
+        return Transaction(self)
 
     async def _create_all_tables(self):
         """Initializes all required tables with the new __beaver__ naming convention."""
@@ -404,8 +428,10 @@ class AsyncBeaverDB:
     # These return the raw Async Managers.
     # Note: These manager classes will be refactored in Phase 3.
 
-    def dict(self, name: str, model: type | None = None, secret: str | None = None):
-        return self.singleton(DictManager, name, model=model, secret=secret)
+    def dict(
+        self, name: str, model: type | None = None, secret: str | None = None
+    ) -> AsyncBeaverDict:
+        return self.singleton(AsyncBeaverDict, name, model=model, secret=secret)
 
     def list(self, name: str, model: type | None = None):
         return self.singleton(ListManager, name, model=model)
@@ -505,7 +531,9 @@ class BeaverDB:
 
     # --- Public API (Proxies) ---
 
-    def dict(self, name: str, model: type | None = None, secret: str | None = None):
+    def dict(
+        self, name: str, model: type | None = None, secret: str | None = None
+    ) -> IBeaverDict:
         return self._get_manager("dict", name, model, secret)
 
     def list(self, name: str, model: type | None = None):
@@ -526,7 +554,9 @@ class BeaverDB:
     def log(self, name: str, model: type | None = None):
         return self._get_manager("log", name, model)
 
-    def lock(self, name: str, timeout=None, lock_ttl=60.0, poll_interval=0.1):
+    def lock(
+        self, name: str, timeout=None, lock_ttl=60.0, poll_interval=0.1
+    ) -> IBeaverLock:
         return self._get_manager("lock", name, timeout, lock_ttl, poll_interval)
 
     def sketch(self, name: str, capacity=1_000_000, error_rate=0.01, model=None):

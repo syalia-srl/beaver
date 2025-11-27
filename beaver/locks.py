@@ -3,10 +3,7 @@ import random
 import time
 import os
 import uuid
-from typing import Optional, Protocol, runtime_checkable
-
-# We use a forward reference for the DB to avoid circular imports
-from typing import TYPE_CHECKING
+from typing import Optional, Protocol, runtime_checkable, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .core import AsyncBeaverDB
@@ -14,10 +11,6 @@ if TYPE_CHECKING:
 
 @runtime_checkable
 class IBeaverLock(Protocol):
-    """
-    The Synchronous Protocol that BeaverBridge exposes to the user.
-    """
-
     def acquire(
         self,
         timeout: float | None = None,
@@ -34,13 +27,6 @@ class IBeaverLock(Protocol):
 
 
 class AsyncBeaverLock:
-    """
-    An inter-process, deadlock-proof, and fair (FIFO) lock built on SQLite.
-
-    This Async version runs on the event loop, using non-blocking sleeps
-    and atomic transactions to coordinate access safely across processes.
-    """
-
     def __init__(
         self,
         db: "AsyncBeaverDB",
@@ -51,36 +37,21 @@ class AsyncBeaverLock:
     ):
         if not isinstance(name, str) or not name:
             raise ValueError("Lock name must be a non-empty string.")
-        if lock_ttl <= 0:
-            raise ValueError("lock_ttl must be positive.")
-        if poll_interval <= 0:
-            raise ValueError("poll_interval must be positive.")
-
         self._db = db
         self._lock_name = name
         self._timeout = timeout
         self._lock_ttl = lock_ttl
         self._poll_interval = poll_interval
-
-        # Unique ID for this specific lock instance
         self._waiter_id = f"pid:{os.getpid()}:id:{uuid.uuid4()}"
         self._acquired = False
 
     async def renew(self, lock_ttl: Optional[float] = None) -> bool:
-        """
-        Renews the TTL (heartbeat) of the lock held by this instance.
-        """
         if not self._acquired:
             return False
 
         ttl = lock_ttl or self._lock_ttl
-        if ttl <= 0:
-            raise ValueError("lock_ttl must be positive.")
-
         new_expires_at = time.time() + ttl
 
-        # Simple update, no need for full transaction lock if we already hold it logically,
-        # but using transaction() is safer to avoid interleaving issues.
         async with self._db.transaction():
             cursor = await self._db.connection.execute(
                 "UPDATE __beaver_lock_waiters__ SET expires_at = ? WHERE lock_name = ? AND waiter_id = ?",
@@ -89,9 +60,6 @@ class AsyncBeaverLock:
             return cursor.rowcount > 0
 
     async def clear(self) -> bool:
-        """
-        Forcibly removes ALL waiters for this lock.
-        """
         async with self._db.transaction():
             cursor = await self._db.connection.execute(
                 "DELETE FROM __beaver_lock_waiters__ WHERE lock_name = ?",
@@ -109,9 +77,6 @@ class AsyncBeaverLock:
         poll_interval: float | None = None,
         block: bool = True,
     ) -> bool:
-        """
-        Attempts to acquire the lock.
-        """
         if self._acquired:
             return True
 
@@ -126,8 +91,7 @@ class AsyncBeaverLock:
         expires_at = requested_at + current_lock_ttl
 
         try:
-            # 1. Add self to the FIFO queue (Atomic)
-            # We use .transaction() to ensure no other task interleaves commands
+            # 1. Add self to the FIFO queue (Atomic via transaction() lock)
             async with self._db.transaction():
                 await self._db.connection.execute(
                     """
@@ -160,14 +124,20 @@ class AsyncBeaverLock:
                     )
                     result = await cursor.fetchone()
 
+                    # C. Sanity Check: Ensure we are still in the queue
+                    check_self = await self._db.connection.execute(
+                        "SELECT 1 FROM __beaver_lock_waiters__ WHERE waiter_id = ?",
+                        (self._waiter_id,),
+                    )
+                    if not await check_self.fetchone():
+                        return False  # We were deleted (cleared or expired)
+
                     if result and result["waiter_id"] == self._waiter_id:
-                        # We are at the front. We own the lock.
                         self._acquired = True
                         return True
 
                 # 3. Check for timeout or non-blocking return
                 elapsed = time.time() - start_time
-
                 if current_timeout is not None and elapsed > current_timeout:
                     await self._release_from_queue()
                     return False
@@ -176,7 +146,7 @@ class AsyncBeaverLock:
                     await self._release_from_queue()
                     return False
 
-                # 4. Wait safely (Yield to Event Loop)
+                # 4. Wait safely
                 jitter = current_poll_interval * 0.1
                 sleep_time = random.uniform(
                     current_poll_interval - jitter, current_poll_interval + jitter
@@ -184,14 +154,10 @@ class AsyncBeaverLock:
                 await asyncio.sleep(sleep_time)
 
         except Exception:
-            # If anything goes wrong, try to clean up our waiter entry
             await self._release_from_queue()
             raise
 
     async def _release_from_queue(self):
-        """
-        Atomically removes this instance's entry from the waiter queue.
-        """
         try:
             async with self._db.transaction():
                 await self._db.connection.execute(
@@ -202,9 +168,6 @@ class AsyncBeaverLock:
             pass
 
     async def release(self):
-        """
-        Releases the lock.
-        """
         if not self._acquired:
             return
 
@@ -214,7 +177,6 @@ class AsyncBeaverLock:
     async def __aenter__(self) -> "AsyncBeaverLock":
         if await self.acquire():
             return self
-
         raise TimeoutError("Cannot acquire lock.")
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):

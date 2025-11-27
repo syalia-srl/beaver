@@ -7,7 +7,7 @@ from typing import IO, Iterator, Literal, NamedTuple, overload
 from pydantic import BaseModel
 
 from beaver.cache import cached, invalidates_cache
-from .manager import ManagerBase, synced, emits
+from .manager import AsyncBeaverBase, atomic, emits
 
 
 class QueueItem[T](NamedTuple):
@@ -51,14 +51,14 @@ class AsyncQueueManager[T: BaseModel]:
         return await asyncio.to_thread(self._queue.get, block=block, timeout=timeout)
 
 
-class QueueManager[T: BaseModel](ManagerBase[T]):
+class QueueManager[T: BaseModel](AsyncBeaverBase[T]):
     """
     A wrapper providing a Pythonic interface to a persistent, multi-process
     producer-consumer priority queue.
     """
 
     @emits("put", payload=lambda *args, **kwargs: dict())
-    @synced
+    @atomic
     @invalidates_cache
     def put(self, data: T, priority: float):
         """
@@ -73,7 +73,7 @@ class QueueManager[T: BaseModel](ManagerBase[T]):
             (self._name, priority, time.time(), self._serialize(data)),
         )
 
-    @synced
+    @atomic
     def _get_item_atomically(self, pop: bool = True) -> QueueItem[T] | None:
         """
         Performs a single, atomic attempt to retrieve and remove the
@@ -122,7 +122,7 @@ class QueueManager[T: BaseModel](ManagerBase[T]):
     def get(self, block: Literal[False]) -> QueueItem[T]: ...
 
     @emits("get", payload=lambda *args, **kwargs: dict())
-    @synced
+    @atomic
     @invalidates_cache
     def get(self, block: bool = True, timeout: float | None = None) -> QueueItem[T]:
         """
@@ -268,7 +268,7 @@ class QueueManager[T: BaseModel](ManagerBase[T]):
         return dump_object
 
     @emits("clear", payload=lambda *args, **kwargs: dict())
-    @synced
+    @atomic
     @invalidates_cache
     def clear(self):
         """

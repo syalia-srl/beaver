@@ -7,7 +7,7 @@ from contextlib import contextmanager
 
 from pydantic import BaseModel
 
-from .manager import ManagerBase, synced
+from .manager import AsyncBeaverBase, atomic
 from .types import IDatabase
 
 
@@ -218,7 +218,7 @@ class SketchBatch[T: BaseModel]:
         self._pending_items.clear()
 
 
-class SketchManager[T: BaseModel](ManagerBase[T]):
+class SketchManager[T: BaseModel](AsyncBeaverBase[T]):
     """
     Manages a persistent ApproximateSet (Bloom + HLL).
     """
@@ -288,7 +288,7 @@ class SketchManager[T: BaseModel](ManagerBase[T]):
             (self._name, self._capacity, self._error_rate, self._sketch.to_bytes()),
         )
 
-    @synced
+    @atomic
     def add(self, item: T):
         """
         Adds a single item to the sketch.

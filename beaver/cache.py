@@ -227,11 +227,11 @@ def cached(key):
     - If key is not in cache, runs the decorated function,
       stores the result, and returns it.
     """
-    from .manager import ManagerBase
+    from .manager import AsyncBeaverBase
 
     def decorator(func):
         @functools.wraps(func)
-        def wrapper(self: ManagerBase, *args, **kwargs):
+        def wrapper(self: AsyncBeaverBase, *args, **kwargs):
             cache = self.cache
             cache_key = key(*args, **kwargs)
 
@@ -260,10 +260,10 @@ def invalidates_cache(func):
     - Runs the decorated function.
     - Clears the cache even if there is any exception.
     """
-    from .manager import ManagerBase
+    from .manager import AsyncBeaverBase
 
     @functools.wraps(func)
-    def wrapper(self: "ManagerBase", *args, **kwargs):
+    def wrapper(self: AsyncBeaverBase, *args, **kwargs):
         try:
             result = func(self, *args, **kwargs)
         finally:

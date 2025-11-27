@@ -17,7 +17,7 @@ from typing import (
 from .types import IDatabase
 from .locks import AsyncBeaverLock
 from .vectors import NumpyVectorIndex as VectorIndex
-from .manager import ManagerBase, synced, emits
+from .manager import AsyncBeaverBase, atomic, emits
 
 import numpy as np
 
@@ -132,7 +132,7 @@ class Document[B](BaseModel):
         return self._flatten_metadata(self.serialize_body())
 
 
-class CollectionManager[B: BaseModel](ManagerBase[B]):
+class CollectionManager[B: BaseModel](AsyncBeaverBase[B]):
     """
     A wrapper for multi-modal collection operations, including document storage,
     FTS, fuzzy search, graph traversal, and persistent vector search.
@@ -144,14 +144,14 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
         # All vector-related operations are now delegated to the VectorIndex class.
         self._vector_index = VectorIndex(name, db)
 
-        self._compact_lock = LockManager(
+        self._compact_lock = AsyncBeaverLock(
             db, f"__lock__internal__collection__{name}__compact", timeout=0
         )
 
     def _needs_compactation(self):
         return self._vector_index.delta_size >= 100
 
-    @synced
+    @atomic
     def compact(self):
         """
         Triggers a compaction of the vector index for all processes.
@@ -165,7 +165,7 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
             self._compact_lock.release()
 
     @emits("index", payload=lambda document, *args, **kwargs: dict(id=document.id))
-    @synced
+    @atomic
     def index(
         self,
         document: Document[B],
@@ -245,7 +245,7 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
             self.compact()
 
     @emits("drop", payload=lambda document, *args, **kwargs: dict(id=document.id))
-    @synced
+    @atomic
     def drop(self, document: Document[B]):
         """Removes a document and all its associated data from the collection."""
         if not isinstance(document, Document):
@@ -294,7 +294,7 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
             )
         cursor.close()
 
-    @synced
+    @atomic
     def search(
         self, vector: list[float], top_k: int = 10
     ) -> List[Tuple[Document[B], float]]:
@@ -334,7 +334,7 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
 
         return final_results
 
-    @synced
+    @atomic
     def match(
         self,
         query: str,
@@ -499,7 +499,7 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
         "connect",
         payload=lambda src, tgt, *args, **kwargs: dict(src_id=src.id, tgt_id=tgt.id),
     )
-    @synced
+    @atomic
     def connect(self, source: Document, target: Document, label: str):
         """Creates a directed edge between two documents."""
         if not isinstance(source, Document) or not isinstance(target, Document):
@@ -647,7 +647,7 @@ class CollectionManager[B: BaseModel](ManagerBase[B]):
 
         return dump_object
 
-    @synced
+    @atomic
     def clear(self):
         """
         Atomically removes all documents and associated data (vectors,

@@ -9,7 +9,7 @@ from typing import Any, AsyncIterator, Generic, Iterator, Set, Type, TypeVar
 from pydantic import BaseModel
 
 from .types import IDatabase
-from .manager import ManagerBase
+from .manager import AsyncBeaverBase
 
 # A special message object used to signal the listener to gracefully shut down.
 _SHUTDOWN_SENTINEL = object()
@@ -113,7 +113,7 @@ class AsyncChannelManager[T]:
         return self._channel.subscribe().as_async()
 
 
-class ChannelManager[T: BaseModel](ManagerBase[T]):
+class ChannelManager[T: BaseModel](AsyncBeaverBase[T]):
     """
     The central hub for a named pub/sub channel.
 

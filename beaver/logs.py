@@ -11,7 +11,7 @@ from typing import IO, Any, AsyncIterator, Callable, Iterator, Type, TypeVar, ov
 from pydantic import BaseModel
 
 from .types import IDatabase
-from .manager import ManagerBase, synced
+from .manager import AsyncBeaverBase, atomic
 
 # A special message object used to signal the iterator to gracefully shut down.
 _SHUTDOWN_SENTINEL = object()
@@ -182,7 +182,7 @@ class AsyncLogManager[T]:
         return AsyncLiveIterator(sync_iterator)
 
 
-class LogManager[T: BaseModel](ManagerBase[T]):
+class LogManager[T: BaseModel](AsyncBeaverBase[T]):
     """
     A wrapper for interacting with a named, time-indexed log, providing
     type-safe and async-compatible methods.
@@ -193,7 +193,7 @@ class LogManager[T: BaseModel](ManagerBase[T]):
         # Use WeakSet so we don't keep iterators alive if the user drops them
         self._active_iterators = weakref.WeakSet[LiveIterator]()
 
-    @synced
+    @atomic
     def log(self, data: T, timestamp: datetime | None = None) -> None:
         """
         Adds a new entry to the log.
@@ -345,7 +345,7 @@ class LogManager[T: BaseModel](ManagerBase[T]):
 
         return dump_object
 
-    @synced
+    @atomic
     def clear(self):
         """
         Atomically removes all entries from this log.
