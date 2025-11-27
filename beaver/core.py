@@ -1,11 +1,14 @@
-import sqlite3
+import asyncio
 import threading
-import time
 import warnings
-from typing import Any, Callable, List, Type
+import weakref
+from typing import Any, Callable, Type, AsyncContextManager
 
+import aiosqlite
 from pydantic import BaseModel
 
+# Note: These imports will eventually be updated to "Async..." versions
+# as we progress through the file-by-file refactor.
 from .blobs import BlobManager
 from .cache import DummyCache, LocalCache
 from .channels import ChannelManager
@@ -16,8 +19,8 @@ from .locks import LockManager
 from .logs import LogManager
 from .manager import ManagerBase
 from .queues import QueueManager
-from .types import IDatabase, ICache, IResourceManager
 from .sketches import SketchManager
+from .bridge import BeaverBridge
 
 
 class Event(BaseModel):
@@ -26,10 +29,42 @@ class Event(BaseModel):
     payload: dict
 
 
-class BeaverDB:
+class _TransactionContext:
     """
-    An embedded, multi-modal database in a single SQLite file.
-    This class manages thread-safe database connections and table schemas.
+    Helper context manager for AsyncBeaverDB.transaction().
+    Ensures serializability on the shared aiosqlite connection.
+    """
+    def __init__(self, connection: aiosqlite.Connection, lock: asyncio.Lock):
+        self.conn = connection
+        self.lock = lock
+
+    async def __aenter__(self):
+        # 1. Wait for other coroutines to finish their transactions
+        await self.lock.acquire()
+
+        # 2. Start the DB transaction explicitly
+        # 'IMMEDIATE' is crucial to prevent deadlocks with other processes
+        await self.conn.execute("BEGIN IMMEDIATE")
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        try:
+            if exc_type:
+                await self.conn.rollback()
+            else:
+                await self.conn.commit()
+        finally:
+            # 3. Always release the lock so the next task can run
+            self.lock.release()
+
+
+class AsyncBeaverDB:
+    """
+    The Async-First Core Engine of BeaverDB.
+
+    This class manages the single aiosqlite connection and strictly runs
+    within an asyncio event loop. It is NOT thread-safe; it is designed
+    to be owned by a single thread (the Reactor Thread).
     """
 
     def __init__(
@@ -44,34 +79,20 @@ class BeaverDB:
         pragma_temp_memory: bool = True,
         pragma_mmap_size: int = 256 * 1024 * 1024,
     ):
-        """
-        Initializes the database connection and creates all necessary tables.
-
-        Args:
-            db_path: The path to the SQLite database file.
-
-        Kwargs:
-            connection_timeout: The timeout in seconds for SQLite connections.
-            cache_timeout: The timeout in seconds for local caches (defaults to 0.0 to disable caching).
-            pragma_wal: Enable WAL mode for better concurrency.
-            pragma_synchronous: Enable synchronous mode for better durability.
-            pragma_temp_memory: Store temporary tables in memory for speed.
-            pragma_mmap_size: The number of bytes to use for memory-mapped I/O.
-        """
         self._db_path = db_path
         self._timeout = connection_timeout
         self._cache_timeout = cache_timeout
 
-        # This object will store a different connection for each thread.
-        self._thread_local = threading.local()
-        self._closed = threading.Event()  # Flag to indicate if DB is closed
+        # The Single Source of Truth Connection
+        self._connection: aiosqlite.Connection | None = None
 
-        self._in_memory = db_path == ":memory:"
-        self._main_thread = threading.current_thread().native_id
+        # Transaction Serializer Lock
+        # Ensures that "check-then-act" operations (like locks) are atomic
+        # relative to other tasks on this loop.
+        self._tx_lock = asyncio.Lock()
 
-        # Lock and data structure for managing singleton instances
-        self._manager_cache: dict[tuple[type, str], ManagerBase] = {}
-        self._manager_cache_lock = threading.Lock()
+        # Manager Singleton Cache
+        self._manager_cache: dict[tuple[type, str], Any] = {}
 
         # Store pragma settings
         self._pragma_wal = pragma_wal
@@ -79,473 +100,124 @@ class BeaverDB:
         self._pragma_temp_memory = pragma_temp_memory
         self._pragma_mmap_size = pragma_mmap_size
 
-        # Track all active connections for cleanup on close
-        self._connections = set[sqlite3.Connection]()
-        self._connections_lock = threading.Lock()
+        # Pub/Sub Registry (To be reimplemented in Phase 4)
+        # self._event_callbacks: dict[str, list[Callable]] = {}
 
-        # This is the central registry for *this process's* callbacks.
-        # Key: "dict:config:set", Value: [list_of_callbacks]
-        self._event_callbacks: dict[str, list[Callable]] = {}
-        self._event_callback_lock = threading.Lock()
-
-        # The single, central event-listening thread
-        self._event_listener_stop_event = threading.Event()
-        self._event_listener_thread = threading.Thread(
-            target=self._subscriber_loop,
-            args=(self._event_listener_stop_event,),
-            daemon=True,
-        )
-
-        # Initialize the schemas. This will implicitly create the first
-        # connection for the main thread via the `connection` property.
-        self._create_all_tables()
-
-        self._security_dict = self.dict("__security__")
-        self._metadata_dict = self.dict("__security__")
-        self._events_dict = self.dict("__events__")
-
-        # check current version against the version stored
-        self._check_version()
-
-    def _subscriber_loop(self, stop_event: threading.Event):
+    async def connect(self):
         """
-        The single, central background thread for this BeaverDB instance.
-
-        Listens to the __beaver_events__ channel and dispatches
-        payloads to local callbacks.
+        Initializes the async database connection and creates tables.
+        Must be awaited before using the DB.
         """
-        with self.channel("__beaver_events__", model=Event).subscribe() as listener:
-            while not stop_event.is_set():
-                try:
-                    # Poll with a timeout to remain responsive to stop_event
-                    for message in listener.listen(timeout=0.2):
-                        # Reconstruct the full key to find callbacks
-                        full_topic_key = f"{message.topic}:{message.event}"
+        if self._connection is not None:
+            return
 
-                        with self._event_callback_lock:
-                            # Get a copy of the list to run
-                            callbacks_to_run = list(
-                                self._event_callbacks.get(full_topic_key, [])
-                            )
+        self._connection = await aiosqlite.connect(self._db_path, timeout=self._timeout)
+        self._connection.row_factory = aiosqlite.Row
 
-                        # Run callbacks
-                        for callback in callbacks_to_run:
-                            try:
-                                callback(message.payload)
-                            except Exception:
-                                pass  # Suppress user callback errors
-                except TimeoutError:
-                    continue  # Normal timeout, just check stop_event
+        # Apply Pragmas
+        if self._pragma_wal:
+            await self._connection.execute("PRAGMA journal_mode = WAL;")
 
-    def on(self, topic: str, event: str, callback: Callable[[dict], Any]):
-        """
-        Adds a callback to a custom event.
+        if self._pragma_synchronous:
+            await self._connection.execute("PRAGMA synchronous = FULL;")
+        else:
+            await self._connection.execute("PRAGMA synchronous = NORMAL;")
 
-        Starts the central event listener thread if not already running.
-        """
-        full_topic_key = f"{topic}:{event}"
+        if self._pragma_temp_memory:
+            await self._connection.execute("PRAGMA temp_store = MEMORY;")
 
-        if not self._event_listener_thread.is_alive():
-            self._event_listener_thread.start()
-            time.sleep(0.1)  # Give time to start
+        if self._pragma_mmap_size > 0:
+            await self._connection.execute(f"PRAGMA mmap_size = {self._pragma_mmap_size};")
 
-        with self._event_callback_lock:
-            # Add the callback to the local dispatch table
-            self._event_callbacks.setdefault(full_topic_key, []).append(callback)
+        await self._create_all_tables()
+        # await self._check_version()
 
-            with self._events_dict as registry:
-                global_count = registry.get(full_topic_key, 0)
-                registry[full_topic_key] = global_count + 1
+        return self
 
-    def off(self, topic: str, event: str, callback: Callable[[dict], Any]):
-        """
-        Removes a callback from the central event system.
-        """
-        full_topic_key = f"{topic}:{event}"
+    async def close(self):
+        """Closes the database connection."""
+        if self._connection:
+            await self._connection.close()
+            self._connection = None
 
-        with self._event_callback_lock:
-            try:
-                self._event_callbacks[full_topic_key].remove(callback)
-                if not self._event_callbacks[full_topic_key]:
-                    self._event_callbacks.pop(full_topic_key)
-            except (ValueError, KeyError):
-                return  # Already removed
+        # Clear cache to allow GC
+        self._manager_cache.clear()
 
-            # We MUST decrement the global count
-            with self._events_dict as registry:
-                global_count = registry.get(full_topic_key, 1)
+    async def __aenter__(self):
+        return await self.connect()
 
-                if global_count <= 1:
-                    registry.pop(full_topic_key, None)
-                else:
-                    registry[full_topic_key] = global_count - 1
-
-    def singleton[T: BaseModel, M: ManagerBase](  # type: ignore
-        self, cls: Type[M], name: str, model: Type[T] | None = None, **kwargs
-    ) -> M:
-        """
-        Factory method to get a process-level singleton for a manager.
-
-        Caches the instance on this db object to ensure that, e.g.,
-        db.dict("foo") always returns the same object.
-        """
-        cache_key = (cls, name)
-
-        if not issubclass(cls, ManagerBase):
-            raise TypeError("cls must be a subclass of ManagerBase.")
-
-        if not name:
-            raise ValueError("name must be a non-empty string.")
-
-        if model is not None and not issubclass(model, BaseModel):
-            raise TypeError("model must be a BaseModel class.")
-
-        # Use the db's lock for thread-safe cache access
-        with self._manager_cache_lock:
-            if self._closed.is_set():
-                raise ConnectionError("BeaverDB instance is closed.")
-
-            instance: ManagerBase[T] | None = self._manager_cache.get(cache_key)
-
-            if instance is None:
-                # Create the instance, passing 'self' as the 'db' argument,
-                # plus all other args.
-                instance = cls(name=name, db=self, model=model, **kwargs)
-                self._manager_cache[cache_key] = instance
-
-            return instance  # type: ignore
-
-    def _check_version(self):
-        from beaver import __version__
-
-        db_version = self.dict("__metadata__").get("version", __version__)
-        self.dict("__metadata__")["version"] = db_version
-
-        if db_version != __version__:
-            warnings.warn(
-                f"Version mismatch. DB was created with version {db_version}, but the library version is {__version__}.",
-                stacklevel=3,
-            )
+    async def __aexit__(self, *args, **kwargs):
+        await self.close()
 
     @property
-    def version(self):
-        return self.dict("__metadata__")["version"]
-
-    @property
-    def connection(self) -> sqlite3.Connection:
+    def connection(self) -> aiosqlite.Connection:
         """
-        Provides a thread-safe SQLite connection.
-
-        Each thread will receive its own dedicated connection object.
-        The connection is created on the first access and then reused for
-        all subsequent calls within the same thread.
+        Returns the raw aiosqlite connection.
+        Raises an error if not connected.
         """
-        if self._closed.is_set():
-            raise ConnectionError("BeaverDB instance is closed.")
+        if self._connection is None:
+            raise ConnectionError("AsyncBeaverDB is not connected. Await .connect() first.")
 
-        # Disallow multi-threaded use of in-memory DBs
-        if self._in_memory:
-            current_thread = threading.current_thread().native_id
+        return self._connection
 
-            if current_thread != self._main_thread:
-                raise TypeError(
-                    "Cannot use BeaverDB in multi-threaded context with :memory: path."
-                )
-
-        # Check if a connection is already stored for this thread
-        conn = getattr(self._thread_local, "conn", None)
-
-        if conn is None:
-            if self._closed.is_set():
-                raise ConnectionError("BeaverDB instance is closed.")
-
-            # No connection for this thread yet, so create one.
-            conn = sqlite3.connect(self._db_path, timeout=self._timeout)
-
-            if self._pragma_wal:
-                conn.execute("PRAGMA journal_mode = WAL;")
-
-            if self._pragma_synchronous:
-                conn.execute("PRAGMA synchronous = FULL;")
-            else:
-                conn.execute("PRAGMA synchronous = NORMAL;")
-
-            if self._pragma_temp_memory:
-                conn.execute("PRAGMA temp_store = MEMORY;")
-
-            if self._pragma_mmap_size > 0:
-                conn.execute(f"PRAGMA mmap_size = {self._pragma_mmap_size};")
-
-            conn.row_factory = sqlite3.Row
-
-            # Register the new connection
-            with self._connections_lock:
-                self._connections.add(conn)
-
-            self._thread_local.conn = conn
-
-        return conn
-
-    def cache(self, key: str = "global") -> ICache:
-        """Returns a thread-local cache that is always valid."""
-        if self._closed.is_set():
-            raise ConnectionError("BeaverDB instance is closed.")
-
-        if not self._cache_timeout:
-            return DummyCache.singleton()
-
-        cache = getattr(self._thread_local, f"cache_{key}", None)
-
-        if cache is None:
-            cache = LocalCache(
-                self, cache_namespace=key, check_interval=self._cache_timeout
-            )
-            setattr(self._thread_local, f"cache_{key}", cache)
-
-        return cache
-
-    def _create_all_tables(self):
-        """Initializes all required tables in the database file."""
-        with self.connection:
-            self._create_blobs_table()
-            self._create_cache_table()
-            self._create_collections_table()
-            self._create_dict_table()
-            self._create_edges_table()
-            self._create_fts_table()
-            self._create_list_table()
-            self._create_locks_table()
-            self._create_logs_table()
-            self._create_priority_queue_table()
-            self._create_pubsub_table()
-            self._create_trigrams_table()
-            self._create_vector_change_log_table()
-            self._create_versions_table()
-            self._create_sketches_table()
-
-    def _create_sketches_table(self):
-        """Creates the table for probabilistic sketches."""
-        self.connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS beaver_sketches (
-                name TEXT PRIMARY KEY,
-                type TEXT NOT NULL,
-                capacity INTEGER NOT NULL,
-                error_rate REAL NOT NULL,
-                data BLOB NOT NULL
-            )
-            """
-        )
-
-    def _create_cache_table(self):
-        """Creates a table to track the version of each data manager for caching."""
-        self.connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS beaver_manager_versions (
-                namespace TEXT PRIMARY KEY,
-                version INTEGER NOT NULL DEFAULT 0
-            )
+    def transaction(self) -> AsyncContextManager:
         """
-        )
+        Returns an async context manager for an atomic transaction.
+        Use: async with db.transaction(): ...
+        """
+        return _TransactionContext(self.connection, self._tx_lock)
 
-    def _create_vector_change_log_table(self):
-        """Creates the unified log for vector insertions and deletions."""
-        # operation_type: 1 = INSERT, 2 = DELETE
-        self.connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS beaver_vector_change_log (
-                log_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                collection_name TEXT NOT NULL,
-                item_id TEXT NOT NULL,
-                operation_type INTEGER NOT NULL
-            )
-            """
-        )
-        self.connection.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_vcl_lookup
-            ON beaver_vector_change_log (collection_name, log_id)
-            """
-        )
+    async def _create_all_tables(self):
+        """Initializes all required tables with the new __beaver__ naming convention."""
+        # Note: We use execute() directly here as these are DDL statements
+        # and don't strictly require the transaction lock (sqlite handles DDL locking).
 
-    def _create_locks_table(self):  # <-- Add this new method
-        """Creates the table for managing inter-process lock waiters."""
-        self.connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS beaver_lock_waiters (
-                lock_name TEXT NOT NULL,
-                waiter_id TEXT NOT NULL,
-                requested_at REAL NOT NULL,
-                expires_at REAL NOT NULL,
-                PRIMARY KEY (lock_name, requested_at)
-            )
-            """
-        )
-        # Index for fast cleanup of expired locks
-        self.connection.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_lock_expires
-            ON beaver_lock_waiters (lock_name, expires_at)
-            """
-        )
-        # Index for fast deletion by the lock holder
-        self.connection.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_lock_waiter_id
-            ON beaver_lock_waiters (lock_name, waiter_id)
-            """
-        )
+        c = self.connection
 
-    def _create_logs_table(self):
-        """Creates the table for time-indexed logs."""
-        self.connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS beaver_logs (
-                log_name TEXT NOT NULL,
-                timestamp REAL NOT NULL,
-                data TEXT NOT NULL,
-                PRIMARY KEY (log_name, timestamp)
-            )
-            """
-        )
-        self.connection.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_logs_timestamp
-            ON beaver_logs (log_name, timestamp)
-            """
-        )
-
-    def _create_blobs_table(self):
-        """Creates the table for storing named blobs."""
-        self.connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS beaver_blobs (
+        # Blobs
+        await c.execute("""
+            CREATE TABLE IF NOT EXISTS __beaver_blobs__ (
                 store_name TEXT NOT NULL,
                 key TEXT NOT NULL,
                 data BLOB NOT NULL,
                 metadata TEXT,
                 PRIMARY KEY (store_name, key)
             )
-            """
-        )
+        """)
 
-    def _create_priority_queue_table(self):
-        """Creates the priority queue table and its performance index."""
-        self.connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS beaver_priority_queues (
-                queue_name TEXT NOT NULL,
-                priority REAL NOT NULL,
-                timestamp REAL NOT NULL,
-                data TEXT NOT NULL
+        # Cache Versioning
+        await c.execute("""
+            CREATE TABLE IF NOT EXISTS __beaver_manager_versions__ (
+                namespace TEXT PRIMARY KEY,
+                version INTEGER NOT NULL DEFAULT 0
             )
-            """
-        )
-        self.connection.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_priority_queue_order
-            ON beaver_priority_queues (queue_name, priority ASC, timestamp ASC)
-            """
-        )
+        """)
 
-    def _create_dict_table(self):
-        """Creates the namespaced dictionary table."""
-        self.connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS beaver_dicts (
-                dict_name TEXT NOT NULL,
-                key TEXT NOT NULL,
-                value TEXT NOT NULL,
-                expires_at REAL,
-                PRIMARY KEY (dict_name, key)
-            )
-        """
-        )
-
-    def _create_pubsub_table(self):
-        """Creates the pub/sub log table."""
-        self.connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS beaver_pubsub_log (
-                timestamp REAL PRIMARY KEY,
-                channel_name TEXT NOT NULL,
-                message_payload TEXT NOT NULL
-            )
-        """
-        )
-        self.connection.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_pubsub_channel_timestamp
-            ON beaver_pubsub_log (channel_name, timestamp)
-        """
-        )
-
-    def _create_list_table(self):
-        """Creates the lists table."""
-        self.connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS beaver_lists (
-                list_name TEXT NOT NULL,
-                item_order REAL NOT NULL,
-                item_value TEXT NOT NULL,
-                PRIMARY KEY (list_name, item_order)
-            )
-        """
-        )
-
-    def _create_collections_table(self):
-        """Creates the main table for storing documents and vectors."""
-        self.connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS beaver_collections (
+        # Collections (Vectors)
+        await c.execute("""
+            CREATE TABLE IF NOT EXISTS __beaver_collections__ (
                 collection TEXT NOT NULL,
                 item_id TEXT NOT NULL,
                 item_vector BLOB,
                 metadata TEXT,
                 PRIMARY KEY (collection, item_id)
             )
-        """
-        )
+        """)
 
-    def _create_fts_table(self):
-        """Creates the virtual FTS table for full-text search."""
-        self.connection.execute(
-            """
-            CREATE VIRTUAL TABLE IF NOT EXISTS beaver_fts_index USING fts5(
-                collection,
-                item_id,
-                field_path,
-                field_content,
-                tokenize = 'porter'
+        # Dicts
+        await c.execute("""
+            CREATE TABLE IF NOT EXISTS __beaver_dicts__ (
+                dict_name TEXT NOT NULL,
+                key TEXT NOT NULL,
+                value TEXT NOT NULL,
+                expires_at REAL,
+                PRIMARY KEY (dict_name, key)
             )
-        """
-        )
+        """)
 
-    def _create_trigrams_table(self):
-        """Creates the table for the fuzzy search trigram index."""
-        self.connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS beaver_trigrams (
-                collection TEXT NOT NULL,
-                item_id TEXT NOT NULL,
-                field_path TEXT NOT NULL,
-                trigram TEXT NOT NULL,
-                PRIMARY KEY (collection, field_path, trigram, item_id)
-            )
-            """
-        )
-        self.connection.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_trigram_lookup
-            ON beaver_trigrams (collection, trigram, field_path)
-            """
-        )
-
-    def _create_edges_table(self):
-        """Creates the table for storing relationships between documents."""
-        self.connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS beaver_edges (
+        # Edges (Graph)
+        await c.execute("""
+            CREATE TABLE IF NOT EXISTS __beaver_edges__ (
                 collection TEXT NOT NULL,
                 source_item_id TEXT NOT NULL,
                 target_item_id TEXT NOT NULL,
@@ -553,295 +225,262 @@ class BeaverDB:
                 metadata TEXT,
                 PRIMARY KEY (collection, source_item_id, target_item_id, label)
             )
-        """
-        )
+        """)
 
-    def _create_versions_table(self):
-        """Creates a table to track the version of each collection for caching."""
-        self.connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS beaver_collection_versions (
+        # FTS (Virtual Table)
+        await c.execute("""
+            CREATE VIRTUAL TABLE IF NOT EXISTS __beaver_fts_index__ USING fts5(
+                collection,
+                item_id,
+                field_path,
+                field_content,
+                tokenize = 'porter'
+            )
+        """)
+
+        # Lists
+        await c.execute("""
+            CREATE TABLE IF NOT EXISTS __beaver_lists__ (
+                list_name TEXT NOT NULL,
+                item_order REAL NOT NULL,
+                item_value TEXT NOT NULL,
+                PRIMARY KEY (list_name, item_order)
+            )
+        """)
+
+        # Locks
+        await c.execute("""
+            CREATE TABLE IF NOT EXISTS __beaver_lock_waiters__ (
+                lock_name TEXT NOT NULL,
+                waiter_id TEXT NOT NULL,
+                requested_at REAL NOT NULL,
+                expires_at REAL NOT NULL,
+                PRIMARY KEY (lock_name, requested_at)
+            )
+        """)
+        await c.execute("CREATE INDEX IF NOT EXISTS idx_lock_expires ON __beaver_lock_waiters__ (lock_name, expires_at)")
+        await c.execute("CREATE INDEX IF NOT EXISTS idx_lock_waiter_id ON __beaver_lock_waiters__ (lock_name, waiter_id)")
+
+        # Logs
+        await c.execute("""
+            CREATE TABLE IF NOT EXISTS __beaver_logs__ (
+                log_name TEXT NOT NULL,
+                timestamp REAL NOT NULL,
+                data TEXT NOT NULL,
+                PRIMARY KEY (log_name, timestamp)
+            )
+        """)
+        await c.execute("CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON __beaver_logs__ (log_name, timestamp)")
+
+        # Priority Queues
+        await c.execute("""
+            CREATE TABLE IF NOT EXISTS __beaver_priority_queues__ (
+                queue_name TEXT NOT NULL,
+                priority REAL NOT NULL,
+                timestamp REAL NOT NULL,
+                data TEXT NOT NULL
+            )
+        """)
+        await c.execute("CREATE INDEX IF NOT EXISTS idx_priority_queue_order ON __beaver_priority_queues__ (queue_name, priority ASC, timestamp ASC)")
+
+        # PubSub
+        await c.execute("""
+            CREATE TABLE IF NOT EXISTS __beaver_pubsub_log__ (
+                timestamp REAL PRIMARY KEY,
+                channel_name TEXT NOT NULL,
+                message_payload TEXT NOT NULL
+            )
+        """)
+        await c.execute("CREATE INDEX IF NOT EXISTS idx_pubsub_channel_timestamp ON __beaver_pubsub_log__ (channel_name, timestamp)")
+
+        # Trigrams (Fuzzy)
+        await c.execute("""
+            CREATE TABLE IF NOT EXISTS __beaver_trigrams__ (
+                collection TEXT NOT NULL,
+                item_id TEXT NOT NULL,
+                field_path TEXT NOT NULL,
+                trigram TEXT NOT NULL,
+                PRIMARY KEY (collection, field_path, trigram, item_id)
+            )
+        """)
+        await c.execute("CREATE INDEX IF NOT EXISTS idx_trigram_lookup ON __beaver_trigrams__ (collection, trigram, field_path)")
+
+        # Vector Change Log
+        await c.execute("""
+            CREATE TABLE IF NOT EXISTS __beaver_vector_change_log__ (
+                log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                collection_name TEXT NOT NULL,
+                item_id TEXT NOT NULL,
+                operation_type INTEGER NOT NULL
+            )
+        """)
+        await c.execute("CREATE INDEX IF NOT EXISTS idx_vcl_lookup ON __beaver_vector_change_log__ (collection_name, log_id)")
+
+        # Collection Versions
+        await c.execute("""
+            CREATE TABLE IF NOT EXISTS __beaver_collection_versions__ (
                 collection_name TEXT PRIMARY KEY,
                 base_version INTEGER NOT NULL DEFAULT 0
             )
+        """)
+
+        # Sketches
+        await c.execute("""
+            CREATE TABLE IF NOT EXISTS __beaver_sketches__ (
+                name TEXT PRIMARY KEY,
+                type TEXT NOT NULL,
+                capacity INTEGER NOT NULL,
+                error_rate REAL NOT NULL,
+                data BLOB NOT NULL
+            )
+        """)
+
+        await self.connection.commit()
+
+    def singleton(self, cls, name, **kwargs):
         """
+        Factory method to get a singleton manager.
+        Since this runs on the event loop, no locks are needed.
+        """
+        cache_key = (cls, name)
+
+        if cache_key not in self._manager_cache:
+            # We pass 'self' (AsyncBeaverDB) as the db interface
+            instance = cls(name=name, db=self, **kwargs)
+            self._manager_cache[cache_key] = instance
+
+        return self._manager_cache[cache_key]
+
+    # --- Factory Methods (Internal) ---
+    # These return the raw Async Managers.
+    # Note: These manager classes will be refactored in Phase 3.
+
+    def dict(self, name: str, model: type | None = None, secret: str | None = None):
+        return self.singleton(DictManager, name, model=model, secret=secret)
+
+    def list(self, name: str, model: type | None = None):
+        return self.singleton(ListManager, name, model=model)
+
+    def queue(self, name: str, model: type | None = None):
+        return self.singleton(QueueManager, name, model=model)
+
+    def collection(self, name: str, model: Type | None = None):
+        return self.singleton(CollectionManager, name, model=model)
+
+    def channel(self, name: str, model: type | None = None):
+        return self.singleton(ChannelManager, name, model=model)
+
+    def blob(self, name: str, model: type | None = None):
+        return self.singleton(BlobManager, name, model=model)
+
+    def log(self, name: str, model: type | None = None):
+        return self.singleton(LogManager, name, model=model)
+
+    def lock(self, name: str, timeout=None, lock_ttl=60.0, poll_interval=0.1):
+        return LockManager(self, name, timeout, lock_ttl, poll_interval)
+
+    def sketch(self, name: str, capacity=1_000_000, error_rate=0.01, model=None):
+        return self.singleton(SketchManager, name, capacity=capacity, error_rate=error_rate, model=model)
+
+    def cache(self, key: str = "global"):
+        # Temporary stub: Caching will be revisited
+        return DummyCache.singleton()
+
+
+class BeaverDB:
+    """
+    The Synchronous Facade (Portal).
+
+    This class starts a background thread with an asyncio loop and
+    proxies all requests to the AsyncBeaverDB engine via BeaverBridge.
+    """
+
+    def __init__(
+        self,
+        db_path: str,
+        /,
+        **kwargs
+    ):
+        # 1. Start the Reactor Thread
+        self._loop = asyncio.new_event_loop()
+        self._thread = threading.Thread(
+            target=self._loop.run_forever,
+            daemon=True,
+            name="BeaverDB-Reactor"
         )
+        self._thread.start()
+
+        # 2. Initialize the Engine on the Reactor Thread
+        async def init_engine():
+            db = AsyncBeaverDB(db_path, **kwargs)
+            await db.connect()
+            return db
+
+        future = asyncio.run_coroutine_threadsafe(init_engine(), self._loop)
+        self._async_db = future.result()
+        self._closed = False
 
     def close(self):
-        """
-        Closes all database connections for this BeaverDB instance across all
-        threads and shuts down all background polling threads (e.g., for
-        pub/sub channels and live logs).
+        """Shuts down the reactor thread and closes the DB."""
+        if self._closed:
+            return
 
-        Once closed, any attempt to access a connection will raise an error.
-        """
-        if self._closed.is_set():
-            return  # Already closed
+        async def shutdown():
+            await self._async_db.close()
 
-        self._closed.set()
+        future = asyncio.run_coroutine_threadsafe(shutdown(), self._loop)
+        future.result()
 
-        # Stop the central event listener
-        self._event_listener_stop_event.set()
+        self._loop.call_soon_threadsafe(self._loop.stop)
+        self._thread.join(timeout=1.0)
+        self._closed = True
 
-        if self._event_listener_thread.is_alive():
-            self._event_listener_thread.join(timeout=1.0)
-
-        # Shut down all managers (stops Channels, Logs, Event Listeners)
-        with self._manager_cache_lock:
-            for instance in self._manager_cache.values():
-                # Check if the instance has a 'close' method and call it
-                if isinstance(instance, IResourceManager):
-                    try:
-                        instance.close()
-                    except Exception as e:
-                        warnings.warn(
-                            f"Error closing manager instance {instance}. Exception ignored: {str(e)}.",
-                            stacklevel=2,
-                        )
-
-            self._manager_cache.clear()
-
-        # Force-close ALL tracked connections for this instance
-        # with self._connections_lock:
-        #     for conn in self._connections:
-        #         try:
-        #             conn.close()
-        #         except Exception as e:
-        #             pass
-        #     self._connections.clear()
-
-        # 3. Clear the current thread's connection just in case
-        conn = getattr(self._thread_local, "conn", None)
-        if conn is not None:
-            conn.close()
-
-    def emit(self, topic: str, event: str, payload: dict) -> bool:
-        """
-        Internal event emitter with a single, global check for efficiency.
-
-        This is called by managers (e.g., DictManager) on a mutation.
-        Returns True if the event was published, False if no listeners exist.
-        """
-        full_topic_key = f"{topic}:{event}"
-
-        # Check the global, cross-process registry.
-        registry = self._events_dict
-
-        if registry.get(full_topic_key, 0) <= 0:
-            return False  # No one is listening anywhere, so do nothing.
-
-        # Someone is listening, so publish to the single global channel.
-        event_data = Event(
-            topic=topic,
-            event=event,
-            payload=payload,
-        )
-
-        # This is the single, central channel.
-        self.channel("__beaver_events__", model=Event).publish(event_data)
-        return True
-
-    def __enter__(self) -> "BeaverDB":
-        """Enables context manager support."""
-        if self._closed.is_set():
-            raise ConnectionError("BeaverDB instance is closed.")
-
+    def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Calls close() when exiting a 'with' statement."""
         self.close()
 
-    # --- Factory and Passthrough Methods ---
-
-    def dict[T: BaseModel](
-        self, name: str, model: type[T] | None = None, secret: str | None = None
-    ) -> DictManager[T]:
+    def _get_manager(self, method_name: str, *args, **kwargs) -> Any:
         """
-        Returns a wrapper object for interacting with a named dictionary.
-        If model is defined, it should be a type used for automatic (de)serialization.
-        If secret is provided, the dictionary will be encrypted (requires 'security' extra).
+        Helper to invoke a factory method on the Async Engine and wrap the result.
+        Executing on the loop ensures the singleton cache is accessed safely.
         """
-        return self.singleton(DictManager, name, model, secret=secret)
+        async def factory_call():
+            method = getattr(self._async_db, method_name)
+            return method(*args, **kwargs)
 
-    def list[T: BaseModel](
-        self, name: str, model: type[T] | None = None
-    ) -> ListManager[T]:
-        """
-        Returns a wrapper object for interacting with a named list.
-        If model is defined, it should be a type used for automatic (de)serialization.
-        """
-        return self.singleton(ListManager, name, model)
+        future = asyncio.run_coroutine_threadsafe(factory_call(), self._loop)
+        async_manager = future.result()
 
-    def queue[T: BaseModel](
-        self, name: str, model: type[T] | None = None
-    ) -> QueueManager[T]:
-        """
-        Returns a wrapper object for interacting with a persistent priority queue.
-        If model is defined, it should be a type used for automatic (de)serialization.
-        """
-        return self.singleton(QueueManager, name, model)
+        # Wrap the Async Manager in the Bridge
+        return BeaverBridge(async_manager, self._loop)
 
-    def collection[D: Document](
-        self, name: str, model: Type[D] | None = None
-    ) -> CollectionManager[D]:
-        """
-        Returns a singleton CollectionManager instance for interacting with a
-        document collection.
-        """
-        return self.singleton(CollectionManager, name, model)
+    # --- Public API (Proxies) ---
 
-    def channel[T: BaseModel](
-        self, name: str, model: type[T] | None = None
-    ) -> ChannelManager[T]:
-        """
-        Returns a singleton Channel instance for high-efficiency pub/sub.
-        """
-        return self.singleton(ChannelManager, name, model)
+    def dict(self, name: str, model: type | None = None, secret: str | None = None):
+        return self._get_manager("dict", name, model, secret)
 
-    def blob[M: BaseModel](
-        self, name: str, model: type[M] | None = None
-    ) -> BlobManager[M]:
-        """Returns a wrapper object for interacting with a named blob store."""
-        return self.singleton(BlobManager, name, model)
+    def list(self, name: str, model: type | None = None):
+        return self._get_manager("list", name, model)
 
-    def log[T: BaseModel](
-        self, name: str, model: type[T] | None = None
-    ) -> LogManager[T]:
-        """
-        Returns a wrapper for interacting with a named, time-indexed log.
-        If model is defined, it should be a type used for automatic (de)serialization.
-        """
-        return self.singleton(LogManager, name, model)
+    def queue(self, name: str, model: type | None = None):
+        return self._get_manager("queue", name, model)
 
-    def lock(
-        self,
-        name: str,
-        timeout: float | None = None,
-        lock_ttl: float = 60.0,
-        poll_interval: float = 0.1,
-    ) -> LockManager:
-        """
-        Returns an inter-process lock manager for a given lock name.
+    def collection(self, name: str, model: Type | None = None):
+        return self._get_manager("collection", name, model)
 
-        Args:
-            name: The unique name of the lock.
-            timeout: Max seconds to wait to acquire the lock.
-                    If None, it will wait forever.
-            lock_ttl: Max seconds the lock can be held. If the process crashes,
-                    the lock will auto-expire after this time.
-            poll_interval: Seconds to wait between polls. Shorter intervals
-                        are more responsive but create more DB I/O.
-        """
-        if self._closed.is_set():
-            raise ConnectionError("BeaverDB instance is closed.")
+    def channel(self, name: str, model: type | None = None):
+        return self._get_manager("channel", name, model)
 
-        return LockManager(self, name, timeout, lock_ttl, poll_interval)
+    def blob(self, name: str, model: type | None = None):
+        return self._get_manager("blob", name, model)
 
-    def sketch[T: BaseModel](
-        self,
-        name: str,
-        capacity: int = 1_000_000,
-        error_rate: float = 0.01,
-        model: type[T] | None = None,
-    ) -> SketchManager:
-        """
-        Returns a wrapper for interacting with a probabilistic sketch (ApproximateSet).
+    def log(self, name: str, model: type | None = None):
+        return self._get_manager("log", name, model)
 
-        Args:
-            name: Unique name of the sketch.
-            capacity: Expected number of items (configures Bloom Filter size).
-            error_rate: Desired error probability (configures Bloom & HLL precision).
-            model: The optional Pydantic model to use for item serialization.
-        """
-        return self.singleton(
-            SketchManager,
-            name,
-            capacity=capacity,
-            error_rate=error_rate,
-            model=model,
-        )
+    def lock(self, name: str, timeout=None, lock_ttl=60.0, poll_interval=0.1):
+        return self._get_manager("lock", name, timeout, lock_ttl, poll_interval)
 
-    # --- Properties for Name Discovery ---
-
-    def _get_distinct_names(
-        self,
-        table_name: str,
-        column_name: str,
-    ) -> List[str]:
-        """
-        A parameterized helper to get a distinct list of user-defined names
-        from a table, excluding internal names (those starting with '__').
-        """
-        cursor = self.connection.cursor()
-
-        # Build the query
-        sql = f"""
-        SELECT DISTINCT {column_name}
-        FROM {table_name}
-        WHERE {column_name} NOT LIKE '__%'
-        ORDER BY {column_name} ASC
-        """
-
-        cursor.execute(sql)
-
-        names = [row[column_name] for row in cursor.fetchall()]
-        cursor.close()
-        return names
-
-    @property
-    def dicts(self) -> List[str]:
-        """Returns a list of all existing user-defined dictionary names."""
-        return self._get_distinct_names(
-            table_name="beaver_dicts", column_name="dict_name"
-        )
-
-    @property
-    def lists(self) -> List[str]:
-        """Returns a list of all existing user-defined list names."""
-        return self._get_distinct_names(
-            table_name="beaver_lists", column_name="list_name"
-        )
-
-    @property
-    def queues(self) -> List[str]:
-        """Returns a list of all existing user-defined queue names."""
-        return self._get_distinct_names(
-            table_name="beaver_priority_queues", column_name="queue_name"
-        )
-
-    @property
-    def collections(self) -> List[str]:
-        """Returns a list of all existing user-defined collection names."""
-        return self._get_distinct_names(
-            table_name="beaver_collections", column_name="collection"
-        )
-
-    @property
-    def channels(self) -> List[str]:
-        """Returns a list of all existing user-defined channel names."""
-        return self._get_distinct_names(
-            table_name="beaver_pubsub_log",
-            column_name="channel_name",
-        )
-
-    @property
-    def blobs(self) -> List[str]:
-        """Returns a list of all existing user-defined blob store names."""
-        return self._get_distinct_names(
-            table_name="beaver_blobs", column_name="store_name"
-        )
-
-    @property
-    def logs(self) -> List[str]:
-        """Returns a list of all existing user-defined log names."""
-        return self._get_distinct_names(
-            table_name="beaver_logs", column_name="log_name"
-        )
-
-    @property
-    def locks(self) -> List[str]:
-        """Returns a list of all active, user-defined lock names."""
-        return self._get_distinct_names(
-            table_name="beaver_lock_waiters", column_name="lock_name"
-        )
+    def sketch(self, name: str, capacity=1_000_000, error_rate=0.01, model=None):
+        return self._get_manager("sketch", name, capacity, error_rate, model)
