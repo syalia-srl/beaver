@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 # Note: These imports will eventually be updated to "Async..." versions
 # as we progress through the file-by-file refactor.
-from .blobs import BlobManager
+from .blobs import AsyncBeaverBlob, IBeaverBlob
 from .cache import DummyCache, LocalCache
 from .channels import ChannelManager
 from .collections import CollectionManager, Document
@@ -446,8 +446,8 @@ class AsyncBeaverDB:
     def channel(self, name: str, model: type | None = None):
         return self.singleton(ChannelManager, name, model=model)
 
-    def blob(self, name: str, model: type | None = None):
-        return self.singleton(BlobManager, name, model=model)
+    def blob(self, name: str, model: type | None = None) -> AsyncBeaverBlob:
+        return self.singleton(AsyncBeaverBlob, name, model=model)
 
     def log(self, name: str, model: type | None = None):
         return self.singleton(LogManager, name, model=model)
@@ -537,10 +537,10 @@ class BeaverDB:
     ) -> IBeaverDict:
         return self._get_manager("dict", name, model, secret)
 
-    def list(self, name: str, model: type | None = None):
+    def list(self, name: str, model: type | None = None) -> IBeaverList:
         return self._get_manager("list", name, model)
 
-    def queue(self, name: str, model: type | None = None):
+    def queue(self, name: str, model: type | None = None) -> IBeaverQueue:
         return self._get_manager("queue", name, model)
 
     def collection(self, name: str, model: Type | None = None):
@@ -549,7 +549,7 @@ class BeaverDB:
     def channel(self, name: str, model: type | None = None):
         return self._get_manager("channel", name, model)
 
-    def blob(self, name: str, model: type | None = None):
+    def blob(self, name: str, model: type | None = None) -> IBeaverBlob:
         return self._get_manager("blob", name, model)
 
     def log(self, name: str, model: type | None = None):
