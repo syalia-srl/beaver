@@ -300,8 +300,8 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
     def query(self) -> DocumentQuery:
         return DocumentQuery(self)
 
-    def search(self, query: str, on: List[str] | None = None) -> DocumentQuery:
-        return self.query().search(query, on=on)
+    async def search(self, query: str, on: List[str] | None = None):
+        return await self.query().search(query, on=on).execute()
 
     def fuzzy(self, query: str) -> DocumentQuery:
         return self.query().fuzzy(query)
