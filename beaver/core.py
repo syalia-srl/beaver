@@ -329,17 +329,20 @@ class AsyncBeaverDB:
         )
 
         # Main Storage
-        await c.execute("""
+        await c.execute(
+            """
             CREATE TABLE IF NOT EXISTS __beaver_documents__ (
                 collection TEXT NOT NULL,
                 item_id TEXT NOT NULL,
                 data TEXT NOT NULL,
                 PRIMARY KEY (collection, item_id)
             )
-        """)
+        """
+        )
 
         # FTS Index
-        await c.execute("""
+        await c.execute(
+            """
             CREATE VIRTUAL TABLE IF NOT EXISTS __beaver_fts_index__ USING fts5(
                 collection,
                 item_id,
@@ -347,19 +350,23 @@ class AsyncBeaverDB:
                 field_content,
                 tokenize = 'porter'
             )
-        """)
+        """
+        )
 
         # Fuzzy Index (Trigrams)
-        await c.execute("""
+        await c.execute(
+            """
             CREATE TABLE IF NOT EXISTS __beaver_trigrams__ (
                 collection TEXT NOT NULL,
                 item_id TEXT NOT NULL,
                 trigram TEXT NOT NULL,
                 PRIMARY KEY (collection, item_id, trigram)
             )
-        """)
-        await c.execute("CREATE INDEX IF NOT EXISTS idx_trigram_lookup ON __beaver_trigrams__ (collection, trigram)")
-
+        """
+        )
+        await c.execute(
+            "CREATE INDEX IF NOT EXISTS idx_trigram_lookup ON __beaver_trigrams__ (collection, trigram)"
+        )
 
         await self.connection.commit()
 

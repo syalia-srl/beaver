@@ -2,7 +2,15 @@ import math
 import hashlib
 import struct
 import asyncio
-from typing import Any, Iterator, Optional, Protocol, runtime_checkable, TYPE_CHECKING, Self
+from typing import (
+    Any,
+    Iterator,
+    Optional,
+    Protocol,
+    runtime_checkable,
+    TYPE_CHECKING,
+    Self,
+)
 
 from pydantic import BaseModel
 
@@ -38,6 +46,7 @@ class ApproximateSet:
     A unified probabilistic data structure combining HyperLogLog and Bloom Filter.
     Pure Python implementation (CPU-bound).
     """
+
     def __init__(
         self,
         capacity: int = 1_000_000,
@@ -69,9 +78,12 @@ class ApproximateSet:
             self._data = bytearray(expected_size)
 
     def _get_alpha(self, m: int) -> float:
-        if m == 16: return 0.673
-        elif m == 32: return 0.697
-        elif m == 64: return 0.709
+        if m == 16:
+            return 0.673
+        elif m == 32:
+            return 0.697
+        elif m == 64:
+            return 0.709
         return 0.7213 / (1 + 1.079 / m)
 
     def add(self, item_bytes: bytes):
@@ -117,11 +129,13 @@ class ApproximateSet:
         sum_inv = 0.0
         for i in range(self.m):
             val = self._data[i]
-            if val == 0: zeros += 1
+            if val == 0:
+                zeros += 1
             sum_inv += 2.0 ** (-val)
         E = self.alpha * (self.m**2) / sum_inv
         if E <= 2.5 * self.m:
-            if zeros > 0: E = self.m * math.log(self.m / zeros)
+            if zeros > 0:
+                E = self.m * math.log(self.m / zeros)
         return int(E)
 
     def to_bytes(self) -> bytes:
@@ -170,6 +184,7 @@ class AsyncSketchBatch[T: BaseModel]:
 @runtime_checkable
 class IBeaverSketch[T: BaseModel](Protocol):
     """Protocol exposed to the user via BeaverBridge."""
+
     def add(self, item: T) -> None: ...
     def contains(self, item: T) -> bool: ...
     def count(self) -> int: ...

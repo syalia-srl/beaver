@@ -5,10 +5,12 @@ from beaver import AsyncBeaverDB, Document
 
 pytestmark = pytest.mark.asyncio
 
+
 class Article(BaseModel):
     title: str
     content: str
     tags: list[str]
+
 
 async def test_docs_basic_crud(async_db_mem: AsyncBeaverDB):
     """Test index, get, drop with simple strings."""
@@ -29,6 +31,7 @@ async def test_docs_basic_crud(async_db_mem: AsyncBeaverDB):
     with pytest.raises(KeyError):
         await docs.get(doc1.id)
 
+
 async def test_docs_flexible_arguments(async_db_mem: AsyncBeaverDB):
     """Test the different calling signatures of index()."""
     docs = async_db_mem.docs("flex")
@@ -46,8 +49,10 @@ async def test_docs_flexible_arguments(async_db_mem: AsyncBeaverDB):
     d3 = await docs.index(body="three")
     assert (await docs.get(d3.id)).body == "three"
 
+
 async def test_docs_pydantic_model(async_db_mem: AsyncBeaverDB):
     """Test storing structured Pydantic models."""
+
     class User(BaseModel):
         name: str
         role: str
@@ -63,18 +68,23 @@ async def test_docs_pydantic_model(async_db_mem: AsyncBeaverDB):
     assert isinstance(doc.body, User)
     assert doc.body.name == "Alice"
 
+
 async def test_docs_field_search(async_db_mem: AsyncBeaverDB):
     """Test searching on specific fields using the new FTS implementation."""
     docs = async_db_mem.docs("news", model=Article)
 
     # Doc 1: "Python" in title
-    await docs.index(body=Article(title="Python News", content="Something else", tags=[]))
+    await docs.index(
+        body=Article(title="Python News", content="Something else", tags=[])
+    )
 
     # Doc 2: "Python" in body
     await docs.index(body=Article(title="Coding", content="I love Python", tags=[]))
 
     # Doc 3: "Python" in tags
-    await docs.index(body=Article(title="Snake", content="Hiss", tags=["reptile", "python"]))
+    await docs.index(
+        body=Article(title="Snake", content="Hiss", tags=["reptile", "python"])
+    )
 
     # 1. Search ANY field
     results = await docs.search("Python")
@@ -90,12 +100,13 @@ async def test_docs_field_search(async_db_mem: AsyncBeaverDB):
     assert len(results_tags) == 1
     assert results_tags[0].body.title == "Snake"
 
+
 async def test_docs_fuzzy_search(async_db_mem: AsyncBeaverDB):
     """Test fuzzy search using trigrams."""
     docs = async_db_mem.docs("fuzzy_test", model=str)
 
     await docs.index(body="The quick brown fox")
-    await docs.index(body="The qick brown fx") # Typo
+    await docs.index(body="The qick brown fx")  # Typo
     await docs.index(body="Completely different text")
 
     # Exact search shouldn't find the typo
@@ -111,8 +122,10 @@ async def test_docs_fuzzy_search(async_db_mem: AsyncBeaverDB):
     assert results_fuzzy[0].body == "The quick brown fox"
     assert results_fuzzy[1].body == "The qick brown fx"
 
+
 async def test_docs_fluent_query(async_db_mem: AsyncBeaverDB):
     """Test fluent query API: filter, sort, limit."""
+
     class Product(BaseModel):
         name: str
         price: float
@@ -126,10 +139,7 @@ async def test_docs_fluent_query(async_db_mem: AsyncBeaverDB):
 
     # Filter + Sort
     results = await (
-        docs.query()
-            .where("category", "tech")
-            .sort("price", "DESC")
-            .execute()
+        docs.query().where("category", "tech").sort("price", "DESC").execute()
     )
 
     assert len(results) == 2

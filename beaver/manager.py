@@ -210,4 +210,5 @@ def emits(event: str | None = None, payload: Callable | None = None):
             return result
 
         return wrapper
+
     return decorator

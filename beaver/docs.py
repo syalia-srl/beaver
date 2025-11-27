@@ -1,7 +1,16 @@
 import json
 import uuid
 import asyncio
-from typing import Any, Iterator, AsyncIterator, List, Protocol, runtime_checkable, TYPE_CHECKING, overload
+from typing import (
+    Any,
+    Iterator,
+    AsyncIterator,
+    List,
+    Protocol,
+    runtime_checkable,
+    TYPE_CHECKING,
+    overload,
+)
 
 from pydantic import BaseModel, Field
 
@@ -15,12 +24,15 @@ class Document[T](BaseModel):
     """
     Minimal document container.
     """
+
     id: str = Field(default_factory=lambda: uuid.uuid4().hex)
     body: T
     score: float | None = None
 
 
-def _flatten_document(data: Any, parent_key: str = "", sep: str = ".") -> Iterator[tuple[str, str]]:
+def _flatten_document(
+    data: Any, parent_key: str = "", sep: str = "."
+) -> Iterator[tuple[str, str]]:
     """
     Recursively yields (path, value) for all string leaf nodes in a dictionary/model.
     """
@@ -105,7 +117,10 @@ class DocumentQuery:
 @runtime_checkable
 class IBeaverDocuments[D](Protocol):
     """Protocol exposed to the user via BeaverBridge."""
-    def index(self, document: D | None = None, id: str | None = None, body: Any | None = None) -> Document: ...
+
+    def index(
+        self, document: D | None = None, id: str | None = None, body: Any | None = None
+    ) -> Document: ...
     def get(self, id: str) -> D | None: ...
     def drop(self, id_or_document: str | D) -> None: ...
     def get_many(self, ids: List[str]) -> List[D]: ...
@@ -152,7 +167,7 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
         self,
         document: Document[T] | None = None,
         id: str | None = None,
-        body: T | None = None
+        body: T | None = None,
     ) -> Document[T]:
         """
         Inserts or updates a document, indexing text fields for FTS and Trigrams.
@@ -170,13 +185,13 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
             INSERT OR REPLACE INTO __beaver_documents__ (collection, item_id, data)
             VALUES (?, ?, ?)
             """,
-            (self._name, doc.id, body_json)
+            (self._name, doc.id, body_json),
         )
 
         # 2. FTS Update (Flatten -> Delete Old -> Insert New)
         await self.connection.execute(
             "DELETE FROM __beaver_fts_index__ WHERE collection = ? AND item_id = ?",
-            (self._name, doc.id)
+            (self._name, doc.id),
         )
 
         fts_rows = []
@@ -190,13 +205,13 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
                 INSERT INTO __beaver_fts_index__ (collection, item_id, field_path, field_content)
                 VALUES (?, ?, ?, ?)
                 """,
-                fts_rows
+                fts_rows,
             )
 
         # 3. Fuzzy Index Update (Trigrams)
         await self.connection.execute(
             "DELETE FROM __beaver_trigrams__ WHERE collection = ? AND item_id = ?",
-            (self._name, doc.id)
+            (self._name, doc.id),
         )
 
         # Index trigrams for the whole document content (concatenated)
@@ -214,7 +229,7 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
         if len(clean_text) < 3:
             return
 
-        trigrams = set(clean_text[i:i+3] for i in range(len(clean_text) - 2))
+        trigrams = set(clean_text[i : i + 3] for i in range(len(clean_text) - 2))
 
         if trigrams:
             await self.connection.executemany(
@@ -222,7 +237,7 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
                 INSERT OR IGNORE INTO __beaver_trigrams__ (collection, item_id, trigram)
                 VALUES (?, ?, ?)
                 """,
-                [(self._name, item_id, t) for t in trigrams]
+                [(self._name, item_id, t) for t in trigrams],
             )
 
     @atomic
@@ -230,7 +245,7 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
         """Retrieves a document by ID."""
         cursor = await self.connection.execute(
             "SELECT data FROM __beaver_documents__ WHERE collection = ? AND item_id = ?",
-            (self._name, id)
+            (self._name, id),
         )
         row = await cursor.fetchone()
 
@@ -248,7 +263,7 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
         placeholders = ",".join("?" * len(ids))
         cursor = await self.connection.execute(
             f"SELECT item_id, data FROM __beaver_documents__ WHERE collection = ? AND item_id IN ({placeholders})",
-            (self._name, *ids)
+            (self._name, *ids),
         )
 
         results = []
@@ -261,19 +276,23 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
     @atomic
     async def drop(self, id_or_document: str | Document[T]):
         """Deletes a document by ID or instance."""
-        doc_id = id_or_document.id if isinstance(id_or_document, Document) else id_or_document
+        doc_id = (
+            id_or_document.id
+            if isinstance(id_or_document, Document)
+            else id_or_document
+        )
 
         await self.connection.execute(
             "DELETE FROM __beaver_documents__ WHERE collection = ? AND item_id = ?",
-            (self._name, doc_id)
+            (self._name, doc_id),
         )
         await self.connection.execute(
             "DELETE FROM __beaver_fts_index__ WHERE collection = ? AND item_id = ?",
-            (self._name, doc_id)
+            (self._name, doc_id),
         )
         await self.connection.execute(
             "DELETE FROM __beaver_trigrams__ WHERE collection = ? AND item_id = ?",
-            (self._name, doc_id)
+            (self._name, doc_id),
         )
 
     # --- Query API ---
@@ -306,15 +325,19 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
 
         # JOINS
         if q._search_query:
-            parts.append("JOIN __beaver_fts_index__ f ON d.collection = f.collection AND d.item_id = f.item_id")
+            parts.append(
+                "JOIN __beaver_fts_index__ f ON d.collection = f.collection AND d.item_id = f.item_id"
+            )
 
         if q._fuzzy_query:
             # Fuzzy Logic: Find IDs with matching trigrams, count matches, and join back
             clean_query = q._fuzzy_query.lower()
-            query_trigrams = [clean_query[i:i+3] for i in range(len(clean_query) - 2)]
+            query_trigrams = [
+                clean_query[i : i + 3] for i in range(len(clean_query) - 2)
+            ]
 
             if not query_trigrams:
-                return [] # Query too short for fuzzy
+                return []  # Query too short for fuzzy
 
             placeholders = ",".join("?" * len(query_trigrams))
 
@@ -357,11 +380,15 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
 
         # ORDER BY
         if q._search_query:
-            parts.append("ORDER BY score") # FTS rank (lower is better usually, but here handled by sqlite)
+            parts.append(
+                "ORDER BY score"
+            )  # FTS rank (lower is better usually, but here handled by sqlite)
         elif q._fuzzy_query:
-            parts.append("ORDER BY score DESC") # More trigram matches = better
+            parts.append("ORDER BY score DESC")  # More trigram matches = better
         elif q._sort_field:
-            parts.append(f"ORDER BY json_extract(d.data, '$.{q._sort_field}') {q._sort_order}")
+            parts.append(
+                f"ORDER BY json_extract(d.data, '$.{q._sort_field}') {q._sort_order}"
+            )
         else:
             parts.append("ORDER BY d.item_id")
 
@@ -388,20 +415,26 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
     async def count(self) -> int:
         cursor = await self.connection.execute(
             "SELECT COUNT(*) FROM __beaver_documents__ WHERE collection = ?",
-            (self._name,)
+            (self._name,),
         )
         return (await cursor.fetchone())[0]
 
     @atomic
     async def clear(self):
-        await self.connection.execute("DELETE FROM __beaver_documents__ WHERE collection = ?", (self._name,))
-        await self.connection.execute("DELETE FROM __beaver_fts_index__ WHERE collection = ?", (self._name,))
-        await self.connection.execute("DELETE FROM __beaver_trigrams__ WHERE collection = ?", (self._name,))
+        await self.connection.execute(
+            "DELETE FROM __beaver_documents__ WHERE collection = ?", (self._name,)
+        )
+        await self.connection.execute(
+            "DELETE FROM __beaver_fts_index__ WHERE collection = ?", (self._name,)
+        )
+        await self.connection.execute(
+            "DELETE FROM __beaver_trigrams__ WHERE collection = ?", (self._name,)
+        )
 
     async def __aiter__(self) -> AsyncIterator[Document[T]]:
         cursor = await self.connection.execute(
             "SELECT item_id, data FROM __beaver_documents__ WHERE collection = ?",
-            (self._name,)
+            (self._name,),
         )
         async for row in cursor:
             body_val = json.loads(row["data"])
