@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 @runtime_checkable
-class IBeaverLock(Protocol):
+class IBeaverLock[T: BaseModel](Protocol):
     def acquire(
         self,
         timeout: float | None = None,

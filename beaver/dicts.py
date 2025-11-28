@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 
 @runtime_checkable
-class IBeaverDict[T](Protocol):
+class IBeaverDict[T: BaseModel](Protocol):
     """
     The Synchronous Protocol exposed to the user via BeaverBridge.
     """

@@ -55,12 +55,12 @@ def _flatten_document(
         yield parent_key, data
 
 
-class DocumentQuery:
+class DocumentQuery[T]:
     """
     A fluent query builder for searching and filtering documents.
     """
 
-    def __init__(self, manager: "AsyncBeaverDocuments"):
+    def __init__(self, manager: "AsyncBeaverDocuments[T]"):
         self._manager = manager
         self._search_query: str | None = None
         self._search_fields: List[str] | None = None
@@ -70,18 +70,18 @@ class DocumentQuery:
         self._limit: int | None = None
         self._offset: int | None = None
 
-    def fts(self, query: str, on: List[str] | None = None) -> "DocumentQuery":
+    def fts(self, query: str, on: List[str] | None = None) -> "DocumentQuery[T]":
         """Adds a Full-Text Search (FTS) clause."""
         self._search_query = query
         self._search_fields = on
         return self
 
-    def fuzzy(self, query: str) -> "DocumentQuery":
+    def fuzzy(self, query: str) -> "DocumentQuery[T]":
         """Adds a Fuzzy Search clause."""
         self._fuzzy_query = query
         return self
 
-    def where(self, *expressions) -> "DocumentQuery":
+    def where(self, *expressions) -> "DocumentQuery[T]":
         """Adds a metadata filter."""
         for o in expressions:
             if not isinstance(o, Filter):
@@ -92,20 +92,20 @@ class DocumentQuery:
         self._filters.extend(expressions)
         return self
 
-    def sort(self, **kwargs: Literal["ASC", "DESC"]) -> "DocumentQuery":
+    def sort(self, **kwargs: Literal["ASC", "DESC"]) -> "DocumentQuery[T]":
         """Sorts by a metadata field."""
         self._sort_fields.extend(kwargs.items())
         return self
 
-    def limit(self, limit: int) -> "DocumentQuery":
+    def limit(self, limit: int) -> "DocumentQuery[T]":
         self._limit = limit
         return self
 
-    def offset(self, offset: int) -> "DocumentQuery":
+    def offset(self, offset: int) -> "DocumentQuery[T]":
         self._offset = offset
         return self
 
-    async def execute(self) -> List[Document]:
+    async def execute(self) -> List[Document[T]]:
         """Executes the built query and returns the results."""
         return await self._manager._execute_query(self)
 
@@ -113,7 +113,7 @@ class DocumentQuery:
         """Allows `await docs.search(...)` directly."""
         return self.execute().__await__()
 
-    async def __aiter__(self) -> AsyncIterator[Document]:
+    async def __aiter__(self) -> AsyncIterator[Document[T]]:
         """Allows `async for doc in docs.search(...)`."""
         results = await self.execute()
         for doc in results:
@@ -121,21 +121,21 @@ class DocumentQuery:
 
 
 @runtime_checkable
-class IBeaverDocuments[D](Protocol):
+class IBeaverDocuments[D: BaseModel](Protocol):
     """Protocol exposed to the user via BeaverBridge."""
 
     def index(
         self, document: D | None = None, id: str | None = None, body: Any | None = None
-    ) -> Document: ...
+    ) -> Document[D]: ...
     def get(self, id: str) -> D | None: ...
     def drop(self, id_or_document: str | D) -> None: ...
     def get_many(self, ids: List[str]) -> List[D]: ...
 
     # Query API
-    def query(self) -> DocumentQuery: ...
+    def query(self) -> DocumentQuery[D]: ...
     def search(
         self, query: str, on: List[str] | None = None, fuzzy: bool = False
-    ) -> DocumentQuery: ...
+    ) -> DocumentQuery[D]: ...
 
     def count(self) -> int: ...
     def clear(self) -> None: ...
@@ -308,7 +308,7 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
 
     # --- Query API ---
 
-    def query(self) -> DocumentQuery:
+    def query(self) -> DocumentQuery[T]:
         return DocumentQuery(self)
 
     async def search(

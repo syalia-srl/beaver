@@ -28,7 +28,7 @@ class BlobItem(BaseModel):
 
 
 @runtime_checkable
-class IBeaverBlob(Protocol):
+class IBeaverBlob[T: BaseModel](Protocol):
     """
     The Synchronous Protocol exposed to the user via BeaverBridge.
     """

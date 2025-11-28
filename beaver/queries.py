@@ -45,13 +45,16 @@ class Query[T]:
 def q[T](model_or_path: type[T]) -> T:
     pass
 
+
 @overload
 def q(model_or_path: str) -> Query:
     pass
 
+
 @overload
 def q() -> Query:
     pass
+
 
 def q(model_or_path: type | str | None = None) -> Any:
     if isinstance(model_or_path, type):

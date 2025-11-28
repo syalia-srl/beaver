@@ -28,7 +28,7 @@ class LogEntry[T](NamedTuple):
 
 
 @runtime_checkable
-class IBeaverLog[T](Protocol):
+class IBeaverLog[T: BaseModel](Protocol):
     """
     The Synchronous Protocol exposed to the user via BeaverBridge.
     """

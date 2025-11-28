@@ -388,27 +388,39 @@ class AsyncBeaverDB:
     # These return the raw Async Managers.
     # Note: These manager classes will be refactored in Phase 3.
 
-    def dict(
+    def dict[T: BaseModel](
         self, name: str, model: type | None = None, secret: str | None = None
-    ) -> AsyncBeaverDict:
+    ) -> AsyncBeaverDict[T]:
         return self.singleton(AsyncBeaverDict, name, model=model, secret=secret)
 
-    def list(self, name: str, model: type | None = None) -> AsyncBeaverList:
+    def list[T: BaseModel](
+        self, name: str, model: type | None = None
+    ) -> AsyncBeaverList[T]:
         return self.singleton(AsyncBeaverList, name, model=model)
 
-    def queue(self, name: str, model: type | None = None) -> AsyncBeaverQueue:
+    def queue[T: BaseModel](
+        self, name: str, model: type | None = None
+    ) -> AsyncBeaverQueue[T]:
         return self.singleton(AsyncBeaverQueue, name, model=model)
 
-    def docs(self, name: str, model: Type | None = None) -> AsyncBeaverDocuments:
+    def docs[T: BaseModel](
+        self, name: str, model: Type | None = None
+    ) -> AsyncBeaverDocuments[T]:
         return self.singleton(AsyncBeaverDocuments, name, model=model)
 
-    def channel(self, name: str, model: type | None = None) -> AsyncBeaverChannel:
+    def channel[T: BaseModel](
+        self, name: str, model: type | None = None
+    ) -> AsyncBeaverChannel[T]:
         return self.singleton(AsyncBeaverChannel, name, model=model)
 
-    def blob(self, name: str, model: type | None = None) -> AsyncBeaverBlob:
+    def blob[T: BaseModel](
+        self, name: str, model: type | None = None
+    ) -> AsyncBeaverBlob[T]:
         return self.singleton(AsyncBeaverBlob, name, model=model)
 
-    def log(self, name: str, model: type | None = None) -> AsyncBeaverLog:
+    def log[T: BaseModel](
+        self, name: str, model: type | None = None
+    ) -> AsyncBeaverLog[T]:
         return self.singleton(AsyncBeaverLog, name, model=model)
 
     def lock(
@@ -416,9 +428,9 @@ class AsyncBeaverDB:
     ) -> AsyncBeaverLock:
         return AsyncBeaverLock(self, name, timeout, lock_ttl, poll_interval)
 
-    def sketch(
+    def sketch[T: BaseModel](
         self, name: str, capacity=1_000_000, error_rate=0.01, model=None
-    ) -> AsyncBeaverSketch:
+    ) -> AsyncBeaverSketch[T]:
         return self.singleton(
             AsyncBeaverSketch,
             name,
@@ -497,35 +509,45 @@ class BeaverDB:
 
     # --- Public API (Proxies) ---
 
-    def dict(
+    def dict[T: BaseModel](
         self, name: str, model: type | None = None, secret: str | None = None
-    ) -> IBeaverDict:
+    ) -> IBeaverDict[T]:
         return self._get_manager("dict", name, model, secret)
 
-    def list(self, name: str, model: type | None = None) -> IBeaverList:
+    def list[T: BaseModel](
+        self, name: str, model: type | None = None
+    ) -> IBeaverList[T]:
         return self._get_manager("list", name, model)
 
-    def queue(self, name: str, model: type | None = None) -> IBeaverQueue:
+    def queue[T: BaseModel](
+        self, name: str, model: type | None = None
+    ) -> IBeaverQueue[T]:
         return self._get_manager("queue", name, model)
 
-    def docs(self, name: str, model: Type | None = None) -> IBeaverDocuments:
+    def docs[T: BaseModel](
+        self, name: str, model: Type | None = None
+    ) -> IBeaverDocuments[T]:
         return self._get_manager("docs", name, model)
 
-    def channel(self, name: str, model: type | None = None) -> IBeaverChannel:
+    def channel[T: BaseModel](
+        self, name: str, model: type | None = None
+    ) -> IBeaverChannel[T]:
         return self._get_manager("channel", name, model)
 
-    def blob(self, name: str, model: type | None = None) -> IBeaverBlob:
+    def blob[T: BaseModel](
+        self, name: str, model: type | None = None
+    ) -> IBeaverBlob[T]:
         return self._get_manager("blob", name, model)
 
-    def log(self, name: str, model: type | None = None) -> IBeaverLog:
+    def log[T: BaseModel](self, name: str, model: type | None = None) -> IBeaverLog[T]:
         return self._get_manager("log", name, model)
 
-    def lock(
+    def lock[T: BaseModel](
         self, name: str, timeout=None, lock_ttl=60.0, poll_interval=0.1
-    ) -> IBeaverLock:
+    ) -> IBeaverLock[T]:
         return self._get_manager("lock", name, timeout, lock_ttl, poll_interval)
 
-    def sketch(
+    def sketch[T: BaseModel](
         self, name: str, capacity=1_000_000, error_rate=0.01, model=None
-    ) -> IBeaverSketch:
+    ) -> IBeaverSketch[T]:
         return self._get_manager("sketch", name, capacity, error_rate, model)

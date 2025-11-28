@@ -30,7 +30,7 @@ class QueueItem[T](NamedTuple):
 
 
 @runtime_checkable
-class IBeaverQueue[T](Protocol):
+class IBeaverQueue[T: BaseModel](Protocol):
     """
     The Synchronous Protocol exposed to the user via BeaverBridge.
     """

@@ -30,7 +30,7 @@ class ChannelMessage(BaseModel):
 
 
 @runtime_checkable
-class IBeaverChannel[T](Protocol):
+class IBeaverChannel[T: BaseModel](Protocol):
     """
     The Synchronous Protocol exposed to the user via BeaverBridge.
     """
