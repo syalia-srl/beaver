@@ -1,7 +1,7 @@
 import asyncio
 import pytest
 from pydantic import BaseModel
-from beaver import AsyncBeaverDB, Document
+from beaver import AsyncBeaverDB, Document, q
 
 pytestmark = pytest.mark.asyncio
 
@@ -139,7 +139,7 @@ async def test_docs_fluent_query(async_db_mem: AsyncBeaverDB):
 
     # Filter + Sort
     results = await (
-        docs.query().where("category", "tech").sort("price", "DESC").execute()
+        docs.query().where(q(Product).category == "tech").sort("price", "DESC")
     )
 
     assert len(results) == 2

@@ -508,8 +508,8 @@ class BeaverDB:
     def queue(self, name: str, model: type | None = None) -> IBeaverQueue:
         return self._get_manager("queue", name, model)
 
-    def collection(self, name: str, model: Type | None = None):
-        return self._get_manager("collection", name, model)
+    def docs(self, name: str, model: Type | None = None) -> IBeaverDocuments:
+        return self._get_manager("docs", name, model)
 
     def channel(self, name: str, model: type | None = None) -> IBeaverChannel:
         return self._get_manager("channel", name, model)

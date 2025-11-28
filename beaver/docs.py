@@ -14,6 +14,7 @@ from typing import (
 
 from pydantic import BaseModel, Field
 
+from .queries import Filter
 from .manager import AsyncBeaverBase, atomic, emits
 
 if TYPE_CHECKING:
@@ -63,7 +64,7 @@ class DocumentQuery:
         self._search_query: str | None = None
         self._search_fields: List[str] | None = None
         self._fuzzy_query: str | None = None
-        self._filters: list[tuple[str, Any]] = []
+        self._filters: list[Filter] = []
         self._sort_field: str | None = None
         self._sort_order: str = "ASC"
         self._limit: int | None = None
@@ -80,9 +81,15 @@ class DocumentQuery:
         self._fuzzy_query = query
         return self
 
-    def where(self, field: str, value: Any) -> "DocumentQuery":
-        """Adds an exact match metadata filter."""
-        self._filters.append((field, value))
+    def where(self, *expressions) -> "DocumentQuery":
+        """Adds a metadata filter."""
+        for o in expressions:
+            if not isinstance(o, Filter):
+                raise TypeError(
+                    f"Expression {o} is invalid. Use `query(Model)` to create valid filters."
+                )
+
+        self._filters.extend(expressions)
         return self
 
     def sort(self, field: str, order: str = "ASC") -> "DocumentQuery":
@@ -127,8 +134,9 @@ class IBeaverDocuments[D](Protocol):
 
     # Query API
     def query(self) -> DocumentQuery: ...
-    def search(self, query: str, on: List[str] | None = None) -> DocumentQuery: ...
-    def fuzzy(self, query: str) -> DocumentQuery: ...
+    def search(
+        self, query: str, on: List[str] | None = None, fuzzy: bool = False
+    ) -> DocumentQuery: ...
 
     def count(self) -> int: ...
     def clear(self) -> None: ...
@@ -374,9 +382,11 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
                 params.extend(q._search_fields)
 
         if q._filters:
-            for field, value in q._filters:
-                where.append(f"json_extract(d.data, '$.{field}') = ?")
-                params.append(value)
+            for filter in q._filters:
+                where.append(
+                    f"json_extract(d.data, '$.{filter.path}') {filter.operator} ?"
+                )
+                params.append(filter.value)
 
         parts.append("WHERE " + " AND ".join(where))
 
@@ -423,7 +433,8 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
             "SELECT COUNT(*) FROM __beaver_documents__ WHERE collection = ?",
             (self._name,),
         )
-        return (await cursor.fetchone())[0]
+        result = await cursor.fetchone()
+        return result[0] if result else 0
 
     @atomic
     async def clear(self):
