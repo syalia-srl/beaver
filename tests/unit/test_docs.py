@@ -139,9 +139,21 @@ async def test_docs_fluent_query(async_db_mem: AsyncBeaverDB):
 
     # Filter + Sort
     results = await (
-        docs.query().where(q(Product).category == "tech").sort("price", "DESC")
+        docs.query().where(q(Product).category == "tech").sort(price="DESC")
     )
 
     assert len(results) == 2
     assert results[0].body.name == "Laptop"
     assert results[1].body.name == "Phone"
+
+    # Filter without model
+
+    results2 = await (
+        docs.query().where(q("category") == "tech").sort(price="DESC")
+    )
+
+    results3 = await (
+        docs.query().where(q().category == "tech").sort(price="DESC")
+    )
+
+    assert (results == results2) and (results2 == results3)
