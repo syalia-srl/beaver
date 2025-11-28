@@ -168,6 +168,8 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
         document: Document[T] | None = None,
         id: str | None = None,
         body: T | None = None,
+        fts: bool = True,
+        fuzzy: bool = False,
     ) -> Document[T]:
         """
         Inserts or updates a document, indexing text fields for FTS and Trigrams.
@@ -199,14 +201,15 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
             if content.strip():
                 fts_rows.append((self._name, doc.id, field_path, content))
 
-        if fts_rows:
-            await self.connection.executemany(
-                """
-                INSERT INTO __beaver_fts_index__ (collection, item_id, field_path, field_content)
-                VALUES (?, ?, ?, ?)
-                """,
-                fts_rows,
-            )
+        if fts:
+            if fts_rows:
+                await self.connection.executemany(
+                    """
+                    INSERT INTO __beaver_fts_index__ (collection, item_id, field_path, field_content)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    fts_rows,
+                )
 
         # 3. Fuzzy Index Update (Trigrams)
         await self.connection.execute(
@@ -214,12 +217,13 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
             (self._name, doc.id),
         )
 
-        # Index trigrams for the whole document content (concatenated)
-        # or specific fields? For simplicity, we index all text content found.
-        # This allows fuzzy matching on any text field.
-        full_text = " ".join(row[3] for row in fts_rows)
-        if full_text:
-            await self._index_trigrams(doc.id, full_text)
+        if fuzzy:
+            # Index trigrams for the whole document content (concatenated)
+            # or specific fields? For simplicity, we index all text content found.
+            # This allows fuzzy matching on any text field.
+            full_text = " ".join(row[3] for row in fts_rows)
+            if full_text:
+                await self._index_trigrams(doc.id, full_text)
 
         return doc
 

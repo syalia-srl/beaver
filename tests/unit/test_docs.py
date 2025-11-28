@@ -105,9 +105,9 @@ async def test_docs_fuzzy_search(async_db_mem: AsyncBeaverDB):
     """Test fuzzy search using trigrams."""
     docs = async_db_mem.docs("fuzzy_test", model=str)
 
-    await docs.index(body="The quick brown fox")
-    await docs.index(body="The qick brown fx")  # Typo
-    await docs.index(body="Completely different text")
+    await docs.index(body="The quick brown fox", fuzzy=True)
+    await docs.index(body="The qick brown fx", fuzzy=True)  # Typo
+    await docs.index(body="Completely different text", fuzzy=True)
 
     # Exact search shouldn't find the typo
     results_exact = await docs.search("quick")
