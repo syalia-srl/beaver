@@ -13,8 +13,9 @@ format-check:
 	black --check .
 
 .PHONY: test-unit test-all
+
 test-unit: format-check
-	pytest -m "unit" --cov=beaver
+	pytest tests/unit --cov=beaver
 
 test-all: format-check
 	pytest --cov=beaver
