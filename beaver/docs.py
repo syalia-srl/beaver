@@ -6,6 +6,7 @@ from typing import (
     Iterator,
     AsyncIterator,
     List,
+    Literal,
     Protocol,
     runtime_checkable,
     TYPE_CHECKING,
@@ -65,8 +66,7 @@ class DocumentQuery:
         self._search_fields: List[str] | None = None
         self._fuzzy_query: str | None = None
         self._filters: list[Filter] = []
-        self._sort_field: str | None = None
-        self._sort_order: str = "ASC"
+        self._sort_fields: list[tuple[str, str]] = []
         self._limit: int | None = None
         self._offset: int | None = None
 
@@ -92,10 +92,9 @@ class DocumentQuery:
         self._filters.extend(expressions)
         return self
 
-    def sort(self, field: str, order: str = "ASC") -> "DocumentQuery":
+    def sort(self, **kwargs: Literal["ASC", "DESC"]) -> "DocumentQuery":
         """Sorts by a metadata field."""
-        self._sort_field = field
-        self._sort_order = order.upper()
+        self._sort_fields.extend(kwargs.items())
         return self
 
     def limit(self, limit: int) -> "DocumentQuery":
@@ -401,10 +400,12 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
             )  # FTS rank (lower is better usually, but here handled by sqlite)
         elif q._fuzzy_query:
             parts.append("ORDER BY score DESC")  # More trigram matches = better
-        elif q._sort_field:
-            parts.append(
-                f"ORDER BY json_extract(d.data, '$.{q._sort_field}') {q._sort_order}"
+        elif q._sort_fields:
+            sort_expr = ", ".join(
+                f"json_extract(d.data, '$.{field}') {order}"
+                for field, order in q._sort_fields
             )
+            parts.append(f"ORDER BY {sort_expr}")
         else:
             parts.append("ORDER BY d.item_id")
 
