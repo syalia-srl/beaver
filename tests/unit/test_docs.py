@@ -14,7 +14,7 @@ class Article(BaseModel):
 
 async def test_docs_basic_crud(async_db_mem: AsyncBeaverDB):
     """Test index, get, drop with simple strings."""
-    docs = async_db_mem.docs("notes", model=str)
+    docs = async_db_mem.docs("notes")
 
     # 1. Index (auto ID)
     doc1 = await docs.index(body="Remember to buy milk")
@@ -103,7 +103,7 @@ async def test_docs_field_search(async_db_mem: AsyncBeaverDB):
 
 async def test_docs_fuzzy_search(async_db_mem: AsyncBeaverDB):
     """Test fuzzy search using trigrams."""
-    docs = async_db_mem.docs("fuzzy_test", model=str)
+    docs = async_db_mem.docs("fuzzy_test")
 
     await docs.index(body="The quick brown fox", fuzzy=True)
     await docs.index(body="The qick brown fx", fuzzy=True)  # Typo

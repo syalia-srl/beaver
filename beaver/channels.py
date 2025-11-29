@@ -191,11 +191,12 @@ class AsyncBeaverChannel[T: BaseModel](AsyncBeaverBase[T]):
                 # Wait for next message from the engine
                 msg = await queue.get()
 
-                # Deserialize message if necessary
-                if self._model:
-                    msg.payload = self._deserialize(msg.payload)
-
-                yield msg
+                # Deserialize message
+                yield ChannelMessage(
+                    channel=msg.channel,
+                    payload=self._deserialize(msg.payload),
+                    timestamp=msg.timestamp,
+                )
         finally:
             # Cleanup on break/cancel
             engine.unsubscribe(self._name, queue)
