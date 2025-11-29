@@ -1,26 +1,21 @@
-# beaver/vectors.py
-
 import json
-import math
-import struct
+import numpy as np
 from typing import (
     List,
-    Tuple,
     Iterator,
-    AsyncIterator,
     Protocol,
     runtime_checkable,
     TYPE_CHECKING,
-    Any,
 )
 
 from pydantic import BaseModel
 
 from .manager import AsyncBeaverBase, atomic, emits
-# Import Filter for type hinting (handling circular imports if necessary)
+
 if TYPE_CHECKING:
     from .core import AsyncBeaverDB
     from .queries import Filter
+
 
 class VectorItem[T](BaseModel):
     """Represents a stored vector with metadata."""
@@ -29,6 +24,9 @@ class VectorItem[T](BaseModel):
     vector: List[float]
     metadata: T | None = None
     score: float = 0
+
+    # Allow arbitrary types for numpy compatibility if needed,
+    # though we usually convert back to list for Pydantic
 
 
 @runtime_checkable
@@ -39,7 +37,6 @@ class IBeaverVectors[T](Protocol):
     def get(self, id: str) -> VectorItem[T] | None: ...
     def delete(self, id: str) -> None: ...
 
-    # Upgraded Search Signature
     def search(
         self,
         vector: List[float],
@@ -55,40 +52,32 @@ class IBeaverVectors[T](Protocol):
 
 class AsyncBeaverVectors[T: BaseModel](AsyncBeaverBase[T]):
     """
-    A persistent vector store with metadata filtering support.
+    A persistent vector store accelerated by NumPy.
 
-    Performs exact Nearest Neighbor search by:
-    1. Filtering candidates via SQL (IDs + Metadata)
-    2. Computing Cosine Similarity in memory on the survivors
+    Features:
+    - NumPy Serialization for fast IO.
+    - Vectorized Cosine Similarity (Matrix Multiplication).
+    - SQL-Pushdown for filtering before matrix construction.
     """
 
     def __init__(self, name: str, db: "AsyncBeaverDB", model: type[T] | None = None):
         super().__init__(name, db, model)
         self._meta_model = model
 
-    def _serialize_vector(self, vector: List[float]) -> bytes:
-        return struct.pack(f"{len(vector)}f", *vector)
+    def _serialize_vector(self, vector: List[float] | np.ndarray) -> bytes:
+        """Converts a list/array to a raw float32 byte buffer."""
+        if not isinstance(vector, np.ndarray):
+            vector = np.array(vector, dtype=np.float32)
+        return vector.tobytes()
 
-    def _deserialize_vector(self, data: bytes) -> List[float]:
-        count = len(data) // 4
-        return list(struct.unpack(f"{count}f", data))
-
-    def _cosine_similarity(self, v1: List[float], v2: List[float]) -> float:
-        if len(v1) != len(v2):
-            return -1.0
-
-        dot_product = sum(a * b for a, b in zip(v1, v2))
-        norm_v1 = math.sqrt(sum(a * a for a in v1))
-        norm_v2 = math.sqrt(sum(b * b for b in v2))
-
-        if norm_v1 == 0 or norm_v2 == 0:
-            return 0.0
-
-        return dot_product / (norm_v1 * norm_v2)
+    def _deserialize_vector(self, data: bytes) -> np.ndarray:
+        """Zero-copy view of the byte buffer as a float32 array."""
+        return np.frombuffer(data, dtype=np.float32)
 
     @emits("set", payload=lambda id, *args, **kwargs: dict(id=id))
     @atomic
     async def set(self, id: str, vector: List[float], metadata: T | None = None):
+        """Stores a vector using NumPy serialization."""
         vec_blob = self._serialize_vector(vector)
         meta_json = self._serialize(metadata) if metadata else None
 
@@ -112,7 +101,10 @@ class AsyncBeaverVectors[T: BaseModel](AsyncBeaverBase[T]):
         if not row:
             raise KeyError(id)
 
-        vector = self._deserialize_vector(row["vector"])
+        # Convert numpy array back to list for user consumption/Pydantic
+        vec_np = self._deserialize_vector(row["vector"])
+        vector = vec_np.tolist()
+
         meta_val = self._deserialize(row["metadata"]) if row["metadata"] else None
 
         return VectorItem(id=id, vector=vector, metadata=meta_val)
@@ -133,71 +125,99 @@ class AsyncBeaverVectors[T: BaseModel](AsyncBeaverBase[T]):
         filters: List["Filter"] | None = None
     ) -> List[VectorItem[T]]:
         """
-        Performs vector search with optional pre-filtering.
+        Performs vectorized KNN search.
 
-        Args:
-            vector: The query embedding.
-            k: Number of nearest neighbors to return.
-            candidate_ids: Optional list of IDs to restrict search to (Whitelist).
-            filters: Optional list of metadata filters.
+        1. Filters candidates using SQL (ID whitelist + Metadata filters).
+        2. Loads surviving binary blobs into a NumPy Matrix.
+        3. Computes Cosine Similarity via Matrix Multiplication.
         """
-        query_vec = vector
+        # Ensure query is a numpy array
+        query_vec = np.array(vector, dtype=np.float32)
 
-        # --- Build Dynamic SQL Query ---
+        # --- 1. Dynamic SQL Building (Filtering) ---
 
-        # Base query
         sql_parts = [
             "SELECT item_id, vector, metadata FROM __beaver_vectors__ WHERE collection = ?"
         ]
         params = [self._name]
 
-        # 1. ID Filter (Whitelist)
         if candidate_ids is not None:
             if not candidate_ids:
-                return [] # Whitelist provided but empty -> No results possible
-
+                return []
             placeholders = ",".join("?" * len(candidate_ids))
             sql_parts.append(f"AND item_id IN ({placeholders})")
             params.extend(candidate_ids)
 
-        # 2. Metadata Filters (JSON Extraction)
-        # Note: This relies on SQLite's JSON extension (enabled by default in most Pythons)
         if filters:
             for f in filters:
-                # We extract the field from the 'metadata' column
-                # Syntax: json_extract(metadata, '$.fieldname')
+                # Requires SQLite JSON1 extension (standard in Python 3.9+)
                 sql_parts.append(
                     f"AND json_extract(metadata, '$.{f.path}') {f.operator} ?"
                 )
                 params.append(f.value)
 
-        # Execute
         full_sql = " ".join(sql_parts)
         cursor = await self.connection.execute(full_sql, tuple(params))
+        rows = await cursor.fetchall()
 
-        # --- Scan & Score ---
+        if not rows:
+            return []
 
-        candidates = []
-        async for row in cursor:
-            # CPU Bound: Deserialize and Compute Dot Product
-            # This loop is now smaller thanks to the SQL filtering above
-            row_vec = self._deserialize_vector(row["vector"])
-            score = self._cosine_similarity(query_vec, row_vec)
+        # --- 2. Matrix Construction (IO Bound) ---
 
-            candidates.append((score, row))
+        ids = []
+        vectors_list = []
+        metadatas = []
 
-        # Sort by Score Descending
-        candidates.sort(key=lambda x: x[0], reverse=True)
+        for row in rows:
+            ids.append(row["item_id"])
+            # Zero-copy view from bytes
+            vectors_list.append(self._deserialize_vector(row["vector"]))
+            metadatas.append(row["metadata"])
 
-        # Hydrate Top K
+        # Stack into (N, D) matrix
+        matrix = np.stack(vectors_list)
+
+        # --- 3. Vectorized Math (CPU Bound) ---
+
+        # Cosine Similarity: (A . B) / (||A|| * ||B||)
+
+        # Dot product of Matrix (N, D) with Query (D,) -> (N,)
+        dot_products = matrix.dot(query_vec)
+
+        # Compute Norms
+        # axis=1 calculates norm for each row vector
+        matrix_norms = np.linalg.norm(matrix, axis=1)
+        query_norm = np.linalg.norm(query_vec)
+
+        # Avoid division by zero
+        epsilon = 1e-10
+        scores = dot_products / ((matrix_norms * query_norm) + epsilon)
+
+        # --- 4. Sorting & Formatting ---
+
+        # argsort gives indices of sorted elements (ascending)
+        # We take the last k elements (highest scores) and reverse them
+        top_indices = np.argsort(scores)[-k:][::-1]
+
         results = []
-        for score, row in candidates[:k]:
-            vec = self._deserialize_vector(row["vector"])
-            meta_val = self._deserialize(row["metadata"]) if row["metadata"] else None
+        for idx in top_indices:
+            score = float(scores[idx]) # Convert np.float32 to python float
+            item_id = ids[idx]
+
+            # Retrieve cached metadata string
+            meta_str = metadatas[idx]
+            meta_val = self._deserialize(meta_str) if meta_str else None
+
+            # Convert vector back to list for the model
+            vec_list = vectors_list[idx].tolist()
 
             results.append(
                 VectorItem(
-                    id=row["item_id"], vector=vec, metadata=meta_val, score=score
+                    id=item_id,
+                    vector=vec_list,
+                    metadata=meta_val,
+                    score=score
                 )
             )
 
@@ -223,6 +243,6 @@ class AsyncBeaverVectors[T: BaseModel](AsyncBeaverBase[T]):
             (self._name,),
         )
         async for row in cursor:
-            vec = self._deserialize_vector(row["vector"])
+            vec_np = self._deserialize_vector(row["vector"])
             meta = self._deserialize(row["metadata"]) if row["metadata"] else None
-            yield VectorItem(id=row["item_id"], vector=vec, metadata=meta)
+            yield VectorItem(id=row["item_id"], vector=vec_np.tolist(), metadata=meta)
