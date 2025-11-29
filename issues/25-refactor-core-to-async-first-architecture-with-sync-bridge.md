@@ -1,7 +1,7 @@
 ---
 number: 25
 title: "Refactor Core to Async-First Architecture with Sync Bridge"
-state: open
+state: closed
 labels:
 ---
 

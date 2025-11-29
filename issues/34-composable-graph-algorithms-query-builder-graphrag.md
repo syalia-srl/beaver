@@ -1,7 +1,7 @@
 ---
 number: 34
 title: "Composable Graph Algorithms & Query Builder (GraphRAG)"
-state: open
+state: closed
 labels:
 - enhancement
 - graph

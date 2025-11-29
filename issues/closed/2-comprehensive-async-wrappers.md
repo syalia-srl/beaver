@@ -1,7 +1,7 @@
 ---
 number: 2
 title: "Comprehensive async wrappers"
-state: open
+state: closed
 labels:
 - enhancement
 ---

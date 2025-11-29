@@ -1,7 +1,7 @@
 ---
 number: 32
 title: "Secure Dictionaries (Encryption and Hashing)"
-state: open
+state: closed
 labels:
 ---
 
