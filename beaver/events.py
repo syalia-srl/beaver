@@ -2,9 +2,18 @@ import asyncio
 import time
 import inspect
 import json
-from typing import Any, Callable, Protocol, runtime_checkable, TYPE_CHECKING
+import uuid
+from typing import (
+    Any,
+    Callable,
+    Protocol,
+    runtime_checkable,
+    TYPE_CHECKING,
+    Generic,
+    TypeVar,
+)
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .manager import AsyncBeaverBase, atomic
 from .channels import AsyncBeaverChannel
@@ -12,12 +21,32 @@ from .channels import AsyncBeaverChannel
 if TYPE_CHECKING:
     from .core import AsyncBeaverDB
 
+T = TypeVar("T")
+
+
+class Event(BaseModel, Generic[T]):
+    """
+    A type-safe envelope for events.
+
+    Attributes:
+        id: Unique event ID.
+        event: The event name/topic.
+        payload: The actual data (typed).
+        timestamp: When the event was created.
+    """
+
+    id: str = Field(default_factory=lambda: uuid.uuid4().hex)
+    event: str
+    payload: T
+    timestamp: float = Field(default_factory=time.time)
+
 
 @runtime_checkable
 class IBeaverEvents[T](Protocol):
     """Protocol exposed to the user via BeaverBridge."""
-    def attach(self, event: str, callback: Callable[[T], Any]) -> None: ...
-    def detach(self, event: str, callback: Callable[[T], Any]) -> None: ...
+
+    def attach(self, event: str, callback: Callable[[Event[T]], Any]) -> None: ...
+    def detach(self, event: str, callback: Callable[[Event[T]], Any]) -> None: ...
     def emit(self, event: str, payload: T) -> None: ...
 
 
@@ -34,9 +63,8 @@ class AsyncBeaverEvents[T: BaseModel](AsyncBeaverBase[T]):
         self._listener_task: asyncio.Task | None = None
 
         # Internal channel for broadcasting events
-        # We use a single channel for this event manager namespace
         self._channel_name = f"__events_{self._name}__"
-        self._channel = AsyncBeaverChannel(self._channel_name, db)
+        self._channel = AsyncBeaverChannel[Event[T]](self._channel_name, db)
 
     async def _ensure_listener(self):
         """Starts the background dispatch loop if not running."""
@@ -48,51 +76,27 @@ class AsyncBeaverEvents[T: BaseModel](AsyncBeaverBase[T]):
 
     async def _dispatch_loop(self):
         """Consumes messages from the channel and executes callbacks."""
-        try:
-            # Subscribe to the underlying channel
-            async for msg in self._channel.subscribe():
-                try:
-                    # Unwrap the envelope
-                    # The channel gives us the raw payload (which might be a dict or T)
-                    # Since we emit a dict envelope, we expect a dict here.
-                    envelope = msg.payload
-                    if not isinstance(envelope, dict):
-                        continue
+        # Subscribe to the underlying channel
+        async for msg in self._channel.subscribe():
+            # Unwrap the envelope (which is a raw dict from channel)
+            event = msg.payload
 
-                    event_name = envelope.get("event")
-                    raw_data = envelope.get("data")
+            # Validate envelope structure
+            event_name = event.event
 
-                    if not event_name or event_name not in self._callbacks:
-                        continue
+            if not event_name or event_name not in self._callbacks:
+                continue
 
-                    # Deserialize Payload to T
-                    payload = raw_data
-                    if self._model and isinstance(raw_data, dict):
-                        try:
-                            payload = self._model.model_validate(raw_data)
-                        except Exception:
-                            pass # Pass dict if validation fails
+            # Execute Callbacks
+            for callback in self._callbacks[event_name]:
+                if inspect.iscoroutinefunction(callback):
+                    # Run async callbacks concurrently
+                    asyncio.create_task(callback(event))
+                else:
+                    # Run sync callbacks in thread
+                    asyncio.create_task(asyncio.to_thread(callback, event))
 
-                    # Execute Callbacks
-                    for callback in self._callbacks[event_name]:
-                        try:
-                            if inspect.iscoroutinefunction(callback):
-                                # Run async callbacks concurrently
-                                asyncio.create_task(callback(payload))
-                            else:
-                                # Run sync callbacks directly (ensuring thread-safety)
-                                # NOTE: if the callback is low, user must
-                                # wrap it in a thread if they want
-                                callback(payload)
-                        except Exception:
-                            pass # Log error
-
-                except Exception:
-                    pass
-        except asyncio.CancelledError:
-            pass
-
-    async def attach(self, event: str, callback: Callable[[T], Any]):
+    async def attach(self, event: str, callback: Callable[[Event[T]], Any]):
         """Attaches a callback to an event."""
         await self._ensure_listener()
 
@@ -102,7 +106,7 @@ class AsyncBeaverEvents[T: BaseModel](AsyncBeaverBase[T]):
         if callback not in self._callbacks[event]:
             self._callbacks[event].append(callback)
 
-    async def detach(self, event: str, callback: Callable[[T], Any]):
+    async def detach(self, event: str, callback: Callable[[Event[T]], Any]):
         """Detaches a callback."""
         if event in self._callbacks:
             if callback in self._callbacks[event]:
@@ -112,23 +116,6 @@ class AsyncBeaverEvents[T: BaseModel](AsyncBeaverBase[T]):
     async def emit(self, event: str, payload: T):
         """
         Emits an event.
-        Wraps the user payload in an envelope and publishes via the internal channel.
         """
-        # Serialize inner payload first
-        # We manually serialize to ensure Pydantic models are converted to JSON-safe dicts/strings
-        # inside the envelope dict.
-        if isinstance(payload, BaseModel):
-            # model_dump(mode='json') ensures we get JSON-safe types (str, int, etc.)
-            # not e.g. UUID objects which json.dumps fails on.
-            data_val = payload.model_dump(mode='json')
-        else:
-            data_val = payload
-
-        envelope = {
-            "event": event,
-            "data": data_val
-        }
-
         # Publish to the underlying channel
-        # The channel will handle serializing the envelope dict itself.
-        await self._channel.publish(envelope)
+        await self._channel.publish(Event(event=event, payload=payload))

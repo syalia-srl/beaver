@@ -21,11 +21,11 @@ if TYPE_CHECKING:
     from .core import AsyncBeaverDB
 
 
-class ChannelMessage(BaseModel):
+class ChannelMessage[T](BaseModel):
     """A message received from a channel."""
 
     channel: str
-    payload: Any
+    payload: T
     timestamp: float
 
 
@@ -74,7 +74,7 @@ class PubSubEngine:
                 pass
             self._task = None
 
-    def subscribe(self, channel: str) -> asyncio.Queue:
+    def subscribe(self, channel: str) -> asyncio.Queue[ChannelMessage]:
         """Registers a new listener queue for a channel."""
         queue = asyncio.Queue()
         if channel not in self._listeners:
@@ -97,7 +97,6 @@ class PubSubEngine:
         """
         while self._running:
             try:
-                now = time.time()
                 # 1. Fetch new messages globally
                 # We use a raw execute here to avoid locking the transaction logic
                 # for simple reads.
@@ -121,7 +120,7 @@ class PubSubEngine:
                     # 2. Dispatch to listeners
                     for row in rows:
                         channel = row["channel_name"]
-                        payload = json.loads(row["message_payload"])
+                        payload = row["message_payload"]
                         msg = ChannelMessage(
                             channel=channel, payload=payload, timestamp=row["timestamp"]
                         )
@@ -180,7 +179,7 @@ class AsyncBeaverChannel[T: BaseModel](AsyncBeaverBase[T]):
             (ts, self._name, data_str),
         )
 
-    async def subscribe(self) -> AsyncIterator[ChannelMessage]:
+    async def subscribe(self) -> AsyncIterator[ChannelMessage[T]]:
         """
         Returns an async iterator that yields new messages as they arrive.
         """
@@ -192,22 +191,16 @@ class AsyncBeaverChannel[T: BaseModel](AsyncBeaverBase[T]):
                 # Wait for next message from the engine
                 msg = await queue.get()
 
-                # Deserialize payload to T if possible
-                # Note: The engine passes the raw dict/value.
-                # We should probably deserialize it to the Model T if defined.
-                if self._model and isinstance(msg.payload, dict):
-                    try:
-                        typed_payload = self._model.model_validate(msg.payload)
-                        msg.payload = typed_payload
-                    except Exception:
-                        pass  # Keep as dict if validation fails
+                # Deserialize message if necessary
+                if self._model:
+                    msg.payload = self._deserialize(msg.payload)
 
                 yield msg
         finally:
             # Cleanup on break/cancel
             engine.unsubscribe(self._name, queue)
 
-    async def history(self, limit: int = 100) -> list[ChannelMessage]:
+    async def history(self, limit: int = 100) -> list[ChannelMessage[T]]:
         """
         Retrieves the last N messages from the channel history.
         """

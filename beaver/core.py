@@ -13,6 +13,7 @@ from .cache import DummyCache, LocalCache
 from .channels import AsyncBeaverChannel, IBeaverChannel
 from .dicts import AsyncBeaverDict, IBeaverDict
 from .docs import AsyncBeaverDocuments, IBeaverDocuments
+from .events import AsyncBeaverEvents, IBeaverEvents
 from .graphs import AsyncBeaverGraph, IBeaverGraph
 from .lists import AsyncBeaverList, IBeaverList
 from .locks import AsyncBeaverLock, IBeaverLock
@@ -492,6 +493,15 @@ class AsyncBeaverDB:
             model=model,
         )
 
+    def events[T: BaseModel](
+        self, name, model: type[T] | None = None
+    ) -> AsyncBeaverEvents:
+        return self.singleton(
+            AsyncBeaverEvents,
+            name,
+            model=model,
+        )
+
     def vectors[T: BaseModel](
         self, name, model: type[T] | None = None
     ) -> AsyncBeaverVectors:
@@ -629,3 +639,8 @@ class BeaverDB:
         model: type[T] | None = None,
     ) -> IBeaverSketch[T]:
         return self._get_manager("sketch", name, capacity, error_rate, model)
+
+    def events[T: BaseModel](
+        self, name: str, model: type[T] | None = None
+    ) -> IBeaverEvents[T]:
+        return self._get_manager("events", name, model)

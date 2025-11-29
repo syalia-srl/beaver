@@ -1,4 +1,5 @@
 import asyncio
+from pydantic import BaseModel
 import pytest
 from beaver import AsyncBeaverDB
 
@@ -91,3 +92,22 @@ async def test_pubsub_isolation(async_db_mem: AsyncBeaverDB):
 
     await asyncio.wait_for(t, timeout=1.0)
     assert received_a == ["signal"]
+
+
+async def test_channel_typed_model(async_db_mem: AsyncBeaverDB):
+    """Test channels with a typed model."""
+
+    class Message(BaseModel):
+        text: str
+        count: int
+
+    ch = async_db_mem.channel("typed_ch", model=Message)
+
+    await ch.publish(Message(text="hello", count=1))
+    await asyncio.sleep(0.1)
+
+    msgs = await ch.history(limit=1)
+    assert len(msgs) == 1
+    assert isinstance(msgs[0].payload, Message)
+    assert msgs[0].payload.text == "hello"
+    assert msgs[0].payload.count == 1
