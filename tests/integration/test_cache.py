@@ -1,6 +1,6 @@
 import pytest
 
-pytest.mark.integration
+pytestmark = pytest.mark.integration
 
 from beaver import BeaverDB
 

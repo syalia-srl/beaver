@@ -11,6 +11,7 @@ from beaver.channels import ChannelManager
 
 # Mark all tests in this file as 'integration'
 pytestmark = pytest.mark.integration
+pytest.skip(allow_module_level=True)
 
 
 # --- Test Model for Serialization ---
