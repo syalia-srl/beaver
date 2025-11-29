@@ -37,8 +37,14 @@ full = ["beaver-db[remote]", "beaver-db[security]"]
 [dependency-groups]
 dev = [
     "black>=25.11.0",
+    "mypy>=1.19.0",
     "pytest>=8.4.2",
     "pytest-asyncio>=1.2.0",
     "pytest-cov>=7.0.0",
     "textual>=6.1.0",
 ]
+
+[tool.mypy]
+strict = false
+ignore_missing_imports = true
+files = ["beaver"]
