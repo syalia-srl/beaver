@@ -1,4 +1,6 @@
 import json
+import math
+import struct
 import numpy as np
 from typing import (
     List,
@@ -6,6 +8,10 @@ from typing import (
     Protocol,
     runtime_checkable,
     TYPE_CHECKING,
+    Literal,
+    Callable,
+    Union,
+    Optional,
 )
 
 from pydantic import BaseModel
@@ -25,8 +31,13 @@ class VectorItem[T](BaseModel):
     metadata: T | None = None
     score: float = 0
 
-    # Allow arbitrary types for numpy compatibility if needed,
-    # though we usually convert back to list for Pydantic
+    class Config:
+        arbitrary_types_allowed = True
+
+
+# Type Alias for Custom Metrics
+# Accepts: (Matrix[N, D], Vector[D]) -> Scores[N]
+Metric = Callable[[np.ndarray, np.ndarray], np.ndarray]
 
 
 @runtime_checkable
@@ -42,7 +53,8 @@ class IBeaverVectors[T](Protocol):
         vector: List[float],
         k: int = 10,
         candidate_ids: List[str] | None = None,
-        filters: List["Filter"] | None = None
+        filters: List["Filter"] | None = None,
+        metric: Optional[Metric] = None,
     ) -> List[VectorItem[T]]: ...
 
     def count(self) -> int: ...
@@ -56,8 +68,8 @@ class AsyncBeaverVectors[T: BaseModel](AsyncBeaverBase[T]):
 
     Features:
     - NumPy Serialization for fast IO.
-    - Vectorized Cosine Similarity (Matrix Multiplication).
-    - SQL-Pushdown for filtering before matrix construction.
+    - Pluggable Metric Strategies (Callable).
+    - SQL-Pushdown for filtering.
     """
 
     def __init__(self, name: str, db: "AsyncBeaverDB", model: type[T] | None = None):
@@ -73,6 +85,8 @@ class AsyncBeaverVectors[T: BaseModel](AsyncBeaverBase[T]):
     def _deserialize_vector(self, data: bytes) -> np.ndarray:
         """Zero-copy view of the byte buffer as a float32 array."""
         return np.frombuffer(data, dtype=np.float32)
+
+    # --- Core API ---
 
     @emits("set", payload=lambda id, *args, **kwargs: dict(id=id))
     @atomic
@@ -101,10 +115,8 @@ class AsyncBeaverVectors[T: BaseModel](AsyncBeaverBase[T]):
         if not row:
             raise KeyError(id)
 
-        # Convert numpy array back to list for user consumption/Pydantic
         vec_np = self._deserialize_vector(row["vector"])
         vector = vec_np.tolist()
-
         meta_val = self._deserialize(row["metadata"]) if row["metadata"] else None
 
         return VectorItem(id=id, vector=vector, metadata=meta_val)
@@ -117,25 +129,28 @@ class AsyncBeaverVectors[T: BaseModel](AsyncBeaverBase[T]):
             (self._name, id),
         )
 
-    async def search(
+    async def near(
         self,
         vector: List[float],
         k: int = 10,
         candidate_ids: List[str] | None = None,
-        filters: List["Filter"] | None = None
+        filters: List["Filter"] | None = None,
+        metric: Optional[Metric] = None,
     ) -> List[VectorItem[T]]:
         """
-        Performs vectorized KNN search.
+        Performs vectorized search using the specified metric strategy.
 
-        1. Filters candidates using SQL (ID whitelist + Metadata filters).
-        2. Loads surviving binary blobs into a NumPy Matrix.
-        3. Computes Cosine Similarity via Matrix Multiplication.
+        Args:
+            vector: Query vector.
+            k: Number of results.
+            candidate_ids: Whitelist of IDs to search.
+            filters: Metadata filters to apply via SQL.
+            metric: Callable strategy (default: cosine).
+                    Must return scores where LOWER is BETTER.
         """
-        # Ensure query is a numpy array
         query_vec = np.array(vector, dtype=np.float32)
 
-        # --- 1. Dynamic SQL Building (Filtering) ---
-
+        # 1. Dynamic SQL Filtering
         sql_parts = [
             "SELECT item_id, vector, metadata FROM __beaver_vectors__ WHERE collection = ?"
         ]
@@ -150,7 +165,6 @@ class AsyncBeaverVectors[T: BaseModel](AsyncBeaverBase[T]):
 
         if filters:
             for f in filters:
-                # Requires SQLite JSON1 extension (standard in Python 3.9+)
                 sql_parts.append(
                     f"AND json_extract(metadata, '$.{f.path}') {f.operator} ?"
                 )
@@ -163,53 +177,37 @@ class AsyncBeaverVectors[T: BaseModel](AsyncBeaverBase[T]):
         if not rows:
             return []
 
-        # --- 2. Matrix Construction (IO Bound) ---
-
+        # 2. Matrix Construction (Zero-Copy View)
         ids = []
         vectors_list = []
         metadatas = []
 
         for row in rows:
             ids.append(row["item_id"])
-            # Zero-copy view from bytes
             vectors_list.append(self._deserialize_vector(row["vector"]))
             metadatas.append(row["metadata"])
 
-        # Stack into (N, D) matrix
         matrix = np.stack(vectors_list)
 
-        # --- 3. Vectorized Math (CPU Bound) ---
+        # 3. Metric Calculation
+        # Default to Cosine if not provided
+        scoring_fn = metric if metric is not None else cosine
 
-        # Cosine Similarity: (A . B) / (||A|| * ||B||)
+        # Compute scores (Assumption: Lower is Better)
+        scores = scoring_fn(matrix, query_vec)
 
-        # Dot product of Matrix (N, D) with Query (D,) -> (N,)
-        dot_products = matrix.dot(query_vec)
-
-        # Compute Norms
-        # axis=1 calculates norm for each row vector
-        matrix_norms = np.linalg.norm(matrix, axis=1)
-        query_norm = np.linalg.norm(query_vec)
-
-        # Avoid division by zero
-        epsilon = 1e-10
-        scores = dot_products / ((matrix_norms * query_norm) + epsilon)
-
-        # --- 4. Sorting & Formatting ---
-
-        # argsort gives indices of sorted elements (ascending)
-        # We take the last k elements (highest scores) and reverse them
-        top_indices = np.argsort(scores)[-k:][::-1]
+        # 4. Sort and Format
+        # np.argsort sorts Ascending (Lowest -> Highest)
+        # Since we enforced "Minimizing" semantics, we just take the first K.
+        top_indices = np.argsort(scores)[:k]
 
         results = []
         for idx in top_indices:
-            score = float(scores[idx]) # Convert np.float32 to python float
+            score = float(scores[idx])
             item_id = ids[idx]
 
-            # Retrieve cached metadata string
             meta_str = metadatas[idx]
             meta_val = self._deserialize(meta_str) if meta_str else None
-
-            # Convert vector back to list for the model
             vec_list = vectors_list[idx].tolist()
 
             results.append(
@@ -217,7 +215,7 @@ class AsyncBeaverVectors[T: BaseModel](AsyncBeaverBase[T]):
                     id=item_id,
                     vector=vec_list,
                     metadata=meta_val,
-                    score=score
+                    score=score,
                 )
             )
 
@@ -246,3 +244,39 @@ class AsyncBeaverVectors[T: BaseModel](AsyncBeaverBase[T]):
             vec_np = self._deserialize_vector(row["vector"])
             meta = self._deserialize(row["metadata"]) if row["metadata"] else None
             yield VectorItem(id=row["item_id"], vector=vec_np.tolist(), metadata=meta)
+
+
+# --- Public Metric Strategies ---
+
+def cosine(matrix: np.ndarray, vector: np.ndarray) -> np.ndarray:
+    """
+    Computes Negative Cosine Similarity.
+    Formula: (-1 * (A . B) / (||A|| * ||B||) + 1) / 2
+
+    Returns values in range [0.0, 1.0].
+    0.0 = Identical (Perfect Match)
+    0.5 = Orthogonal
+    1.0 = Opposite
+    """
+    dot_products = matrix.dot(vector)
+    matrix_norms = np.linalg.norm(matrix, axis=1)
+    query_norm = np.linalg.norm(vector)
+
+    epsilon = 1e-10
+    similarity = dot_products / ((matrix_norms * query_norm) + epsilon)
+
+    # Negate so that lower is better (Minimizing)
+    return -(similarity - 1) / 2  # Normalize to [0, 1] range
+
+def euclid(matrix: np.ndarray, vector: np.ndarray) -> np.ndarray:
+    """
+    Computes Euclidean Distance.
+    """
+    # axis=1 calculates the norm for each row vector in the difference matrix
+    return np.linalg.norm(matrix - vector, axis=1)
+
+def manhattan(matrix: np.ndarray, vector: np.ndarray) -> np.ndarray:
+    """
+    Computes Manhattan Distance.
+    """
+    return np.sum(np.abs(matrix - vector), axis=1)
