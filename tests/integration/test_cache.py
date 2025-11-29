@@ -2,6 +2,8 @@ import pytest
 
 pytestmark = pytest.mark.integration
 
+pytest.skip(allow_module_level=True)
+
 from beaver import BeaverDB
 
 

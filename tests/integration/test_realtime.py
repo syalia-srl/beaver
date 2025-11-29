@@ -7,7 +7,6 @@ from datetime import timedelta
 from queue import Queue
 
 from beaver import BeaverDB
-from beaver.channels import ChannelManager
 
 # Mark all tests in this file as 'integration'
 pytestmark = pytest.mark.integration
