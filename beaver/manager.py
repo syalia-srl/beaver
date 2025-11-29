@@ -2,7 +2,7 @@ import json
 import functools
 import weakref
 from typing import Callable, Type, Optional, Self, Any, TYPE_CHECKING
-import aiosqlite
+
 from pydantic import BaseModel
 
 from .locks import AsyncBeaverLock
@@ -11,38 +11,7 @@ from .locks import AsyncBeaverLock
 if TYPE_CHECKING:
     from .core import AsyncBeaverDB
     from .cache import ICache
-
-
-class EventHandle:
-    """
-    Public-facing handle returned by `AsyncBeaverBase.on()`.
-    Allows the user to close their specific callback listener.
-    """
-
-    def __init__(
-        self,
-        db: "AsyncBeaverDB",
-        topic: str,
-        event: str,
-        callback: Callable,
-    ):
-        self._db_ref = weakref.ref(db)
-        self._topic = topic
-        self._event = event
-        self._callback = callback
-        self._closed = False
-
-    async def off(self):
-        """Removes the callback from the central registry."""
-        if self._closed:
-            return
-
-        db = self._db_ref()
-        # db.off() implementation deferred to Phase 4
-        if db and hasattr(db, "off"):
-            await db.off(self._topic, self._event, self._callback)
-
-        self._closed = True
+    from .events import AsyncBeaverEvents, EventHandler
 
 
 class AsyncBeaverBase[T: BaseModel]:
@@ -56,13 +25,8 @@ class AsyncBeaverBase[T: BaseModel]:
         Initializes the base manager.
         """
         # Automatically determine the prefix from the child class name
-        # e.g., "AsyncBeaverList" -> "list"
-        # e.g., "DictManager" (Legacy) -> "dict"
         cls_name = self.__class__.__name__
-        if "AsyncBeaver" in cls_name:
-            manager_type_prefix = cls_name.replace("AsyncBeaver", "").lower()
-        else:
-            manager_type_prefix = cls_name.replace("Manager", "").lower()
+        manager_type_prefix = cls_name.replace("AsyncBeaver", "").lower()
 
         if not isinstance(name, str) or not name:
             raise TypeError(
@@ -73,6 +37,9 @@ class AsyncBeaverBase[T: BaseModel]:
         self._db = db
         self._model = model
         self._topic = f"{manager_type_prefix}:{self._name}"
+
+        # Lazy-loaded event manager
+        self._event_manager: "AsyncBeaverEvents | None" = None
 
         # Public lock for batch operations
         public_lock_name = f"__lock__{manager_type_prefix}__{name}"
@@ -93,7 +60,7 @@ class AsyncBeaverBase[T: BaseModel]:
         return self._lock._acquired
 
     @property
-    def connection(self) -> aiosqlite.Connection:
+    def connection(self) -> Any:
         """Returns the shared async connection."""
         return self._db.connection
 
@@ -102,21 +69,37 @@ class AsyncBeaverBase[T: BaseModel]:
         """Returns the thread-local cache for this manager (Stub)."""
         return self._db.cache(self._topic)
 
+    @property
+    def events(self) -> "AsyncBeaverEvents":
+        """
+        Returns the Event Manager attached to this data structure.
+        Lazy-loaded to avoid circular imports during init.
+        """
+        if self._event_manager is None:
+            # Import here to avoid circular dependency loop
+            from .events import AsyncBeaverEvents
+
+            # We create an event manager scoped to this manager's unique topic name
+            # This ensures events like "set" are unique to THIS dictionary instance.
+            # We use the same model T so event payloads are typed correctly if applicable.
+            self._event_manager = AsyncBeaverEvents(
+                name=self._topic,
+                db=self._db,
+                model=self._model
+            )
+
+        return self._event_manager
+
     def _serialize(self, value: T) -> str:
         """Serializes the given value to a JSON string (Sync CPU bound)."""
         if isinstance(value, BaseModel):
             return value.model_dump_json()
-
         return json.dumps(value)
 
     def _deserialize(self, value: str) -> T:
         """Deserializes a JSON string (Sync CPU bound)."""
-        if value is None:
-            return None
-
         if self._model:
             return self._model.model_validate_json(value)
-
         return json.loads(value)
 
     # --- Public Lock Interface ---
@@ -153,33 +136,31 @@ class AsyncBeaverBase[T: BaseModel]:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.release()
 
-    # --- Events (Stubs for Phase 4) ---
+    # --- Events Portal ---
 
-    def on(self, event: str, callback: Callable) -> EventHandle:
+    async def on(self, event: str, callback: Callable) -> "EventHandler":
         """
-        Subscribes to an event. (Placeholder implementation)
+        Subscribes to an event on this manager (e.g. "set", "push").
+        This is a convenience wrapper around self.events.attach().
         """
-        # self._db.on() call deferred to Phase 4
-        return EventHandle(self._db, self._topic, event, callback)
+        return await self.events.attach(event, callback)
+
+    async def off(self, event: str, callback: Callable):
+        """
+        Unsubscribes from an event.
+        Convenience wrapper around self.events.detach().
+        """
+        await self.events.detach(event, callback)
 
 
 def atomic(func):
     """
     A decorator to wrap a manager method in the manager's *internal* lock
     AND a database transaction.
-
-    This ensures:
-    1. Process Safety: Via AsyncBeaverLock (internal)
-    2. Thread Safety: Via AsyncBeaverDB.transaction() (asyncio.Lock)
-    3. ACID: Via SQLite 'BEGIN IMMEDIATE'
     """
-
     @functools.wraps(func)
     async def wrapper(self: AsyncBeaverBase, *args, **kwargs):
-        # 1. Acquire Process Lock (Wait for other processes)
         async with self._internal_lock:
-            # 2. Acquire Transaction Lock (Wait for other local tasks)
-            # This is crucial for aiosqlite shared connections!
             async with self._db.transaction():
                 return await func(self, *args, **kwargs)
 
@@ -189,25 +170,36 @@ def atomic(func):
 def emits(event: str | None = None, payload: Callable | None = None):
     """
     A decorator to emit an event after a manager method completes.
-    Updated to work with async functions.
+    Uses the manager's attached Event Bus.
     """
-
     def decorator(func):
         event_name = event or func.__name__
         payload_func = payload or (lambda *args, **kwargs: dict(args=args, **kwargs))
 
         @functools.wraps(func)
-        async def wrapper(self, *args, **kwargs):
-            payload_data = payload_func(*args, **kwargs)
+        async def wrapper(self: AsyncBeaverBase, *args, **kwargs):
+            # Calculate payload BEFORE mutation (to capture args)
+            # or AFTER? Usually we want the *result* or the *input*.
+            # The current lambda often uses args.
 
             # Execute the actual async operation
             result = await func(self, *args, **kwargs)
 
-            # Emit event (Check if DB supports emit, defer to Phase 4)
-            if hasattr(self._db, "emit"):
-                # If emit is async in the future:
-                # await self._db.emit(self._topic, event_name, payload_data)
-                # For now, we assume it's stubbed or missing.
+            # Construct the payload dictionary
+            try:
+                # If the payload function accepts 'result', pass it?
+                # For backward compat with existing lambdas which expect args, we stick to inputs.
+                # If we want result, we'd need a smarter payload_func signature check.
+                payload_data = payload_func(*args, **kwargs)
+
+                # Emit via the attached event manager
+                # Note: This is fire-and-forget regarding the user's await flow
+                # (emit is async but we await it to ensure persistence)
+                if self._event_manager or hasattr(self, "events"):
+                    # We await it to ensure the event is persisted to the log before returning
+                    await self.events.emit(event_name, payload_data)
+            except Exception:
+                # Don't fail the operation if event emission fails
                 pass
 
             return result

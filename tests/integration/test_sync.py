@@ -85,3 +85,24 @@ def test_sync_smoke_all_managers(db_mem: BeaverDB):
     # Using context manager via Bridge
     with db_mem.lock("smoke_lock"):
         pass  # Just verify acquisition/release works
+
+    # 11. Events (New v2.0)
+    events = db_mem.events("smoke_events")
+
+    received = []
+    def on_msg(event):
+        received.append(event.payload)
+
+    events.attach("ping", on_msg)
+
+    # Emit (async logic wrapped by bridge)
+    events.emit("ping", "pong")
+
+    # We might need to wait a bit for async propagation?
+    # The bridge.run() awaits the emit coroutine, which awaits the DB insert.
+    # But the LISTENER runs in the background task.
+    # In a sync test, we might need a small sleep to allow the background task to cycle.
+    import time
+    time.sleep(0.5)
+
+    assert "pong" in received

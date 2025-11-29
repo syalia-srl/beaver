@@ -4,6 +4,7 @@ import inspect
 import json
 import uuid
 from typing import Any, Callable, Protocol, runtime_checkable, TYPE_CHECKING, Generic, TypeVar
+import weakref
 
 from pydantic import BaseModel, Field
 
@@ -31,10 +32,40 @@ class Event[T](BaseModel):
     timestamp: float = Field(default_factory=time.time)
 
 
+class EventHandler:
+    """
+    Public-facing handle returned by `AsyncBeaverEvents.attach()`.
+    Allows the user to close their specific callback listener.
+    """
+
+    def __init__(
+        self,
+        manager: "AsyncBeaverEvents",
+        event: str,
+        callback: Callable,
+    ):
+        self._manager_ref = weakref.ref(manager)
+        self._event = event
+        self._callback = callback
+        self._closed = False
+
+    async def off(self):
+        """Removes the callback from the manager's event system."""
+        if self._closed:
+            return
+
+        manager = self._manager_ref()
+
+        if manager:
+            await manager.detach(self._event, self._callback)
+
+        self._closed = True
+
+
 @runtime_checkable
 class IBeaverEvents[T](Protocol):
     """Protocol exposed to the user via BeaverBridge."""
-    def attach(self, event: str, callback: Callable[[Event[T]], Any]) -> None: ...
+    def attach(self, event: str, callback: Callable[[Event[T]], Any]) -> EventHandler: ...
     def detach(self, event: str, callback: Callable[[Event[T]], Any]) -> None: ...
     def emit(self, event: str, payload: T) -> None: ...
 
@@ -73,17 +104,14 @@ class AsyncBeaverEvents[T: BaseModel](AsyncBeaverBase[T]):
             # Validate envelope structure
             event_name = event.event
 
-            if not event_name or event_name not in self._callbacks:
-                continue
-
             # Execute Callbacks
-            for callback in self._callbacks[event_name]:
+            for callback in self._callbacks.get(event_name, []):
                 if inspect.iscoroutinefunction(callback):
                     # Run async callbacks concurrently
                     asyncio.create_task(callback(event))
                 else:
-                    # Run sync callbacks in thread
-                    asyncio.create_task(asyncio.to_thread(callback, event))
+                    # Run sync callbacks directly
+                    callback(event)
 
     async def attach(self, event: str, callback: Callable[[Event[T]], Any]):
         """Attaches a callback to an event."""
@@ -94,6 +122,8 @@ class AsyncBeaverEvents[T: BaseModel](AsyncBeaverBase[T]):
 
         if callback not in self._callbacks[event]:
             self._callbacks[event].append(callback)
+
+        return EventHandler(self, event, callback)
 
     async def detach(self, event: str, callback: Callable[[Event[T]], Any]):
         """Detaches a callback."""

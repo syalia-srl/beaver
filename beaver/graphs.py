@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from .core import AsyncBeaverDB
 
 
-class Edge[T: BaseModel](BaseModel):
+class Edge[T](BaseModel):
     """
     Represents a directed edge in the graph with typed metadata.
     """
@@ -25,7 +25,7 @@ class Edge[T: BaseModel](BaseModel):
     source: str
     target: str
     label: str
-    metadata: T
+    metadata: T | None
 
 
 @runtime_checkable
@@ -61,8 +61,7 @@ class AsyncBeaverGraph[T: BaseModel](AsyncBeaverBase[T]):
     def __init__(self, name: str, db: "AsyncBeaverDB", model: type[T] | None = None):
         super().__init__(name, db, model)
         # Construct the concrete Edge model for this manager
-        # If no model is provided, T is effectively dict[str, Any]
-        self._edge_model = Edge[model] if model else Edge[Any]
+        self._edge_model = Edge[model] if model else Edge
 
     @emits(
         "link",
@@ -191,7 +190,7 @@ class AsyncBeaverGraph[T: BaseModel](AsyncBeaverBase[T]):
         cursor = await self.connection.execute(query, tuple(params))
         async for row in cursor:
             meta_str = row["metadata"]
-            meta_val = self._deserialize(meta_str)
+            meta_val = self._deserialize(meta_str) if meta_str else None
 
             yield self._edge_model(
                 source=source,

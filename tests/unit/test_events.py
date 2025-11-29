@@ -53,7 +53,7 @@ async def test_events_detach(async_db_mem: AsyncBeaverDB):
     async def handler(event: Event):
         msgs.append(event.payload)
 
-    await events.attach("ping", handler)
+    handle = await events.attach("ping", handler)
     await asyncio.sleep(0.1)
 
     # First emit
@@ -62,7 +62,7 @@ async def test_events_detach(async_db_mem: AsyncBeaverDB):
     assert msgs == ["one"]
 
     # Detach
-    await events.detach("ping", handler)
+    await handle.off()
 
     # Second emit
     await events.emit("ping", "two")
