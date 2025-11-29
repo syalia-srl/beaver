@@ -1,7 +1,7 @@
 ---
 number: 6
 title: "Drop-in replacement for Beaver REST server client"
-state: open
+state: closed
 labels:
 - enhancement
 ---
