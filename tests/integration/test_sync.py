@@ -90,6 +90,7 @@ def test_sync_smoke_all_managers(db_mem: BeaverDB):
     events = db_mem.events("smoke_events")
 
     received = []
+
     def on_msg(event):
         received.append(event.payload)
 
@@ -103,6 +104,7 @@ def test_sync_smoke_all_managers(db_mem: BeaverDB):
     # But the LISTENER runs in the background task.
     # In a sync test, we might need a small sleep to allow the background task to cycle.
     import time
+
     time.sleep(0.5)
 
     assert "pong" in received

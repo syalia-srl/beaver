@@ -83,9 +83,7 @@ class AsyncBeaverBase[T: BaseModel]:
             # This ensures events like "set" are unique to THIS dictionary instance.
             # We use the same model T so event payloads are typed correctly if applicable.
             self._event_manager = AsyncBeaverEvents(
-                name=self._topic,
-                db=self._db,
-                model=self._model
+                name=self._topic, db=self._db, model=self._model
             )
 
         return self._event_manager
@@ -158,6 +156,7 @@ def atomic(func):
     A decorator to wrap a manager method in the manager's *internal* lock
     AND a database transaction.
     """
+
     @functools.wraps(func)
     async def wrapper(self: AsyncBeaverBase, *args, **kwargs):
         async with self._internal_lock:
@@ -172,6 +171,7 @@ def emits(event: str | None = None, payload: Callable | None = None):
     A decorator to emit an event after a manager method completes.
     Uses the manager's attached Event Bus.
     """
+
     def decorator(func):
         event_name = event or func.__name__
         payload_func = payload or (lambda *args, **kwargs: dict(args=args, **kwargs))
