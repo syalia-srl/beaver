@@ -48,7 +48,7 @@ class IBeaverVectors[T](Protocol):
     def get(self, id: str) -> VectorItem[T] | None: ...
     def delete(self, id: str) -> None: ...
 
-    def search(
+    def near(
         self,
         vector: List[float],
         k: int = 10,

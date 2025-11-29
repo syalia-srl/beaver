@@ -63,14 +63,14 @@ def test_sync_smoke_all_managers(db_mem: BeaverDB):
     # FTS Search
     results = docs.search("Bob")
     assert len(results) == 1
-    assert results[0].body.name == "Bob"
+    assert results[0].document.body.name == "Bob"
 
     # 8. Vectors (New v2.0)
     vecs = db_mem.vectors("smoke_vecs")
     vecs.set("v1", [1.0, 0.0])
     vecs.set("v2", [0.0, 1.0])
     # Search
-    hits = vecs.search([0.9, 0.1], k=1)
+    hits = vecs.near([0.9, 0.1], k=1)
     assert hits[0].id == "v1"
 
     # 9. Graph (New v2.0)
