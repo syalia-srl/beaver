@@ -3,11 +3,6 @@ number: 34
 title: "Composable Graph Algorithms & Query Builder (GraphRAG)"
 state: closed
 labels:
-- enhancement
-- graph
-- rag
-- api
-- performance
 ---
 
 ### 1. Concept
