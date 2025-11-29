@@ -151,3 +151,15 @@ async def test_docs_fluent_query(async_db_mem: AsyncBeaverDB):
     results3 = await docs.query().where(q().category == "tech").sort(price="DESC")
 
     assert (results == results2) and (results2 == results3)
+
+
+async def test_docs_search_return_types(async_db_mem: AsyncBeaverDB):
+    """Update existing search logic to handle ScoredDocument access patterns."""
+    docs = async_db_mem.docs("news")
+    await docs.index(body={"title": "Python News", "tag": "tech"})
+
+    # Search
+    results = await docs.search("Python")
+
+    # Access pattern: result.document.body (not result.body)
+    assert results[0].document.body["title"] == "Python News"
