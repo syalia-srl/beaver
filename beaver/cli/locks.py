@@ -119,7 +119,7 @@ def run_command(
         rich.print("[bold red]Error:[/] No command provided to 'run'.")
         raise typer.Exit(code=1)
 
-    lock = db.lock(name, timeout=timeout, lock_ttl=ttl)
+    lock = db.lock(name, timeout=timeout, ttl=ttl)
     stop_heartbeat = threading.Event()
     heartbeat_thread = threading.Thread(
         target=_heartbeat_task, args=(lock, ttl, stop_heartbeat), daemon=True
