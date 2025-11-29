@@ -4,7 +4,7 @@ from .events import Event
 from .queries import q
 from .security import Secret
 
-__version__ = "1.3.0"
+__version__ = "2.0rc1"
 
 __all__ = [
     "AsyncBeaverDB",
