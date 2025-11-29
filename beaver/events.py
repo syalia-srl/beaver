@@ -112,7 +112,7 @@ class AsyncBeaverEvents[T: BaseModel](AsyncBeaverBase[T]):
     async def _dispatch_loop(self):
         """Consumes messages from the channel and executes callbacks."""
         # Subscribe to the underlying channel
-        async for msg in self._channel.subscribe():
+        async for msg in self._channel.listen():
             # Unwrap the envelope (which is a raw dict from channel)
             event = msg.payload
 

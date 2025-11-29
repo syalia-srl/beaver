@@ -179,7 +179,7 @@ class AsyncBeaverChannel[T: BaseModel](AsyncBeaverBase[T]):
             (ts, self._name, data_str),
         )
 
-    async def subscribe(self) -> AsyncIterator[ChannelMessage[T]]:
+    async def listen(self) -> AsyncIterator[ChannelMessage[T]]:
         """
         Returns an async iterator that yields new messages as they arrive.
         """

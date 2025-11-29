@@ -28,7 +28,7 @@ async def test_pubsub_subscribe(async_db_mem: AsyncBeaverDB):
     received = []
 
     async def consumer():
-        async for msg in ch.subscribe():
+        async for msg in ch.listen():
             received.append(msg.payload)
             if len(received) >= 2:
                 break
@@ -55,7 +55,7 @@ async def test_pubsub_multi_subscriber(async_db_mem: AsyncBeaverDB):
 
     async def sub():
         msgs = []
-        async for msg in ch.subscribe():
+        async for msg in ch.listen():
             msgs.append(msg.payload)
             if len(msgs) == 1:
                 break
@@ -79,7 +79,7 @@ async def test_pubsub_isolation(async_db_mem: AsyncBeaverDB):
     received_a = []
 
     async def sub_a():
-        async for msg in ch1.subscribe():
+        async for msg in ch1.listen():
             received_a.append(msg.payload)
             if len(received_a) == 1:
                 break

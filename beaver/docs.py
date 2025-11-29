@@ -35,6 +35,7 @@ class ScoredDocument[T](BaseModel):
     """
     Wrapper for a search result containing the document and its relevance score.
     """
+
     document: Document[T]
     score: float | None = None
 

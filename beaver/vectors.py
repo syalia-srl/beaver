@@ -248,6 +248,7 @@ class AsyncBeaverVectors[T: BaseModel](AsyncBeaverBase[T]):
 
 # --- Public Metric Strategies ---
 
+
 def cosine(matrix: np.ndarray, vector: np.ndarray) -> np.ndarray:
     """
     Computes Negative Cosine Similarity.
@@ -268,12 +269,14 @@ def cosine(matrix: np.ndarray, vector: np.ndarray) -> np.ndarray:
     # Negate so that lower is better (Minimizing)
     return -(similarity - 1) / 2  # Normalize to [0, 1] range
 
+
 def euclid(matrix: np.ndarray, vector: np.ndarray) -> np.ndarray:
     """
     Computes Euclidean Distance.
     """
     # axis=1 calculates the norm for each row vector in the difference matrix
     return np.linalg.norm(matrix - vector, axis=1)
+
 
 def manhattan(matrix: np.ndarray, vector: np.ndarray) -> np.ndarray:
     """
