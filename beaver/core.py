@@ -20,6 +20,7 @@ from .logs import AsyncBeaverLog, IBeaverLog
 from .manager import AsyncBeaverBase
 from .queues import AsyncBeaverQueue, IBeaverQueue
 from .sketches import AsyncBeaverSketch, IBeaverSketch
+from .vectors import AsyncBeaverVectors, IBeaverVectors
 
 
 class Event(BaseModel):
@@ -368,7 +369,8 @@ class AsyncBeaverDB:
         )
 
         # Edges
-        await c.execute("""
+        await c.execute(
+            """
             CREATE TABLE IF NOT EXISTS __beaver_edges__ (
                 collection TEXT NOT NULL,
                 source_item_id TEXT NOT NULL,
@@ -377,13 +379,29 @@ class AsyncBeaverDB:
                 metadata TEXT,
                 PRIMARY KEY (collection, source_item_id, target_item_id, label)
             )
-        """)
+        """
+        )
 
         # Index for reverse lookups (parents)
-        await c.execute("""
+        await c.execute(
+            """
             CREATE INDEX IF NOT EXISTS idx_edges_target
             ON __beaver_edges__ (collection, target_item_id)
-        """)
+        """
+        )
+
+        # Vectors (Simple Store)
+        await c.execute(
+            """
+            CREATE TABLE IF NOT EXISTS __beaver_vectors__ (
+                collection TEXT NOT NULL,
+                item_id TEXT NOT NULL,
+                vector BLOB NOT NULL,
+                metadata TEXT,
+                PRIMARY KEY (collection, item_id)
+            )
+        """
+        )
 
         await self.connection.commit()
 
@@ -474,6 +492,11 @@ class AsyncBeaverDB:
             model=model,
         )
 
+    def vectors[T: BaseModel](
+        self, name, model: type[T] | None = None
+    ) -> AsyncBeaverVectors:
+        return self.singleton(AsyncBeaverVectors, name, model=model)
+
     def cache(self, key: str = "global"):
         # Temporary stub: Caching will be revisited
         return DummyCache.singleton()
@@ -563,6 +586,16 @@ class BeaverDB:
         self, name: str, model: Type[T] | None = None
     ) -> IBeaverDocuments[T]:
         return self._get_manager("docs", name, model)
+
+    def graph[T: BaseModel](
+        self, name: str, model: Type[T] | None = None
+    ) -> IBeaverGraph[T]:
+        return self._get_manager("graph", name, model)
+
+    def vectors[T: BaseModel](
+        self, name: str, model: type[T] | None = None
+    ) -> IBeaverVectors[T]:
+        return self._get_manager("vectors", name, model)
 
     def channel[T: BaseModel](
         self, name: str, model: type[T] | None = None
