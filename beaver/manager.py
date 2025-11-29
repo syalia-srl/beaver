@@ -185,22 +185,16 @@ def emits(event: str | None = None, payload: Callable | None = None):
             # Execute the actual async operation
             result = await func(self, *args, **kwargs)
 
-            # Construct the payload dictionary
-            try:
-                # If the payload function accepts 'result', pass it?
-                # For backward compat with existing lambdas which expect args, we stick to inputs.
-                # If we want result, we'd need a smarter payload_func signature check.
-                payload_data = payload_func(*args, **kwargs)
-
-                # Emit via the attached event manager
-                # Note: This is fire-and-forget regarding the user's await flow
-                # (emit is async but we await it to ensure persistence)
-                if self._event_manager or hasattr(self, "events"):
+            # PERFORMANCE FIX: Only emit if the event manager has been initialized.
+            # This prevents starting the background polling loop for every manager
+            # unless the user has explicitly attached a listener (which inits the manager).
+            if self._event_manager is not None:
+                try:
+                    payload_data = payload_func(*args, **kwargs)
                     # We await it to ensure the event is persisted to the log before returning
-                    await self.events.emit(event_name, payload_data)
-            except Exception:
-                # Don't fail the operation if event emission fails
-                pass
+                    await self._event_manager.emit(event_name, payload_data)
+                except Exception:
+                    pass
 
             return result
 
