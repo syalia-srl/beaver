@@ -407,6 +407,11 @@ class AsyncBeaverDB:
     ) -> AsyncBeaverDocuments[T]:
         return self.singleton(AsyncBeaverDocuments, name, model=model)
 
+    def graphs[T: BaseModel](
+        self, name: str, model: Type[T] | None = None
+    ) -> AsyncBeaverGraph[T]:
+        return self.singleton(AsyncBeaverGraph, name, model=model)
+
     def channel[T: BaseModel](
         self, name: str, model: type[T] | None = None
     ) -> AsyncBeaverChannel[T]:
