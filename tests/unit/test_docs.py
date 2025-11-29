@@ -93,12 +93,12 @@ async def test_docs_field_search(async_db_mem: AsyncBeaverDB):
     # 2. Search TITLE only
     results_title = await docs.search("Python", on=["title"])
     assert len(results_title) == 1
-    assert results_title[0].body.title == "Python News"
+    assert results_title[0].document.body.title == "Python News"
 
     # 3. Search TAGS only
     results_tags = await docs.search("python", on=["tags"])
     assert len(results_tags) == 1
-    assert results_tags[0].body.title == "Snake"
+    assert results_tags[0].document.body.title == "Snake"
 
 
 async def test_docs_fuzzy_search(async_db_mem: AsyncBeaverDB):
@@ -119,8 +119,8 @@ async def test_docs_fuzzy_search(async_db_mem: AsyncBeaverDB):
     # Overlap: ick
     results_fuzzy = await docs.search("quick", fuzzy=True)
     assert len(results_fuzzy) >= 2
-    assert results_fuzzy[0].body == "The quick brown fox"
-    assert results_fuzzy[1].body == "The qick brown fx"
+    assert results_fuzzy[0].document.body == "The quick brown fox"
+    assert results_fuzzy[1].document.body == "The qick brown fx"
 
 
 async def test_docs_fluent_query(async_db_mem: AsyncBeaverDB):
@@ -141,8 +141,8 @@ async def test_docs_fluent_query(async_db_mem: AsyncBeaverDB):
     results = await docs.query().where(q(Product).category == "tech").sort(price="DESC")
 
     assert len(results) == 2
-    assert results[0].body.name == "Laptop"
-    assert results[1].body.name == "Phone"
+    assert results[0].document.body.name == "Laptop"
+    assert results[1].document.body.name == "Phone"
 
     # Filter without model
 

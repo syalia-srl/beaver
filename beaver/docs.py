@@ -29,6 +29,13 @@ class Document[T](BaseModel):
 
     id: str = Field(default_factory=lambda: uuid.uuid4().hex)
     body: T
+
+
+class ScoredDocument[T](BaseModel):
+    """
+    Wrapper for a search result containing the document and its relevance score.
+    """
+    document: Document[T]
     score: float | None = None
 
 
@@ -55,7 +62,7 @@ def _flatten_document(
         yield parent_key, data
 
 
-class DocumentQuery[T]:
+class DocumentQuery[T: BaseModel]:
     """
     A fluent query builder for searching and filtering documents.
     """
@@ -105,7 +112,7 @@ class DocumentQuery[T]:
         self._offset = offset
         return self
 
-    async def execute(self) -> List[Document[T]]:
+    async def execute(self) -> List[ScoredDocument[T]]:
         """Executes the built query and returns the results."""
         return await self._manager._execute_query(self)
 
@@ -113,7 +120,8 @@ class DocumentQuery[T]:
         """Allows `await docs.search(...)` directly."""
         return self.execute().__await__()
 
-    async def __aiter__(self) -> AsyncIterator[Document[T]]:
+    # Update yield type hint
+    async def __aiter__(self) -> AsyncIterator[ScoredDocument[T]]:
         """Allows `async for doc in docs.search(...)`."""
         results = await self.execute()
         for doc in results:
@@ -135,7 +143,7 @@ class IBeaverDocuments[D: BaseModel](Protocol):
     def query(self) -> DocumentQuery[D]: ...
     def search(
         self, query: str, on: List[str] | None = None, fuzzy: bool = False
-    ) -> List[Document[D]]: ...
+    ) -> List[ScoredDocument[D]]: ...
 
     def count(self) -> int: ...
     def clear(self) -> None: ...
@@ -319,7 +327,7 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
         else:
             return await self.query().fts(query, on=on).execute()
 
-    async def _execute_query(self, q: DocumentQuery) -> List[Document[T]]:
+    async def _execute_query(self, q: DocumentQuery) -> List[ScoredDocument[T]]:
         """
         Compiles the DocumentQuery into SQL and executes it.
         """
@@ -424,8 +432,15 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
         async for row in cursor:
             body_val = json.loads(row["data"])
             score = row["score"]
-            doc = self._doc_model(id=row["item_id"], body=body_val, score=score)
-            results.append(doc)
+
+            # 1. Create the clean Document (No score)
+            doc = self._doc_model(id=row["item_id"], body=body_val)
+
+            # 2. Wrap it in ScoredDocument
+            # We use the generic T from self._model or Any
+            result_item = ScoredDocument(document=doc, score=score)
+
+            results.append(result_item)
 
         return results
 
