@@ -111,6 +111,9 @@ class AsyncBeaverBase[T: BaseModel]:
 
     def _deserialize(self, value: str) -> T:
         """Deserializes a JSON string (Sync CPU bound)."""
+        if value is None:
+            return None
+
         if self._model:
             return self._model.model_validate_json(value)
 

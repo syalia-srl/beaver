@@ -2,7 +2,7 @@ import asyncio
 import threading
 import warnings
 import weakref
-from typing import Any, Callable, Type, AsyncContextManager
+from typing import Any, Callable, Self, Type, AsyncContextManager
 
 import aiosqlite
 from pydantic import BaseModel
@@ -123,13 +123,13 @@ class AsyncBeaverDB:
         # Pub/Sub Registry (To be reimplemented in Phase 4)
         # self._event_callbacks: dict[str, list[Callable]] = {}
 
-    async def connect(self):
+    async def connect(self) -> Self:
         """
         Initializes the async database connection and creates tables.
         Must be awaited before using the DB.
         """
         if self._connection is not None:
-            return
+            return self
 
         self._connection = await aiosqlite.connect(
             self._db_path,
@@ -366,6 +366,24 @@ class AsyncBeaverDB:
         await c.execute(
             "CREATE INDEX IF NOT EXISTS idx_trigram_lookup ON __beaver_trigrams__ (collection, trigram)"
         )
+
+        # Edges
+        await c.execute("""
+            CREATE TABLE IF NOT EXISTS __beaver_edges__ (
+                collection TEXT NOT NULL,
+                source_item_id TEXT NOT NULL,
+                target_item_id TEXT NOT NULL,
+                label TEXT NOT NULL,
+                metadata TEXT,
+                PRIMARY KEY (collection, source_item_id, target_item_id, label)
+            )
+        """)
+
+        # Index for reverse lookups (parents)
+        await c.execute("""
+            CREATE INDEX IF NOT EXISTS idx_edges_target
+            ON __beaver_edges__ (collection, target_item_id)
+        """)
 
         await self.connection.commit()
 
