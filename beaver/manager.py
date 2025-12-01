@@ -1,6 +1,5 @@
 import json
 import functools
-import weakref
 from typing import Callable, Type, Optional, Self, Any, TYPE_CHECKING
 
 from pydantic import BaseModel

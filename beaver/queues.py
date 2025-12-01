@@ -10,50 +10,12 @@ from typing import (
     overload,
     Protocol,
     runtime_checkable,
-    TYPE_CHECKING,
 )
 
 from pydantic import BaseModel
 
 from .manager import AsyncBeaverBase, atomic, emits
-
-if TYPE_CHECKING:
-    from .core import AsyncBeaverDB
-
-
-class QueueItem[T](NamedTuple):
-    """A data class representing a single item retrieved from the queue."""
-
-    priority: float
-    timestamp: float
-    data: T
-
-
-@runtime_checkable
-class IBeaverQueue[T: BaseModel](Protocol):
-    """
-    The Synchronous Protocol exposed to the user via BeaverBridge.
-    """
-
-    def put(self, data: T, priority: float) -> None: ...
-
-    def peek(self) -> QueueItem[T] | None: ...
-
-    # Overloads for get
-    @overload
-    def get(
-        self, block: Literal[True] = True, timeout: float | None = None
-    ) -> QueueItem[T]: ...
-    @overload
-    def get(self, block: Literal[False]) -> QueueItem[T]: ...
-
-    def clear(self) -> None: ...
-    def count(self) -> int: ...
-    def dump(self, fp: IO[str] | None = None) -> dict | None: ...
-
-    def __len__(self) -> int: ...
-    def __iter__(self) -> Iterator[QueueItem[T]]: ...
-    def __bool__(self) -> bool: ...
+from .interfaces import QueueItem, IAsyncBeaverQueue
 
 
 class AsyncBeaverQueue[T: BaseModel](AsyncBeaverBase[T]):
