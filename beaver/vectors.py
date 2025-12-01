@@ -17,52 +17,19 @@ from typing import (
 from pydantic import BaseModel
 
 from .manager import AsyncBeaverBase, atomic, emits
+from .interfaces import IAsyncBeaverVectors, VectorItem
 
 if TYPE_CHECKING:
     from .core import AsyncBeaverDB
     from .queries import Filter
 
 
-class VectorItem[T](BaseModel):
-    """Represents a stored vector with metadata."""
-
-    id: str
-    vector: List[float]
-    metadata: T | None = None
-    score: float = 0
-
-    class Config:
-        arbitrary_types_allowed = True
-
-
 # Type Alias for Custom Metrics
 # Accepts: (Matrix[N, D], Vector[D]) -> Scores[N]
-Metric = Callable[[np.ndarray, np.ndarray], np.ndarray]
+type Metric = Callable[[np.ndarray, np.ndarray], np.ndarray]
 
 
-@runtime_checkable
-class IBeaverVectors[T](Protocol):
-    """Protocol exposed to the user via BeaverBridge."""
-
-    def set(self, id: str, vector: List[float], metadata: T | None = None) -> None: ...
-    def get(self, id: str) -> VectorItem[T] | None: ...
-    def delete(self, id: str) -> None: ...
-
-    def near(
-        self,
-        vector: List[float],
-        k: int = 10,
-        candidate_ids: List[str] | None = None,
-        filters: List["Filter"] | None = None,
-        metric: Optional[Metric] = None,
-    ) -> List[VectorItem[T]]: ...
-
-    def count(self) -> int: ...
-    def clear(self) -> None: ...
-    def __iter__(self) -> Iterator[VectorItem[T]]: ...
-
-
-class AsyncBeaverVectors[T: BaseModel](AsyncBeaverBase[T]):
+class AsyncBeaverVectors[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverVectors[T]):
     """
     A persistent vector store accelerated by NumPy.
 

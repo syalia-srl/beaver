@@ -1,21 +1,15 @@
 import math
 import hashlib
 import struct
-import asyncio
 from typing import (
     Any,
-    Iterator,
-    Optional,
-    Protocol,
-    runtime_checkable,
     TYPE_CHECKING,
-    Self,
 )
 
 from pydantic import BaseModel
 
-from .manager import AsyncBeaverBase, atomic, emits
-from .locks import AsyncBeaverLock
+from .manager import AsyncBeaverBase, atomic
+from .interfaces import IAsyncBeaverSketch, ISketchBatch
 
 if TYPE_CHECKING:
     from .core import AsyncBeaverDB
@@ -142,7 +136,7 @@ class ApproximateSet:
         return bytes(self._data)
 
 
-class AsyncSketchBatch[T: BaseModel]:
+class AsyncSketchBatch[T: BaseModel](ISketchBatch[T]):
     """Async Context manager for batched updates to an ApproximateSet."""
 
     def __init__(self, manager: "AsyncBeaverSketch[T]"):
@@ -181,20 +175,7 @@ class AsyncSketchBatch[T: BaseModel]:
         self._pending_items.clear()
 
 
-@runtime_checkable
-class IBeaverSketch[T: BaseModel](Protocol):
-    """Protocol exposed to the user via BeaverBridge."""
-
-    def add(self, item: T) -> None: ...
-    def contains(self, item: T) -> bool: ...
-    def count(self) -> int: ...
-    def clear(self) -> None: ...
-    def batched(self) -> AsyncSketchBatch[T]: ...
-    def __len__(self) -> int: ...
-    def __contains__(self, item: T) -> bool: ...
-
-
-class AsyncBeaverSketch[T: BaseModel](AsyncBeaverBase[T]):
+class AsyncBeaverSketch[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverSketch[T]):
     """
     Manages a persistent ApproximateSet (Bloom + HLL).
     """

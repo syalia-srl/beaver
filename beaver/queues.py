@@ -4,12 +4,6 @@ import time
 from datetime import datetime, timezone
 from typing import (
     IO,
-    Iterator,
-    Literal,
-    NamedTuple,
-    overload,
-    Protocol,
-    runtime_checkable,
 )
 
 from pydantic import BaseModel
@@ -18,7 +12,7 @@ from .manager import AsyncBeaverBase, atomic, emits
 from .interfaces import QueueItem, IAsyncBeaverQueue
 
 
-class AsyncBeaverQueue[T: BaseModel](AsyncBeaverBase[T]):
+class AsyncBeaverQueue[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverQueue[T]):
     """
     A wrapper providing a Pythonic interface to a persistent, multi-process
     producer-consumer priority queue.
