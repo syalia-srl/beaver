@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS beaver_vector_snapshots (
     blob_data BLOB NOT NULL,
     created_at_log_id INTEGER NOT NULL
 );
-````
+```
 
 #### B. `HNSWVectorIndex` Class
 
@@ -77,7 +77,7 @@ This is the "Heavy Lift" operation.
   * **Serialize:** Calls `index.save_index()` (to a temp path or bytes).
   * **Persist:** Writes the blob to `beaver_vector_snapshots` and clears the logs.
 
-### 4\. Multi-Strategy Safety (Snapshot Invalidation)
+### 4. Multi-Strategy Safety (Snapshot Invalidation)
 
 To prevent data loss when mixing strategies (e.g., a process using Linear strategy compacting the DB, effectively "deleting" the logs that an HNSW process needs), we must enforce **Snapshot Invalidation**.
 
@@ -87,7 +87,7 @@ To prevent data loss when mixing strategies (e.g., a process using Linear strate
   * **Action:** It merges logs to `beaver_collections`, clears the logs, and **deletes the HNSW snapshot**.
   * **Result:** Other HNSW processes will detect the missing snapshot, safely fall back to Linear mode (loading strictly from `beaver_collections`), and maintain data consistency.
 
-### 5\. Proposed API & Auto-Detection
+### 5. Proposed API & Auto-Detection
 
 The factory method in `BeaverDB` and `CollectionManager` will support an "Auto" mode (`None`).
 
@@ -119,7 +119,7 @@ db.collection("articles")
 db.collection("articles", index_strategy="linear")
 ```
 
-### 6\. Roadmap
+### 6. Roadmap
 
 1.  Add `hnswlib` to `optional-dependencies` in `pyproject.toml`.
 2.  Implement `HNSWVectorIndex` class using `async/await` and `asyncio.to_thread`.
