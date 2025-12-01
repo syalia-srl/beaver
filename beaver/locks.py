@@ -3,30 +3,15 @@ import random
 import time
 import os
 import uuid
-from typing import Optional, Protocol, runtime_checkable, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
+from .interfaces import IAsyncBeaverLock
+
 
 if TYPE_CHECKING:
     from .core import AsyncBeaverDB
 
 
-@runtime_checkable
-class IBeaverLock[T: BaseModel](Protocol):
-    def acquire(
-        self,
-        timeout: float | None = None,
-        lock_ttl: float | None = None,
-        poll_interval: float | None = None,
-        block: bool = True,
-    ) -> bool: ...
-
-    def release(self) -> None: ...
-    def renew(self, lock_ttl: float | None = None) -> bool: ...
-    def clear(self) -> bool: ...
-    def __enter__(self) -> "IBeaverLock": ...
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None: ...
-
-
-class AsyncBeaverLock:
+class AsyncBeaverLock(IAsyncBeaverLock):
     def __init__(
         self,
         db: "AsyncBeaverDB",
