@@ -1,6 +1,6 @@
 ---
 number: 35
-title: "Refactor Core to \\"Shared Interface Definition\\" (SID) Architecture"
+title: "Refactor Core to \\\"Shared Interface Definition\\\" (SID) Architecture"
 state: open
 labels:
 ---
