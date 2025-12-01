@@ -24,7 +24,7 @@ from .interfaces import (
 from .blobs import AsyncBeaverBlob
 from .bridge import BeaverBridge
 from .cache import DummyCache
-from .channels import AsyncBeaverChannel
+from .channels import AsyncBeaverChannel, PubSubEngine
 from .dicts import AsyncBeaverDict
 from .docs import AsyncBeaverDocuments
 from .events import AsyncBeaverEvents
@@ -127,8 +127,15 @@ class AsyncBeaverDB:
         self._pragma_temp_memory = pragma_temp_memory
         self._pragma_mmap_size = pragma_mmap_size
 
-        # Pub/Sub Registry (To be reimplemented in Phase 4)
-        # self._event_callbacks: dict[str, list[Callable]] = {}
+        # Pub/Sub Engine
+        self._pubsub_engine: PubSubEngine | None = None
+
+    async def pubsub_engine(self) -> PubSubEngine:
+        if self._pubsub_engine is None:
+            self._pubsub_engine = PubSubEngine(self)
+            await self._pubsub_engine.start()
+
+        return self._pubsub_engine
 
     async def connect(self) -> Self:
         """

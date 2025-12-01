@@ -32,6 +32,7 @@ class PubSubEngine:
         """Starts the background polling loop."""
         if self._running:
             return
+
         self._running = True
         self._last_poll_ts = time.time()
         self._task = asyncio.create_task(self._poll_loop())
@@ -49,10 +50,13 @@ class PubSubEngine:
 
     def subscribe(self, channel: str) -> asyncio.Queue[ChannelMessage]:
         """Registers a new listener queue for a channel."""
-        queue = asyncio.Queue()
+        queue = asyncio.Queue[ChannelMessage]()
+
         if channel not in self._listeners:
             self._listeners[channel] = []
+
         self._listeners[channel].append(queue)
+
         return queue
 
     def unsubscribe(self, channel: str, queue: asyncio.Queue):
@@ -60,6 +64,7 @@ class PubSubEngine:
         if channel in self._listeners:
             if queue in self._listeners[channel]:
                 self._listeners[channel].remove(queue)
+
             if not self._listeners[channel]:
                 del self._listeners[channel]
 
@@ -126,11 +131,7 @@ class AsyncBeaverChannel[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverChannel[T
         """
         # We perform a lazy attachment to the DB instance to avoid modifying core.py
         # heavily. We store the engine on the DB instance dynamically.
-        if not hasattr(self._db, "_pubsub_engine"):
-            self._db._pubsub_engine = PubSubEngine(self._db)
-            await self._db._pubsub_engine.start()
-
-        return self._db._pubsub_engine
+        return await self._db.pubsub_engine()
 
     @emits("publish", payload=lambda payload, *args, **kwargs: dict(payload=payload))
     @atomic
