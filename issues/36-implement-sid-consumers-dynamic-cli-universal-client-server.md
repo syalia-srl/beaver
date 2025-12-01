@@ -1,5 +1,8 @@
 ---
-title: Implement SID Consumers (Dynamic CLI, Universal Client & Server)
+number: 36
+title: "Implement SID Consumers (Dynamic CLI, Universal Client & Server)"
+state: open
+labels:
 ---
 
 ## Context
@@ -24,7 +27,7 @@ This will result in a **Zero-Maintenance** system where adding a method to `Asyn
 
 ## Architecture Design
 
-### 1\. The `@expose` Metadata Layer (`beaver/api.py`)
+### 1. The `@expose` Metadata Layer (`beaver/api.py`)
 
 A unified decorator that tags Core methods with metadata for both HTTP and CLI usage.
 
@@ -38,7 +41,7 @@ A unified decorator that tags Core methods with metadata for both HTTP and CLI u
 async def get(self, key: str): ...
 ```
 
-### 2\. Universal Entry Point (`beaver/__init__.py`)
+### 2. Universal Entry Point (`beaver/__init__.py`)
 
 A single `connect()` function that acts as the universal factory, detecting the source type and returning the appropriate interface.
 
@@ -48,11 +51,11 @@ db_local  = beaver.connect("./my.db", sync=True)
 db_remote = beaver.connect("http://localhost:8000", sync=True, api_key="...")
 ```
 
-### 3\. Dynamic Remote Client (`beaver/client.py`)
+### 3. Dynamic Remote Client (`beaver/client.py`)
 
 An `AsyncBeaverClient` that implements `IAsyncBeaverDB`. It uses a **Dynamic Proxy** (`RemoteManager`) that introspects the local Core classes to build `httpx` requests on the fly, caching the generated request methods for performance.
 
-### 4\. Self-Discovering CLI (`beaver/cli/discovery.py`)
+### 4. Self-Discovering CLI (`beaver/cli/discovery.py`)
 
 A `typer` app generator that:
 
