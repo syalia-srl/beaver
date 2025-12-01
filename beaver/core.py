@@ -1,33 +1,41 @@
 import asyncio
 import threading
-import warnings
-import weakref
-from typing import Any, Callable, Self, Type, AsyncContextManager
+from typing import Any, Self, Type, AsyncContextManager
 
 import aiosqlite
 from pydantic import BaseModel
 
-from .blobs import AsyncBeaverBlob, IBeaverBlob
+from .interfaces import (
+    IBeaverBlob,
+    IBeaverChannel,
+    IBeaverDict,
+    IBeaverDocuments,
+    IBeaverEvents,
+    IBeaverGraph,
+    IBeaverList,
+    IBeaverLock,
+    IBeaverLog,
+    IBeaverQueue,
+    IBeaverSketch,
+    IBeaverVectors,
+)
+
+
+from .blobs import AsyncBeaverBlob
 from .bridge import BeaverBridge
-from .cache import DummyCache, LocalCache
-from .channels import AsyncBeaverChannel, IBeaverChannel
-from .dicts import AsyncBeaverDict, IBeaverDict
-from .docs import AsyncBeaverDocuments, IBeaverDocuments
-from .events import AsyncBeaverEvents, IBeaverEvents
-from .graphs import AsyncBeaverGraph, IBeaverGraph
-from .lists import AsyncBeaverList, IBeaverList
-from .locks import AsyncBeaverLock, IBeaverLock
-from .logs import AsyncBeaverLog, IBeaverLog
+from .cache import DummyCache
+from .channels import AsyncBeaverChannel
+from .dicts import AsyncBeaverDict
+from .docs import AsyncBeaverDocuments
+from .events import AsyncBeaverEvents
+from .graphs import AsyncBeaverGraph
+from .lists import AsyncBeaverList
+from .locks import AsyncBeaverLock
+from .logs import AsyncBeaverLog
 from .manager import AsyncBeaverBase
-from .queues import AsyncBeaverQueue, IBeaverQueue
-from .sketches import AsyncBeaverSketch, IBeaverSketch
-from .vectors import AsyncBeaverVectors, IBeaverVectors
-
-
-class Event(BaseModel):
-    topic: str
-    event: str
-    payload: dict
+from .queues import AsyncBeaverQueue
+from .sketches import AsyncBeaverSketch
+from .vectors import AsyncBeaverVectors
 
 
 class Transaction:
@@ -106,9 +114,6 @@ class AsyncBeaverDB:
         # The Single Source of Truth Connection
         self._connection: aiosqlite.Connection | None = None
 
-        # Transaction Serializer Lock
-        # Ensures that "check-then-act" operations (like locks) are atomic
-        # relative to other tasks on this loop.
         # Locking Primitives
         self._tx_lock = asyncio.Lock()
         self._tx_owner_task: asyncio.Task | None = None  # Track owner for reentrancy

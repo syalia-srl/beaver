@@ -1,43 +1,18 @@
 import json
 import uuid
-import asyncio
 from typing import (
     Any,
     Iterator,
     AsyncIterator,
     List,
     Literal,
-    Protocol,
-    runtime_checkable,
-    TYPE_CHECKING,
-    overload,
 )
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from .queries import Filter
 from .manager import AsyncBeaverBase, atomic, emits
-
-if TYPE_CHECKING:
-    from .core import AsyncBeaverDB
-
-
-class Document[T](BaseModel):
-    """
-    Minimal document container.
-    """
-
-    id: str = Field(default_factory=lambda: uuid.uuid4().hex)
-    body: T
-
-
-class ScoredDocument[T](BaseModel):
-    """
-    Wrapper for a search result containing the document and its relevance score.
-    """
-
-    document: Document[T]
-    score: float | None = None
+from .interfaces import Document, ScoredDocument, IDocumentQuery
 
 
 def _flatten_document(
@@ -63,7 +38,7 @@ def _flatten_document(
         yield parent_key, data
 
 
-class DocumentQuery[T: BaseModel]:
+class DocumentQuery[T: BaseModel](IDocumentQuery[T]):
     """
     A fluent query builder for searching and filtering documents.
     """
@@ -122,33 +97,11 @@ class DocumentQuery[T: BaseModel]:
         return self.execute().__await__()
 
     # Update yield type hint
-    async def __aiter__(self) -> AsyncIterator[ScoredDocument[T]]:
+    async def __aiter__(self):
         """Allows `async for doc in docs.search(...)`."""
         results = await self.execute()
         for doc in results:
             yield doc
-
-
-@runtime_checkable
-class IBeaverDocuments[D: BaseModel](Protocol):
-    """Protocol exposed to the user via BeaverBridge."""
-
-    def index(
-        self, document: D | None = None, id: str | None = None, body: Any | None = None
-    ) -> Document[D]: ...
-    def get(self, id: str) -> D | None: ...
-    def drop(self, id_or_document: str | D) -> None: ...
-    def get_many(self, ids: List[str]) -> List[D]: ...
-
-    # Query API
-    def query(self) -> DocumentQuery[D]: ...
-    def search(
-        self, query: str, on: List[str] | None = None, fuzzy: bool = False
-    ) -> List[ScoredDocument[D]]: ...
-
-    def count(self) -> int: ...
-    def clear(self) -> None: ...
-    def __iter__(self) -> Iterator[D]: ...
 
 
 class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):

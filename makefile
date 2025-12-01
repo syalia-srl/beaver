@@ -12,12 +12,16 @@ format:
 format-check:
 	black --check .
 
+.PHONY: type-check
+type-check:
+	mypy
+
 .PHONY: test-unit test-all
 
 test-unit: format-check
 	pytest tests/unit --cov=beaver
 
-test-all: format-check
+test-all: format-check type-check
 	pytest --cov=beaver
 
 .PHONY: docker-build

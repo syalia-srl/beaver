@@ -18,31 +18,13 @@ from pydantic import BaseModel, Field
 
 from .manager import AsyncBeaverBase, atomic
 from .channels import AsyncBeaverChannel
+from .interfaces import Event, IEventHandler, IAsyncBeaverEvents
 
 if TYPE_CHECKING:
     from .core import AsyncBeaverDB
 
-T = TypeVar("T")
 
-
-class Event[T](BaseModel):
-    """
-    A type-safe envelope for events.
-
-    Attributes:
-        id: Unique event ID.
-        event: The event name/topic.
-        payload: The actual data (typed).
-        timestamp: When the event was created.
-    """
-
-    id: str = Field(default_factory=lambda: uuid.uuid4().hex)
-    event: str
-    payload: T
-    timestamp: float = Field(default_factory=time.time)
-
-
-class EventHandler:
+class EventHandler(IEventHandler):
     """
     Public-facing handle returned by `AsyncBeaverEvents.attach()`.
     Allows the user to close their specific callback listener.
@@ -83,7 +65,7 @@ class IBeaverEvents[T](Protocol):
     def emit(self, event: str, payload: T) -> None: ...
 
 
-class AsyncBeaverEvents[T: BaseModel](AsyncBeaverBase[T]):
+class AsyncBeaverEvents[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverEvents[T]):
     """
     A standalone Event Bus manager.
     Implements the Observer Pattern on top of AsyncBeaverChannel.

@@ -12,43 +12,13 @@ from typing import (
 from pydantic import BaseModel
 
 from .manager import AsyncBeaverBase, atomic, emits
+from .interfaces import Edge, IAsyncBeaverGraph
 
 if TYPE_CHECKING:
     from .core import AsyncBeaverDB
 
 
-class Edge[T](BaseModel):
-    """
-    Represents a directed edge in the graph with typed metadata.
-    """
-
-    source: str
-    target: str
-    label: str
-    metadata: T | None
-
-
-@runtime_checkable
-class IBeaverGraph[T: BaseModel](Protocol):
-    """Protocol exposed to the user via BeaverBridge."""
-
-    def link(
-        self, source: str, target: str, label: str, metadata: T | None = None
-    ) -> None: ...
-    def unlink(self, source: str, target: str, label: str) -> None: ...
-
-    def linked(self, source: str, target: str, label: str) -> bool: ...
-    def get(self, source: str, target: str, label: str) -> Edge[T]: ...
-
-    def children(self, source: str, label: str | None = None) -> Iterator[str]: ...
-    def parents(self, target: str, label: str | None = None) -> Iterator[str]: ...
-    def edges(self, source: str, label: str | None = None) -> Iterator[Edge[T]]: ...
-
-    def clear(self) -> None: ...
-    def count(self) -> int: ...
-
-
-class AsyncBeaverGraph[T: BaseModel](AsyncBeaverBase[T]):
+class AsyncBeaverGraph[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverGraph[T]):
     """
     Manages directed relationships between entities.
 

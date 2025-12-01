@@ -1,45 +1,18 @@
 import asyncio
-import json
 import time
-import weakref
 from typing import (
-    IO,
-    Any,
-    Iterator,
     AsyncIterator,
-    Protocol,
-    runtime_checkable,
     TYPE_CHECKING,
-    NamedTuple,
 )
 
 from pydantic import BaseModel
 
 from .manager import AsyncBeaverBase, atomic, emits
+from .interfaces import IAsyncBeaverChannel, ChannelMessage
+
 
 if TYPE_CHECKING:
     from .core import AsyncBeaverDB
-
-
-class ChannelMessage[T](BaseModel):
-    """A message received from a channel."""
-
-    channel: str
-    payload: T
-    timestamp: float
-
-
-@runtime_checkable
-class IBeaverChannel[T: BaseModel](Protocol):
-    """
-    The Synchronous Protocol exposed to the user via BeaverBridge.
-    """
-
-    def publish(self, payload: T) -> None: ...
-    def subscribe(self) -> Iterator[ChannelMessage]: ...
-    def history(self, limit: int = 100) -> list[ChannelMessage]: ...
-    def clear(self) -> None: ...
-    def count(self) -> int: ...
 
 
 class PubSubEngine:
@@ -141,7 +114,7 @@ class PubSubEngine:
                 await asyncio.sleep(1.0)
 
 
-class AsyncBeaverChannel[T: BaseModel](AsyncBeaverBase[T]):
+class AsyncBeaverChannel[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverChannel[T]):
     """
     A wrapper for a Pub/Sub channel.
     Refactored for Async-First architecture (v2.0).

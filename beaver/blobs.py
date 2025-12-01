@@ -2,22 +2,13 @@ from base64 import b64encode
 import json
 from typing import (
     IO,
-    Any,
-    Iterator,
-    Tuple,
-    Protocol,
-    runtime_checkable,
     TYPE_CHECKING,
-    overload,
 )
 
 from pydantic import BaseModel
 
 from .manager import AsyncBeaverBase, atomic, emits
 from .interfaces import IAsyncBeaverBlob, BlobItem
-
-if TYPE_CHECKING:
-    from .core import AsyncBeaverDB
 
 
 class AsyncBeaverBlob[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverBlob[T]):
