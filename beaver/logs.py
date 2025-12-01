@@ -8,47 +8,16 @@ from typing import (
     AsyncIterator,
     Protocol,
     runtime_checkable,
-    TYPE_CHECKING,
     NamedTuple,
 )
 
 from pydantic import BaseModel
 
 from .manager import AsyncBeaverBase, atomic, emits
-
-if TYPE_CHECKING:
-    from .core import AsyncBeaverDB
+from .interfaces import LogEntry, IAsyncBeaverLog
 
 
-class LogEntry[T](NamedTuple):
-    """A single log entry with timestamp and data."""
-
-    timestamp: float
-    data: T
-
-
-@runtime_checkable
-class IBeaverLog[T: BaseModel](Protocol):
-    """
-    The Synchronous Protocol exposed to the user via BeaverBridge.
-    """
-
-    def log(self, data: T, timestamp: float | None = None) -> None: ...
-    def range(
-        self,
-        start: float | None = None,
-        end: float | None = None,
-        limit: int | None = None,
-    ) -> list[LogEntry[T]]: ...
-
-    def live(self, poll_interval: float = 0.1) -> Iterator[LogEntry[T]]: ...
-
-    def clear(self) -> None: ...
-    def count(self) -> int: ...
-    def dump(self, fp: IO[str] | None = None) -> dict | None: ...
-
-
-class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T]):
+class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverLog[T]):
     """
     A wrapper providing a Pythonic interface to a time-indexed log.
     Refactored for Async-First architecture (v2.0).
