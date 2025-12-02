@@ -403,7 +403,7 @@ class AsyncBeaverDB:
         """
         )
 
-        # Vectors (Simple Store)
+        # Vectors (Main Store)
         await c.execute(
             """
             CREATE TABLE IF NOT EXISTS __beaver_vectors__ (
@@ -414,6 +414,34 @@ class AsyncBeaverDB:
                 PRIMARY KEY (collection, item_id)
             )
         """
+        )
+
+        # --- LSH Strategy Tables ---
+
+        # LSH Config (Hyperplanes per collection)
+        await c.execute(
+            """
+            CREATE TABLE IF NOT EXISTS __beaver_lsh_config__ (
+                collection TEXT PRIMARY KEY,
+                hyperplanes BLOB NOT NULL
+            )
+            """
+        )
+
+        # LSH Index (Maps buckets to item_ids)
+        await c.execute(
+            """
+            CREATE TABLE IF NOT EXISTS __beaver_lsh_index__ (
+                collection TEXT NOT NULL,
+                bucket_id INTEGER NOT NULL,
+                item_id TEXT NOT NULL,
+                PRIMARY KEY (collection, bucket_id, item_id)
+            )
+            """
+        )
+        # Optimized index for retrieving items in a bucket
+        await c.execute(
+            "CREATE INDEX IF NOT EXISTS idx_lsh_lookup ON __beaver_lsh_index__ (collection, bucket_id)"
         )
 
         await self.connection.commit()

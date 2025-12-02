@@ -2,6 +2,7 @@ import json
 import functools
 from typing import Callable, Type, Optional, Self, Any, TYPE_CHECKING
 
+from aiosqlite import Connection
 from pydantic import BaseModel
 
 from .locks import AsyncBeaverLock
@@ -59,7 +60,7 @@ class AsyncBeaverBase[T: BaseModel]:
         return self._lock._acquired
 
     @property
-    def connection(self) -> Any:
+    def connection(self) -> Connection:
         """Returns the shared async connection."""
         return self._db.connection
 
