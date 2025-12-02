@@ -171,19 +171,19 @@ async def test_vector_custom_similarity_raw_dot(async_db_mem: AsyncBeaverDB):
     # Custom: Negative Dot Product
     # (Because search() sorts Ascending, we flip the sign)
     def negative_dot(matrix, vector):
-        return -1 * matrix.dot(vector)
+        return 1 + -1 * matrix.dot(vector)
 
     results = await vecs.near(query, metric=negative_dot, k=3)
 
     # Order should be: Aligned (-1.0) -> Orthogonal (0.0) -> Opposite (1.0)
     assert results[0].id == "aligned"
-    assert results[0].score == -1.0  # Remember the score is returned as-is
+    assert results[0].score == 0.0  # Remember the score is returned as-is
 
     assert results[1].id == "orthogonal"
-    assert results[1].score == 0.0
+    assert results[1].score == 1.0
 
     assert results[2].id == "opposite"
-    assert results[2].score == 1.0
+    assert results[2].score == 2.0
 
 
 async def test_vector_built_in_euclidean(async_db_mem: AsyncBeaverDB):
