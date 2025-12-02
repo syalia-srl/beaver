@@ -306,7 +306,12 @@ class AsyncBeaverVectors[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverVectors[T
             vec_list = vectors_list[idx].tolist()
 
             results.append(
-                VectorItem(id=item_id, vector=vec_list, metadata=meta_val, score=score)
+                VectorItem(
+                    id=item_id,
+                    vector=vec_list,
+                    metadata=meta_val,
+                    score=max(0.0, score),
+                )
             )
 
         return results
