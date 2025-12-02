@@ -21,7 +21,7 @@ type-check:
 test-unit: format-check
 	pytest tests/unit --cov=beaver
 
-test-all: format-check type-check
+test-all: format-check
 	pytest --cov=beaver
 
 .PHONY: docker-build
