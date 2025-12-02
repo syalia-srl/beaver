@@ -60,6 +60,7 @@ class AsyncBeaverVectors[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverVectors[T
 
     # --- LSH Internals ---
 
+    @atomic
     async def _ensure_lsh_hyperplanes(self, dim: int, nbits: int = 16):
         """
         Loads or creates the random projection matrix (Hyperplanes).
@@ -80,9 +81,14 @@ class AsyncBeaverVectors[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverVectors[T
         row = await cursor.fetchone()
 
         if row:
-            self._hyperplanes = np.frombuffer(row["hyperplanes"], dtype=np.float32)
-            # Reshape: (nbits, dim)
-            self._hyperplanes = self._hyperplanes.reshape(nbits, -1)
+            flat_array = np.frombuffer(row["hyperplanes"], dtype=np.float32)
+            # Future-Proofing: Infer nbits from the stored blob
+            # stored_size = nbits * dim
+            if flat_array.size % dim != 0:
+                raise ValueError("Corrupt LSH config: Blob size not divisible by dim")
+
+            stored_nbits = flat_array.size // dim
+            self._hyperplanes = flat_array.reshape(stored_nbits, -1)
             return
 
         # 2. Create new if missing (Orthogonal Initialization)
