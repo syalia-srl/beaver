@@ -83,3 +83,5 @@ release: format-check
 	@gh release create "v$(NEW_VERSION)" --title "v$(NEW_VERSION)" --notes "Release version $(NEW_VERSION)"
 
 	@echo "✅ Version $(NEW_VERSION) successfully released."
+
+	@uv pip install -e .[full]
