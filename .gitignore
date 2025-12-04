@@ -13,3 +13,4 @@ wheels/
 .issues-sync-state
 .coverage
 _site
+benchmark
