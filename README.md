@@ -92,19 +92,19 @@ db.close()
 
 ## Features
 
-  * [**Key-Value Dictionaries**](https://syalia.com/beaver/guide-dicts-blobs.html): A Pythonic, dictionary-like interface for storing any JSON-serializable object or Pydantic model within separate namespaces. Includes TTL support for caching.
-  * [**Blob Storage**](https://syalia.com/beaver/guide-dicts-blobs.html): A dictionary-like interface for storing binary data (e.g., images, PDFs) with associated JSON metadata.
-  * [**Persistent Lists**](https://syalia.com/beaver/guide-lists-queues.html): A full-featured, persistent Python list supporting `push`, `pop`, `prepend`, `deque`, slicing, and in-place updates.
-  * [**Persistent Priority Queue**](https://syalia.com/beaver/guide-lists-queues.html): A high-performance, persistent priority queue perfect for task orchestration across multiple processes.
+  * [**Key-Value Dictionaries**](https://syalia.com/beaver/guide-dicts.html): A Pythonic, dictionary-like interface for storing any JSON-serializable object or Pydantic model within separate namespaces. Includes TTL support for caching.
+  * [**Blob Storage**](https://syalia.com/beaver/guide-blobs.html): A dictionary-like interface for storing binary data (e.g., images, PDFs) with associated JSON metadata.
+  * [**Persistent Lists**](https://syalia.com/beaver/guide-lists.html): A full-featured, persistent Python list supporting `push`, `pop`, `prepend`, `deque`, slicing, and in-place updates.
+  * [**Persistent Priority Queue**](https://syalia.com/beaver/guide-queues.html): A high-performance, persistent priority queue perfect for task orchestration across multiple processes.
   * [**Probabilistic Sketches:**]() Track cardinality and membership for millions of items in constant space using HyperLogLog and Bloom Filters.
   * [**Document Collections**](https://syalia.com/beaver/guide-collections.html): Store rich documents combining a vector embedding and Pydantic-based metadata.
   * [**Vector Search**](https://syalia.com/beaver/guide-collections.html%23vector-search): Fast, multi-process-safe linear vector search using an in-memory `numpy`-based index.
   * [**Full-Text & Fuzzy Search**](https://syalia.com/beaver/guide-collections.html%23full-text-fuzzy-search): Automatically index and search through document metadata using SQLite's FTS5 engine, with optional fuzzy search for typo-tolerant matching.
   * [**Knowledge Graph**](https://syalia.com/beaver/guide-collections.html%23knowledge-graph): Create directed, labeled relationships between documents and traverse the graph to find neighbors or perform multi-hop walks.
-  * [**Pub/Sub System**](https://syalia.com/beaver/guide-realtime.html): A powerful, thread and process-safe publish-subscribe system for real-time messaging with a fan-out architecture.
-  * [**Time-Indexed Logs**](https://syalia.com/beaver/guide-realtime.html): A specialized data structure for structured, time-series logs. Query historical data by time range or create a live, aggregated view.
-  * [**Event-Driven Callbacks**](https://syalia.com/beaver/guide-realtime.html): Listen for database changes in real-time. Subscribe to events on specific managers to trigger workflows or update UIs.
-  * [**Inter-Process Locking**](https://syalia.com/beaver/guide-concurrency.html): Robust, deadlock-proof locks. Use `db.lock('task_name')` to coordinate arbitrary scripts, or `with db.list('my_list') as l:` to perform atomic, multi-step operations.
+  * [**Pub/Sub System**](https://syalia.com/beaver/guide-channels.html): A powerful, thread and process-safe publish-subscribe system for real-time messaging with a fan-out architecture.
+  * [**Time-Indexed Logs**](https://syalia.com/beaver/guide-logs.html): A specialized data structure for structured, time-series logs. Query historical data by time range or create a live, aggregated view.
+  * [**Event-Driven Callbacks**](https://syalia.com/beaver/guide-channels.html): Listen for database changes in real-time. Subscribe to events on specific managers to trigger workflows or update UIs.
+  * [**Inter-Process Locking**](https://syalia.com/beaver/guide-locks.html): Robust, deadlock-proof locks. Use `db.lock('task_name')` to coordinate arbitrary scripts, or `with db.list('my_list') as l:` to perform atomic, multi-step operations.
   * [**Pydantic Support**](https://syalia.com/beaver/dev-architecture.html%23type-safe-models): Optionally associate `pydantic.BaseModel`s with any data structure for automatic, recursive data validation and (de)serialization.
   * [**Deployment**](https://syalia.com/beaver/guide-deployment.html): Instantly serve your database over a RESTful API with `beaver serve` and interact with it via the `beaver` CLI.
   * [**Data Export & Backups**](https://syalia.com/beaver/guide-deployment.html): Dump any data structure to a portable JSON file with a single `.dump()` command.
@@ -117,7 +117,7 @@ For a complete API reference, in-depth guides, and more examples, please visit t
 
 ## Contributing
 
-Contributions are welcome\! If you think of something that would make `beaver` more useful for your use case, please open an issue or submit a pull request.
+Contributions are welcome! If you think of something that would make `beaver` more useful for your use case, please open an issue or submit a pull request.
 
 ## License
 
