@@ -2,6 +2,7 @@ import json
 import uuid
 from typing import (
     Any,
+    IO,
     Iterator,
     AsyncIterator,
     List,
@@ -426,3 +427,29 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
         async for row in cursor:
             body_val = json.loads(row["data"])
             yield self._doc_model(id=row["item_id"], body=body_val)
+
+    async def dump(self, fp: IO[str] | None = None) -> dict | None:
+        """
+        Dumps all documents in this collection to a JSON-compatible object.
+        Shape mirrors the other managers: {metadata, items: [{id, body}]}.
+        """
+        items = []
+        async for doc in self:
+            body_val = doc.body
+            if self._model and isinstance(body_val, BaseModel):
+                body_val = json.loads(body_val.model_dump_json())
+            items.append({"id": doc.id, "body": body_val})
+
+        dump_obj = {
+            "metadata": {
+                "type": "Documents",
+                "name": self._name,
+                "count": len(items),
+            },
+            "items": items,
+        }
+
+        if fp:
+            json.dump(dump_obj, fp, indent=2)
+            return None
+        return dump_obj

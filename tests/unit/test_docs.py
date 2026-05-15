@@ -163,3 +163,52 @@ async def test_docs_search_return_types(async_db_mem: AsyncBeaverDB):
 
     # Access pattern: result.document.body (not result.body)
     assert results[0].document.body["title"] == "Python News"
+
+
+async def test_docs_dump_plain(async_db_mem: AsyncBeaverDB):
+    """Dump collection of plain-body docs to a dict."""
+    docs = async_db_mem.docs("notes")
+    await docs.index(id="a", body="alpha")
+    await docs.index(id="b", body="beta")
+
+    dump = await docs.dump()
+    assert dump["metadata"]["type"] == "Documents"
+    assert dump["metadata"]["name"] == "notes"
+    assert dump["metadata"]["count"] == 2
+
+    by_id = {item["id"]: item["body"] for item in dump["items"]}
+    assert by_id == {"a": "alpha", "b": "beta"}
+
+
+async def test_docs_dump_pydantic_model(async_db_mem: AsyncBeaverDB):
+    """Pydantic-typed docs round-trip through model_dump_json shape."""
+
+    class User(BaseModel):
+        name: str
+        role: str
+
+    docs = async_db_mem.docs("users", model=User)
+    await docs.index(id="u1", body=User(name="alice", role="admin"))
+
+    dump = await docs.dump()
+    assert dump["metadata"]["count"] == 1
+    item = dump["items"][0]
+    assert item["id"] == "u1"
+    assert item["body"] == {"name": "alice", "role": "admin"}
+
+
+async def test_docs_dump_to_file(async_db_mem: AsyncBeaverDB, tmp_path):
+    """Dump writes valid JSON when fp is provided and returns None."""
+    import json
+
+    docs = async_db_mem.docs("notes")
+    await docs.index(id="a", body="alpha")
+
+    out = tmp_path / "dump.json"
+    with out.open("w") as fp:
+        result = await docs.dump(fp)
+
+    assert result is None
+    loaded = json.loads(out.read_text())
+    assert loaded["metadata"]["name"] == "notes"
+    assert loaded["items"][0] == {"id": "a", "body": "alpha"}
