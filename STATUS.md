@@ -1,8 +1,8 @@
 # beaver v2.0 — current status
 
 Living inventory of what's real vs missing through the v2.0 release cycle.
-Deletes itself at `2.0.0`. Last refreshed: 2026-05-15 (Phase 1 slice 1+2:
-docs.dump + .load() JSON on all six managers).
+Deletes itself at `2.0.0`. Last refreshed: 2026-05-15 (Phase 1 slices 1–3:
+docs.dump + JSON .load() + JSONL streaming on all six managers).
 
 Full release plan: `vault/Atlas/Architecture/2026-05-15-beaver-v2-release-plan.md` in the workspace.
 
@@ -30,7 +30,8 @@ Full release plan: `vault/Atlas/Architecture/2026-05-15-beaver-v2-release-plan.m
 |---|---|---|---|
 | `.dump()` coverage | #18 | ✅ on six primary managers | dict, list, queue, blob, log, docs. vectors/channels/sketches/graphs/events out of scope for 2.0. |
 | `.load()` coverage | #18 | ✅ JSON on six primary managers | dict, list, queue, blob, log, docs. Symmetric to `.dump()`. Strategies: `overwrite` (default, clears first) / `append`. Blob requires `payload=True` dumps. |
-| YAML / JSONL streaming dump+load | #18 | ❌ none | JSON-only. JSONL streaming is the next slice; YAML deferred to 2.1 unless requested. |
+| JSONL streaming dump+load | #18 | ✅ on six primary managers | Both directions stream; dump via async generator, load line-by-line. Blob JSONL always carries the payload. Smoke: 1k log entries round-trip. |
+| YAML dump+load | #18 | ⏸ deferred to 2.1 | JSON + JSONL satisfy the ETL story; YAML is a human-readable nicety, parked unless requested. |
 | HNSW vector strategy | #28 | ❌ none | No `hnsw.py`, no `[hnsw]` extra, no `__beaver_vector_snapshots__` table. Phase 1 work. |
 | SID consumers (CLI / Server / Client) | #36 | ❌ none | No `@expose`, no `cli.py`, no `server.py`, no `client.py`. Phase 2 work. |
 | CLI admin commands | #15 | ❌ none | Layered on top of #36. Phase 2 work. |
