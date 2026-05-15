@@ -32,7 +32,7 @@ Full release plan: `vault/Atlas/Architecture/2026-05-15-beaver-v2-release-plan.m
 | `.load()` coverage | #18 | ✅ JSON on six primary managers | dict, list, queue, blob, log, docs. Symmetric to `.dump()`. Strategies: `overwrite` (default, clears first) / `append`. Blob requires `payload=True` dumps. |
 | JSONL streaming dump+load | #18 | ✅ on six primary managers | Both directions stream; dump via async generator, load line-by-line. Blob JSONL always carries the payload. Smoke: 1k log entries round-trip. |
 | YAML dump+load | #18 | ⏸ deferred to 2.1 | JSON + JSONL satisfy the ETL story; YAML is a human-readable nicety, parked unless requested. |
-| HNSW vector strategy | #28 | ❌ none | No `hnsw.py`, no `[hnsw]` extra, no `__beaver_vector_snapshots__` table. Phase 1 work. |
+| HNSW vector strategy | #28 | ⏸ deferred indefinitely | Numpy-only constraint: no `hnswlib` / `faiss` / compiled-wheel deps. Unfreezes only if/when we design a pure-numpy ANN beating LSH on >100k. Linear + LSH are the only vector strategies 2.0 ships. |
 | SID consumers (CLI / Server / Client) | #36 | ❌ none | No `@expose`, no `cli.py`, no `server.py`, no `client.py`. Phase 2 work. |
 | CLI admin commands | #15 | ❌ none | Layered on top of #36. Phase 2 work. |
 | Concurrency tests | #19 Phase 3 | ❌ none | `tests/concurrency/` directory does not exist. Phase 1 work. |

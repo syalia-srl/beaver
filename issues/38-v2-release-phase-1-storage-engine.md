@@ -60,26 +60,16 @@ fan out to the other five with parallel commits.
 
 Acceptance: STATUS.md `.batched() API` row flips to ✅ on all 7 managers.
 
-## 3. HNSW optional vector strategy (issue #28)
+## 3. ~~HNSW optional vector strategy~~ — dropped (2026-05-15)
 
-New optional dependency on `hnswlib`. Snapshot invalidation is the gotcha:
-any vector write invalidates the in-memory HNSW index, which must be marked
-stale and lazily rebuilt on the next `near(method="hnsw")` call.
+Removed from Phase 1 scope. The `hnswlib`-backed approach is rejected:
+beaver's vector indexing is numpy-only going forward (no compiled-wheel
+deps). Issue #28 stays open as a placeholder for a future pure-numpy
+ANN strategy. See [[28-add-hnsw-vector-strategy-beaver-dbhnsw]] for the
+deferral reasoning.
 
-- [ ] Verify `hnswlib` wheel exists for Linux + macOS Apple Silicon
-  (transitive numpy ≥2.3.4 constraint). If a platform lacks a wheel, fall
-  back to pure-Python or punt HNSW to 2.1.
-- [ ] Declare `[hnsw]` extra in `pyproject.toml`.
-- [ ] Add `__beaver_vector_snapshots__` table to track snapshot freshness
-  per `(collection, strategy)` pair.
-- [ ] Implement `beaver/hnsw.py` mirroring the `lsh.py` strategy surface.
-- [ ] Wire into `AsyncBeaverVectors.near(method="hnsw")` and the `auto`
-  selector (per design doc — likely crossover at N ≥ 100k or when LSH
-  recall drops below threshold).
-- [ ] Unit + smoke test on 10k random unit vectors, k=10, recall ≥0.9
-  vs exact.
-
-Acceptance: STATUS.md `HNSW vector strategy` row flips to ✅.
+Linear (default) + LSH (#24, optional) are the only vector strategies
+2.0 ships. STATUS.md row reads "deferred — numpy-only constraint".
 
 ## 4. Concurrency test suite (issue #19 Phase 3)
 
