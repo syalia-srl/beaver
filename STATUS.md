@@ -1,8 +1,8 @@
 # beaver v2.0 — current status
 
 Living inventory of what's real vs missing through the v2.0 release cycle.
-Deletes itself at `2.0.0`. Last refreshed: 2026-05-15 (Phase 1 slice 4:
-`.batched()` API on dict, list, log, blob, docs — sketches already had it).
+Deletes itself at `2.0.0`. Last refreshed: 2026-05-15 (Phase 1 closed →
+`2.0rc4`; concurrency suite landed; HNSW dropped indefinitely).
 
 Full release plan: `vault/Atlas/Architecture/2026-05-15-beaver-v2-release-plan.md` in the workspace.
 
@@ -35,24 +35,28 @@ Full release plan: `vault/Atlas/Architecture/2026-05-15-beaver-v2-release-plan.m
 | HNSW vector strategy | #28 | ⏸ deferred indefinitely | Numpy-only constraint: no `hnswlib` / `faiss` / compiled-wheel deps. Unfreezes only if/when we design a pure-numpy ANN beating LSH on >100k. Linear + LSH are the only vector strategies 2.0 ships. |
 | SID consumers (CLI / Server / Client) | #36 | ❌ none | No `@expose`, no `cli.py`, no `server.py`, no `client.py`. Phase 2 work. |
 | CLI admin commands | #15 | ❌ none | Layered on top of #36. Phase 2 work. |
-| Concurrency tests | #19 Phase 3 | ❌ none | `tests/concurrency/` directory does not exist. Phase 1 work. |
+| Concurrency tests | #19 Phase 3 | ✅ | `tests/concurrency/` covers cross-process lock mutual exclusion, list-push contention, log reader/writer race, and `.batched()` transactional isolation. 4 tests, ~16s wall-clock. `make test-concurrency` runs the suite. |
 | API/CLI tests | #19 Phase 4 | ❌ none | Blocked on #36. Phase 2 work. |
 
 ## Test suite
 
 | Metric | Value |
 |---|---|
-| Unit tests | 96 passing |
+| Unit tests | 130 passing |
 | Integration tests | 1 passing (`test_sync.py`) |
-| Total coverage | 81% |
-| Wall-clock (`make ci`) | ~7s after deps cached |
+| Concurrency tests | 4 passing (`tests/concurrency/`) |
+| Total coverage | 85% |
+| Wall-clock (`make ci`) | ~13s after deps cached |
+| Wall-clock (`make test-all`) | ~32s |
 | Known warning | 1 — unraisable exception (event loop closed) in pubsub teardown; cosmetic |
 
 ## Build + ops
 
 | Item | Status |
 |---|---|
-| `make ci` (format-check + tests) | ✅ green |
+| `make ci` (format-check + unit tests) | ✅ green |
+| `make test-all` (format-check + unit + integration + concurrency) | ✅ green |
+| `make test-concurrency` (concurrency only) | ✅ green (~16s) |
 | `make sync` | ✅ |
 | `pytest-timeout` (default 30s/test) | ✅ |
 | GitHub Actions CI on push/PR | ✅ |

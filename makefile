@@ -24,10 +24,13 @@ format-check:
 type-check:
 	uv run mypy
 
-.PHONY: test-unit test-all
+.PHONY: test-unit test-concurrency test-all
 
 test-unit: format-check
 	uv run pytest tests/unit --cov=beaver
+
+test-concurrency: format-check
+	uv run pytest tests/concurrency -m concurrency
 
 test-all: format-check
 	uv run pytest --cov=beaver

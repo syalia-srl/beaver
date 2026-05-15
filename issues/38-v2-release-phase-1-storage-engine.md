@@ -1,10 +1,18 @@
 ---
 number: 38
 title: "v2.0 release: Phase 1 — storage-engine layer"
-state: open
+state: closed
 labels:
 - release
 - 2.0
+---
+
+**Closed 2026-05-15 with `2.0rc4` released.** Phase 1 deliverables landed:
+ETL `.dump()` / `.load()` (JSON + JSONL) across six managers, `.batched()`
+API on 6/7 managers, concurrency test suite (`tests/concurrency/`). HNSW
+(#28) dropped from scope — beaver vector indexing is numpy-only. Next:
+Phase 2 (#39 — wrappers).
+
 ---
 
 Phase 1 of the v2.0 release plan. Storage-engine layer: complete the ETL story,

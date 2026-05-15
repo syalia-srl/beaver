@@ -136,3 +136,26 @@ async def test_log_jsonl_roundtrip(async_db_mem: AsyncBeaverDB, tmp_path):
     assert await target.count() == 1000
     entries = await target.range(limit=3)
     assert entries[0].data == "msg-0"
+
+
+async def test_log_pydantic_round_trip(async_db_mem: AsyncBeaverDB):
+    """Pydantic models go in via .log() and come back deserialized via .range()."""
+    from pydantic import BaseModel
+
+    class Metric(BaseModel):
+        cpu: float
+        memory: int
+        host: str
+
+    log = async_db_mem.log("metrics", model=Metric)
+
+    await log.log(Metric(cpu=12.5, memory=1024, host="vps"))
+    await log.log(Metric(cpu=45.0, memory=2048, host="zion"))
+
+    entries = await log.range()
+    assert len(entries) == 2
+
+    assert isinstance(entries[0].data, Metric)
+    assert entries[0].data.cpu == 12.5
+    assert entries[0].data.host == "vps"
+    assert entries[1].data.memory == 2048
