@@ -47,7 +47,7 @@ Full release plan: `vault/Atlas/Architecture/2026-05-15-beaver-v2-release-plan.m
 | Concurrency tests | 4 passing (`tests/concurrency/`) |
 | Total coverage | 85% |
 | Wall-clock (`make ci`) | ~13s after deps cached |
-| Wall-clock (`make test-all`) | ~32s |
+| Wall-clock (`make test-all`) | ~36s |
 | Known warning | 1 — unraisable exception (event loop closed) in pubsub teardown; cosmetic |
 
 ## Build + ops
