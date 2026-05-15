@@ -34,24 +34,12 @@ Install the core library:
 pip install beaver-db
 ```
 
-To include optional features, you can install them as extras:
-
-```bash
-# For the REST API server and client
-pip install "beaver-db[remote]"
-
-# To install all optional features at once
-pip install "beaver-db[full]"
-```
-
-### Docker
-
-You can also run the BeaverDB REST API server using Docker.
-
-```bash
-docker pull ghcr.io/syalia-srl/beaver:latest
-docker run -p 8000:8000 -v $(pwd)/data:/app ghcr.io/syalia-srl/beaver
-```
+> **Note:** `beaver-db 2.0` is currently in release-candidate cycle. The
+> CLI (`beaver` command), REST API server (`beaver serve`), `BeaverClient`
+> remote, and the published Docker image are all **landing in 2.0 final**
+> (target: June 2026). Today the library is consumed as a Python API only.
+> Track progress at `vault/Atlas/Architecture/2026-05-15-beaver-v2-release-plan.md`
+> in the workspace, or watch the `2.0` issues on GitHub.
 
 ## Quickstart
 
@@ -74,18 +62,18 @@ tasks.push("Write the project report")
 tasks.push("Deploy the new feature")
 print(f"First task is: {tasks[0]}")
 
-# 4. Use a collection for document storage and search
-articles = db.collection("articles")
+# 4. Use a document collection for storage + full-text search
+articles = db.docs("articles")
 doc = Document(
     id="sqlite-001",
     body="SQLite is a powerful embedded database ideal for local apps.",
 )
-articles.index(doc)
+articles.index(document=doc)
 
 # Perform a full-text search
-results = articles.match(query="database")
-top_doc, rank = results[0]
-print(f"FTS Result: '{top_doc.body}'")
+results = articles.search("database")
+top = results[0]
+print(f"FTS Result: '{top.document.body}' (score={top.score:.2f})")
 
 db.close()
 ```
@@ -106,8 +94,7 @@ db.close()
   * [**Event-Driven Callbacks**](https://syalia.com/beaver/guide-channels.html): Listen for database changes in real-time. Subscribe to events on specific managers to trigger workflows or update UIs.
   * [**Inter-Process Locking**](https://syalia.com/beaver/guide-locks.html): Robust, deadlock-proof locks. Use `db.lock('task_name')` to coordinate arbitrary scripts, or `with db.list('my_list') as l:` to perform atomic, multi-step operations.
   * [**Pydantic Support**](https://syalia.com/beaver/dev-architecture.html%23type-safe-models): Optionally associate `pydantic.BaseModel`s with any data structure for automatic, recursive data validation and (de)serialization.
-  * [**Deployment**](https://syalia.com/beaver/guide-deployment.html): Instantly serve your database over a RESTful API with `beaver serve` and interact with it via the `beaver` CLI.
-  * [**Data Export & Backups**](https://syalia.com/beaver/guide-deployment.html): Dump any data structure to a portable JSON file with a single `.dump()` command.
+  * **Data Export**: Dump most data structures to a portable JSON file with a single `.dump()` command. (Full backup/restore symmetry — `.load()` across all managers, plus the `beaver` CLI and REST server — lands in `2.0` final; tracked in issues #15, #18, #36.)
 
 ## Documentation
 

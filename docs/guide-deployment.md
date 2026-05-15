@@ -1,5 +1,11 @@
 # Deployment & Interfaces
 
+> **2.0rc note:** the `beaver` CLI, `beaver serve` REST API, and Docker
+> deployment described below are **landing in 2.0 final** (target: June
+> 2026). Today the library is consumed as a Python API only. This page
+> describes the intended end-state and will be authoritative once 2.0
+> ships. Track progress in issues #15, #18, and #36.
+
 Deploying BeaverDB is fundamentally different from deploying client-server databases like Postgres or Redis. Because BeaverDB is **embedded**, there is no separate "Database Server" to install, configure, or maintain.
 
 Your database is just a file (`app.db`) that lives alongside your code.
