@@ -17,14 +17,15 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverList[T]):
     Refactored for Async-First architecture (v2.0).
     """
 
-    async def _get_dump_object(self) -> dict:
-        items = []
+    async def _iter_dump_items(self):
         async for item in self:
             item_value = item
             if self._model and isinstance(item, BaseModel):
                 item_value = json.loads(item.model_dump_json())
-            items.append(item_value)
+            yield item_value
 
+    async def _get_dump_object(self) -> dict:
+        items = [item async for item in self._iter_dump_items()]
         metadata = {
             "type": "List",
             "name": self._name,
@@ -33,18 +34,27 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverList[T]):
         }
         return {"metadata": metadata, "items": items}
 
-    async def dump(self, fp: IO[str] | None = None) -> dict | None:
-        """
-        Dumps the entire contents of the list to a JSON-compatible object.
-        """
-        # We can acquire the public lock for consistency during dump
-        async with self:
-            dump_object = await self._get_dump_object()
-
-        if fp:
-            json.dump(dump_object, fp, indent=2)
+    async def dump(
+        self,
+        fp: IO[str] | None = None,
+        format: str = "json",
+        indent: int = 2,
+    ) -> dict | None:
+        if format == "json":
+            async with self:
+                dump_object = await self._get_dump_object()
+            if fp:
+                json.dump(dump_object, fp, indent=indent)
+                return None
+            return dump_object
+        if format == "jsonl":
+            if fp is None:
+                raise ValueError("JSONL format requires fp.")
+            async with self:
+                async for item in self._iter_dump_items():
+                    fp.write(json.dumps(item) + "\n")
             return None
-        return dump_object
+        raise ValueError(f"Unsupported format: {format!r}. Use 'json' or 'jsonl'.")
 
     async def load(
         self,
@@ -52,9 +62,9 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverList[T]):
         format: str = "json",
         strategy: str = "overwrite",
     ) -> None:
-        """Loads items from a serialized list dump (JSON only)."""
-        if format != "json":
-            raise ValueError(f"Unsupported format: {format!r}. Use 'json'.")
+        """Loads items from a serialized list dump (JSON or JSONL)."""
+        if format not in ("json", "jsonl"):
+            raise ValueError(f"Unsupported format: {format!r}. Use 'json' or 'jsonl'.")
         if strategy not in ("overwrite", "append"):
             raise ValueError(
                 f"Unsupported strategy: {strategy!r}. Use 'overwrite' or 'append'."
@@ -63,9 +73,16 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverList[T]):
         if strategy == "overwrite":
             await self.clear()
 
-        data = json.load(fp)
-        for item in data.get("items", []):
-            await self._load_item(item)
+        if format == "json":
+            data = json.load(fp)
+            for item in data.get("items", []):
+                await self._load_item(item)
+        else:  # jsonl
+            for line in fp:
+                line = line.strip()
+                if not line:
+                    continue
+                await self._load_item(json.loads(line))
 
     async def _load_item(self, item) -> None:
         # List dump shape: items are the values themselves (not {key, value}).

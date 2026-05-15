@@ -191,3 +191,24 @@ async def test_list_load_append(async_db_mem: AsyncBeaverDB, tmp_path):
     assert await target.count() == 2
     assert await target.get(0) == "one"
     assert await target.get(1) == "two"
+
+
+async def test_list_jsonl_roundtrip(async_db_mem: AsyncBeaverDB, tmp_path):
+    """JSONL dump streams one raw value per line; load consumes line-by-line."""
+    src = async_db_mem.list("src")
+    for v in ["a", "b", "c"]:
+        await src.push(v)
+
+    out = tmp_path / "l.jsonl"
+    with out.open("w") as fp:
+        await src.dump(fp, format="jsonl")
+
+    assert out.read_text().splitlines() == ['"a"', '"b"', '"c"']
+
+    target = async_db_mem.list("target")
+    with out.open("r") as fp:
+        await target.load(fp, format="jsonl")
+
+    assert await target.count() == 3
+    assert await target.get(0) == "a"
+    assert await target.get(2) == "c"

@@ -144,31 +144,43 @@ class AsyncBeaverQueue[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverQueue[T]):
                 data=self._deserialize(row["data"]),
             )
 
-    async def dump(self, fp: IO[str] | None = None) -> dict | None:
-        items_list = []
+    async def _iter_dump_items(self):
         async for item in self:
             data = item.data
             if self._model and isinstance(data, BaseModel):
                 data = json.loads(data.model_dump_json())
+            yield {
+                "priority": item.priority,
+                "timestamp": item.timestamp,
+                "data": data,
+            }
 
-            items_list.append(
-                {"priority": item.priority, "timestamp": item.timestamp, "data": data}
-            )
-
-        metadata = {
-            "type": "Queue",
-            "name": self._name,
-            "count": len(items_list),
-            "dump_date": datetime.now(timezone.utc).isoformat(),
-        }
-
-        dump_obj = {"metadata": metadata, "items": items_list}
-
-        if fp:
-            json.dump(dump_obj, fp, indent=2)
+    async def dump(
+        self,
+        fp: IO[str] | None = None,
+        format: str = "json",
+        indent: int = 2,
+    ) -> dict | None:
+        if format == "json":
+            items_list = [item async for item in self._iter_dump_items()]
+            metadata = {
+                "type": "Queue",
+                "name": self._name,
+                "count": len(items_list),
+                "dump_date": datetime.now(timezone.utc).isoformat(),
+            }
+            dump_obj = {"metadata": metadata, "items": items_list}
+            if fp:
+                json.dump(dump_obj, fp, indent=indent)
+                return None
+            return dump_obj
+        if format == "jsonl":
+            if fp is None:
+                raise ValueError("JSONL format requires fp.")
+            async for item in self._iter_dump_items():
+                fp.write(json.dumps(item) + "\n")
             return None
-
-        return dump_obj
+        raise ValueError(f"Unsupported format: {format!r}. Use 'json' or 'jsonl'.")
 
     async def load(
         self,
@@ -176,9 +188,9 @@ class AsyncBeaverQueue[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverQueue[T]):
         format: str = "json",
         strategy: str = "overwrite",
     ) -> None:
-        """Loads items from a serialized queue dump (JSON only)."""
-        if format != "json":
-            raise ValueError(f"Unsupported format: {format!r}. Use 'json'.")
+        """Loads items from a serialized queue dump (JSON or JSONL)."""
+        if format not in ("json", "jsonl"):
+            raise ValueError(f"Unsupported format: {format!r}. Use 'json' or 'jsonl'.")
         if strategy not in ("overwrite", "append"):
             raise ValueError(
                 f"Unsupported strategy: {strategy!r}. Use 'overwrite' or 'append'."
@@ -187,9 +199,16 @@ class AsyncBeaverQueue[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverQueue[T]):
         if strategy == "overwrite":
             await self.clear()
 
-        data = json.load(fp)
-        for item in data.get("items", []):
-            await self._load_item(item)
+        if format == "json":
+            data = json.load(fp)
+            for item in data.get("items", []):
+                await self._load_item(item)
+        else:  # jsonl
+            for line in fp:
+                line = line.strip()
+                if not line:
+                    continue
+                await self._load_item(json.loads(line))
 
     async def _load_item(self, item: dict) -> None:
         # Timestamp is re-assigned by put() to preserve PQ invariants; we keep

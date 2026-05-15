@@ -125,35 +125,41 @@ class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverLog[T]):
             "DELETE FROM __beaver_logs__ WHERE log_name = ?", (self._name,)
         )
 
-    async def dump(self, fp: IO[str] | None = None) -> dict | None:
-        """
-        Dumps the entire log to a JSON-compatible object.
-        """
-        # Retrieve all items
+    async def _iter_dump_items(self):
         entries = await self.range()
-
-        items_list = []
         for entry in entries:
             val = entry.data
             if self._model and isinstance(val, BaseModel):
                 val = json.loads(val.model_dump_json())
+            yield {"timestamp": entry.timestamp, "data": val}
 
-            items_list.append({"timestamp": entry.timestamp, "data": val})
-
-        dump_obj = {
-            "metadata": {
-                "type": "Log",
-                "name": self._name,
-                "count": len(items_list),
-            },
-            "items": items_list,
-        }
-
-        if fp:
-            json.dump(dump_obj, fp, indent=2)
+    async def dump(
+        self,
+        fp: IO[str] | None = None,
+        format: str = "json",
+        indent: int = 2,
+    ) -> dict | None:
+        if format == "json":
+            items_list = [item async for item in self._iter_dump_items()]
+            dump_obj = {
+                "metadata": {
+                    "type": "Log",
+                    "name": self._name,
+                    "count": len(items_list),
+                },
+                "items": items_list,
+            }
+            if fp:
+                json.dump(dump_obj, fp, indent=indent)
+                return None
+            return dump_obj
+        if format == "jsonl":
+            if fp is None:
+                raise ValueError("JSONL format requires fp.")
+            async for item in self._iter_dump_items():
+                fp.write(json.dumps(item) + "\n")
             return None
-
-        return dump_obj
+        raise ValueError(f"Unsupported format: {format!r}. Use 'json' or 'jsonl'.")
 
     async def load(
         self,
@@ -161,9 +167,9 @@ class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverLog[T]):
         format: str = "json",
         strategy: str = "overwrite",
     ) -> None:
-        """Loads log entries from a serialized dump (JSON only)."""
-        if format != "json":
-            raise ValueError(f"Unsupported format: {format!r}. Use 'json'.")
+        """Loads log entries from a serialized dump (JSON or JSONL)."""
+        if format not in ("json", "jsonl"):
+            raise ValueError(f"Unsupported format: {format!r}. Use 'json' or 'jsonl'.")
         if strategy not in ("overwrite", "append"):
             raise ValueError(
                 f"Unsupported strategy: {strategy!r}. Use 'overwrite' or 'append'."
@@ -172,9 +178,16 @@ class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverLog[T]):
         if strategy == "overwrite":
             await self.clear()
 
-        data = json.load(fp)
-        for item in data.get("items", []):
-            await self._load_item(item)
+        if format == "json":
+            data = json.load(fp)
+            for item in data.get("items", []):
+                await self._load_item(item)
+        else:  # jsonl
+            for line in fp:
+                line = line.strip()
+                if not line:
+                    continue
+                await self._load_item(json.loads(line))
 
     async def _load_item(self, item: dict) -> None:
         await self.log(item["data"], timestamp=item.get("timestamp"))

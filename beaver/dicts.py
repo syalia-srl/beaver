@@ -258,29 +258,41 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverDict[T]):
         async for row in cursor:
             yield (row["key"], self._deserialize(row["value"]))
 
-    async def dump(self, fp: IO[str] | None = None) -> dict | None:
-        items = []
+    async def _iter_dump_items(self):
         async for k, v in self.items():
             val = v
             if self._model and isinstance(v, BaseModel):
                 val = json.loads(v.model_dump_json())
-            items.append({"key": k, "value": val})
+            yield {"key": k, "value": val}
 
-        dump_obj = {
-            "metadata": {
-                "type": "Dict",
-                "name": self._name,
-                "count": len(items),
-                "encrypted": self._cipher is not None,
-            },
-            "items": items,
-        }
-
-        if fp:
-            json.dump(dump_obj, fp, indent=2)
+    async def dump(
+        self,
+        fp: IO[str] | None = None,
+        format: str = "json",
+        indent: int = 2,
+    ) -> dict | None:
+        if format == "json":
+            items = [item async for item in self._iter_dump_items()]
+            dump_obj = {
+                "metadata": {
+                    "type": "Dict",
+                    "name": self._name,
+                    "count": len(items),
+                    "encrypted": self._cipher is not None,
+                },
+                "items": items,
+            }
+            if fp:
+                json.dump(dump_obj, fp, indent=indent)
+                return None
+            return dump_obj
+        if format == "jsonl":
+            if fp is None:
+                raise ValueError("JSONL format requires fp.")
+            async for item in self._iter_dump_items():
+                fp.write(json.dumps(item) + "\n")
             return None
-
-        return dump_obj
+        raise ValueError(f"Unsupported format: {format!r}. Use 'json' or 'jsonl'.")
 
     async def load(
         self,
@@ -288,12 +300,9 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverDict[T]):
         format: str = "json",
         strategy: str = "overwrite",
     ) -> None:
-        """
-        Loads items from a serialized dump. JSON only in this slice;
-        JSONL streaming lands with the next slice (issue #18).
-        """
-        if format != "json":
-            raise ValueError(f"Unsupported format: {format!r}. Use 'json'.")
+        """Loads items from a serialized dump (JSON or JSONL)."""
+        if format not in ("json", "jsonl"):
+            raise ValueError(f"Unsupported format: {format!r}. Use 'json' or 'jsonl'.")
         if strategy not in ("overwrite", "append"):
             raise ValueError(
                 f"Unsupported strategy: {strategy!r}. Use 'overwrite' or 'append'."
@@ -302,9 +311,16 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverDict[T]):
         if strategy == "overwrite":
             await self.clear()
 
-        data = json.load(fp)
-        for item in data.get("items", []):
-            await self._load_item(item)
+        if format == "json":
+            data = json.load(fp)
+            for item in data.get("items", []):
+                await self._load_item(item)
+        else:  # jsonl
+            for line in fp:
+                line = line.strip()
+                if not line:
+                    continue
+                await self._load_item(json.loads(line))
 
     async def _load_item(self, item: dict) -> None:
         await self.set(item["key"], item["value"])

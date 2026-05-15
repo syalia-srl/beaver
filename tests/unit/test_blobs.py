@@ -115,3 +115,23 @@ async def test_blob_load_skips_metadata_only(async_db_mem: AsyncBeaverDB, tmp_pa
     target = async_db_mem.blob("target")
     with out.open("r") as fp, pytest.raises(ValueError, match="payload"):
         await target.load(fp)
+
+
+async def test_blob_jsonl_roundtrip(async_db_mem: AsyncBeaverDB, tmp_path):
+    """JSONL blob dumps always include payload to be restorable."""
+    src = async_db_mem.blob("src")
+    await src.put("a.bin", b"\x00\x01", metadata={"kind": "raw"})
+    await src.put("b.bin", b"\xff")
+
+    out = tmp_path / "blobs.jsonl"
+    with out.open("w") as fp:
+        await src.dump(fp, format="jsonl")
+
+    target = async_db_mem.blob("target")
+    with out.open("r") as fp:
+        await target.load(fp, format="jsonl")
+
+    assert await target.count() == 2
+    item_a = await target.fetch("a.bin")
+    assert item_a.data == b"\x00\x01"
+    assert item_a.metadata == {"kind": "raw"}

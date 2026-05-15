@@ -428,31 +428,45 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
             body_val = json.loads(row["data"])
             yield self._doc_model(id=row["item_id"], body=body_val)
 
-    async def dump(self, fp: IO[str] | None = None) -> dict | None:
-        """
-        Dumps all documents in this collection to a JSON-compatible object.
-        Shape mirrors the other managers: {metadata, items: [{id, body}]}.
-        """
-        items = []
+    async def _iter_dump_items(self):
         async for doc in self:
             body_val = doc.body
             if self._model and isinstance(body_val, BaseModel):
                 body_val = json.loads(body_val.model_dump_json())
-            items.append({"id": doc.id, "body": body_val})
+            yield {"id": doc.id, "body": body_val}
 
-        dump_obj = {
-            "metadata": {
-                "type": "Documents",
-                "name": self._name,
-                "count": len(items),
-            },
-            "items": items,
-        }
-
-        if fp:
-            json.dump(dump_obj, fp, indent=2)
+    async def dump(
+        self,
+        fp: IO[str] | None = None,
+        format: str = "json",
+        indent: int = 2,
+    ) -> dict | None:
+        """
+        Dumps all documents in this collection.
+        Shape mirrors the other managers: {metadata, items: [{id, body}]} for
+        JSON; one {id, body} dict per line for JSONL.
+        """
+        if format == "json":
+            items = [item async for item in self._iter_dump_items()]
+            dump_obj = {
+                "metadata": {
+                    "type": "Documents",
+                    "name": self._name,
+                    "count": len(items),
+                },
+                "items": items,
+            }
+            if fp:
+                json.dump(dump_obj, fp, indent=indent)
+                return None
+            return dump_obj
+        if format == "jsonl":
+            if fp is None:
+                raise ValueError("JSONL format requires fp.")
+            async for item in self._iter_dump_items():
+                fp.write(json.dumps(item) + "\n")
             return None
-        return dump_obj
+        raise ValueError(f"Unsupported format: {format!r}. Use 'json' or 'jsonl'.")
 
     async def load(
         self,
@@ -460,9 +474,9 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
         format: str = "json",
         strategy: str = "overwrite",
     ) -> None:
-        """Loads documents from a serialized dump (JSON only)."""
-        if format != "json":
-            raise ValueError(f"Unsupported format: {format!r}. Use 'json'.")
+        """Loads documents from a serialized dump (JSON or JSONL)."""
+        if format not in ("json", "jsonl"):
+            raise ValueError(f"Unsupported format: {format!r}. Use 'json' or 'jsonl'.")
         if strategy not in ("overwrite", "append"):
             raise ValueError(
                 f"Unsupported strategy: {strategy!r}. Use 'overwrite' or 'append'."
@@ -471,9 +485,16 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
         if strategy == "overwrite":
             await self.clear()
 
-        data = json.load(fp)
-        for item in data.get("items", []):
-            await self._load_item(item)
+        if format == "json":
+            data = json.load(fp)
+            for item in data.get("items", []):
+                await self._load_item(item)
+        else:  # jsonl
+            for line in fp:
+                line = line.strip()
+                if not line:
+                    continue
+                await self._load_item(json.loads(line))
 
     async def _load_item(self, item: dict) -> None:
         await self.index(id=item["id"], body=item["body"])

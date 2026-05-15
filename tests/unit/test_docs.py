@@ -236,3 +236,23 @@ async def test_docs_dump_and_load_roundtrip(async_db_mem: AsyncBeaverDB, tmp_pat
     results = await target.search("Hello")
     assert len(results) == 1
     assert results[0].document.id == "d1"
+
+
+async def test_docs_jsonl_roundtrip(async_db_mem: AsyncBeaverDB, tmp_path):
+    """JSONL streaming round-trip for docs."""
+    src = async_db_mem.docs("src")
+    await src.index(id="d1", body={"title": "Hello"})
+    await src.index(id="d2", body={"title": "World"})
+
+    out = tmp_path / "docs.jsonl"
+    with out.open("w") as fp:
+        await src.dump(fp, format="jsonl")
+
+    assert len(out.read_text().splitlines()) == 2
+
+    target = async_db_mem.docs("target")
+    with out.open("r") as fp:
+        await target.load(fp, format="jsonl")
+
+    assert await target.count() == 2
+    assert (await target.get("d1")).body == {"title": "Hello"}

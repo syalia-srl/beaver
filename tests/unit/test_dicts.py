@@ -187,3 +187,35 @@ async def test_dict_load_invalid_format(async_db_mem: AsyncBeaverDB, tmp_path):
     d = async_db_mem.dict("x")
     with out.open("r") as fp, pytest.raises(ValueError):
         await d.load(fp, format="toml")
+
+
+async def test_dict_jsonl_roundtrip(async_db_mem: AsyncBeaverDB, tmp_path):
+    """JSONL dump streams one item per line; load consumes line-by-line."""
+    src = async_db_mem.dict("src")
+    await src.set("a", 1)
+    await src.set("b", 2)
+    await src.set("c", 3)
+
+    out = tmp_path / "d.jsonl"
+    with out.open("w") as fp:
+        await src.dump(fp, format="jsonl")
+
+    lines = [l for l in out.read_text().splitlines() if l]
+    assert len(lines) == 3
+
+    target = async_db_mem.dict("target")
+    with out.open("r") as fp:
+        await target.load(fp, format="jsonl")
+
+    assert await target.count() == 3
+    assert await target.fetch("a") == 1
+    assert await target.fetch("b") == 2
+    assert await target.fetch("c") == 3
+
+
+async def test_dict_jsonl_dump_requires_fp(async_db_mem: AsyncBeaverDB):
+    """JSONL is streaming-only; dump without fp must error."""
+    d = async_db_mem.dict("x")
+    await d.set("a", 1)
+    with pytest.raises(ValueError):
+        await d.dump(format="jsonl")

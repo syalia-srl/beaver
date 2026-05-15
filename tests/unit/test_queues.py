@@ -138,3 +138,22 @@ async def test_queue_dump_and_load(async_db_mem: AsyncBeaverDB, tmp_path):
     i3 = await target.get()
     assert (i1.data, i2.data, i3.data) == ("high", "mid", "low")
     assert i1.priority == 1.0
+
+
+async def test_queue_jsonl_roundtrip(async_db_mem: AsyncBeaverDB, tmp_path):
+    """JSONL streaming round-trip preserves priority."""
+    src = async_db_mem.queue("src")
+    await src.put("high", priority=1)
+    await src.put("low", priority=10)
+
+    out = tmp_path / "q.jsonl"
+    with out.open("w") as fp:
+        await src.dump(fp, format="jsonl")
+
+    target = async_db_mem.queue("target")
+    with out.open("r") as fp:
+        await target.load(fp, format="jsonl")
+
+    assert await target.count() == 2
+    assert (await target.get()).data == "high"
+    assert (await target.get()).data == "low"

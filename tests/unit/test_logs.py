@@ -113,3 +113,26 @@ async def test_log_dump_and_load(async_db_mem: AsyncBeaverDB, tmp_path):
     assert await target.count() == 3
     entries = await target.range()
     assert [e.data for e in entries] == ["first", "second", "third"]
+
+
+async def test_log_jsonl_roundtrip(async_db_mem: AsyncBeaverDB, tmp_path):
+    """JSONL is the streaming ETL path — round-trip 1k log entries."""
+    src = async_db_mem.log("ingest")
+    for i in range(1000):
+        await src.log(f"msg-{i}")
+
+    out = tmp_path / "log.jsonl"
+    with out.open("w") as fp:
+        await src.dump(fp, format="jsonl")
+
+    # File should be 1000 lines (one item per line, no metadata block)
+    line_count = sum(1 for _ in out.open("r"))
+    assert line_count == 1000
+
+    target = async_db_mem.log("replica")
+    with out.open("r") as fp:
+        await target.load(fp, format="jsonl")
+
+    assert await target.count() == 1000
+    entries = await target.range(limit=3)
+    assert entries[0].data == "msg-0"

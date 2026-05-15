@@ -138,47 +138,54 @@ class AsyncBeaverBlob[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverBlob[T]):
         async for row in cursor:
             yield (row["key"], row["data"])
 
+    async def _iter_dump_items(self, payload: bool):
+        async for key in self.keys():
+            try:
+                item = await self.fetch(key)
+            except KeyError:
+                continue
+            yield {
+                "key": key,
+                "metadata": item.metadata,
+                "size": len(item.data),
+                "payload": (b64encode(item.data).decode("utf-8") if payload else None),
+            }
+
     async def dump(
-        self, fp: IO[str] | None = None, *, payload: bool = False
+        self,
+        fp: IO[str] | None = None,
+        format: str = "json",
+        indent: int = 2,
+        *,
+        payload: bool = False,
     ) -> dict | None:
         """
         Dumps blobs to a JSON-compatible object.
-        Note: Binary data is serialized to base-64 strings, *only* when payload=True.
-        Otherwise, only metadata is dumped.
+        Binary data is base64-encoded only when payload=True; otherwise the
+        dump is metadata-only and non-restorable. JSONL always forces
+        payload=True (a streaming metadata-only dump has no use case).
         """
-        items = []
-        async for key in self.keys():
-            # For blobs, dumping full content to JSON is dangerous (memory).
-            # We dump metadata primarily.
-            try:
-                item = await self.fetch(key)
-                items.append(
-                    {
-                        "key": key,
-                        "metadata": item.metadata,
-                        "size": len(item.data),
-                        "payload": (
-                            b64encode(item.data).decode("utf-8") if payload else None
-                        ),
-                    }
-                )
-            except KeyError:
-                continue
-
-        dump_obj = {
-            "metadata": {
-                "type": "BlobStore",
-                "name": self._name,
-                "count": len(items),
-            },
-            "items": items,
-        }
-
-        if fp:
-            json.dump(dump_obj, fp, indent=2)
+        if format == "json":
+            items = [item async for item in self._iter_dump_items(payload=payload)]
+            dump_obj = {
+                "metadata": {
+                    "type": "BlobStore",
+                    "name": self._name,
+                    "count": len(items),
+                },
+                "items": items,
+            }
+            if fp:
+                json.dump(dump_obj, fp, indent=indent)
+                return None
+            return dump_obj
+        if format == "jsonl":
+            if fp is None:
+                raise ValueError("JSONL format requires fp.")
+            async for item in self._iter_dump_items(payload=True):
+                fp.write(json.dumps(item) + "\n")
             return None
-
-        return dump_obj
+        raise ValueError(f"Unsupported format: {format!r}. Use 'json' or 'jsonl'.")
 
     async def load(
         self,
@@ -187,12 +194,11 @@ class AsyncBeaverBlob[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverBlob[T]):
         strategy: str = "overwrite",
     ) -> None:
         """
-        Loads blobs from a serialized dump (JSON only).
-        Requires a dump produced with payload=True — metadata-only dumps cannot
-        be restored, since the binary data was never serialized.
+        Loads blobs from a serialized dump (JSON or JSONL).
+        Requires payload to be present — metadata-only dumps cannot restore data.
         """
-        if format != "json":
-            raise ValueError(f"Unsupported format: {format!r}. Use 'json'.")
+        if format not in ("json", "jsonl"):
+            raise ValueError(f"Unsupported format: {format!r}. Use 'json' or 'jsonl'.")
         if strategy not in ("overwrite", "append"):
             raise ValueError(
                 f"Unsupported strategy: {strategy!r}. Use 'overwrite' or 'append'."
@@ -201,9 +207,16 @@ class AsyncBeaverBlob[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverBlob[T]):
         if strategy == "overwrite":
             await self.clear()
 
-        data = json.load(fp)
-        for item in data.get("items", []):
-            await self._load_item(item)
+        if format == "json":
+            data = json.load(fp)
+            for item in data.get("items", []):
+                await self._load_item(item)
+        else:  # jsonl
+            for line in fp:
+                line = line.strip()
+                if not line:
+                    continue
+                await self._load_item(json.loads(line))
 
     async def _load_item(self, item: dict) -> None:
         if item.get("payload") is None:
