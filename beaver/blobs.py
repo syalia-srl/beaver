@@ -11,6 +11,43 @@ from .manager import AsyncBeaverBase, atomic, emits
 from .interfaces import IAsyncBeaverBlob, BlobItem
 
 
+class AsyncBlobBatch[T: BaseModel]:
+    """Async context manager for buffered bulk writes to a blob store.
+
+    Buffers (key, data, metadata) tuples and flushes them in a single
+    `executemany` on exit. Data is held in memory — not suitable for
+    very large files (use individual `put` calls for those).
+    """
+
+    def __init__(self, manager: "AsyncBeaverBlob[T]"):
+        self._manager = manager
+        self._pending: list[tuple[str, str, bytes, str | None]] = []
+
+    def put(self, key: str, data: bytes, metadata: dict | None = None) -> None:
+        if not isinstance(data, bytes):
+            raise TypeError("Blob data must be bytes.")
+        meta_json = json.dumps(metadata) if metadata is not None else None
+        self._pending.append((self._manager._name, key, data, meta_json))
+
+    async def __aenter__(self) -> "AsyncBlobBatch[T]":
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        if exc_type is not None or not self._pending:
+            return
+        async with self._manager._internal_lock:
+            async with self._manager._db.transaction():
+                await self._manager.connection.executemany(
+                    """
+                    INSERT OR REPLACE INTO __beaver_blobs__
+                    (store_name, key, data, metadata)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    self._pending,
+                )
+        self._pending.clear()
+
+
 class AsyncBeaverBlob[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverBlob[T]):
     """
     A wrapper providing a dictionary-like interface for storing binary blobs
@@ -217,6 +254,10 @@ class AsyncBeaverBlob[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverBlob[T]):
                 if not line:
                     continue
                 await self._load_item(json.loads(line))
+
+    def batched(self) -> AsyncBlobBatch[T]:
+        """Returns an async context manager for buffered bulk writes."""
+        return AsyncBlobBatch(self)
 
     async def _load_item(self, item: dict) -> None:
         if item.get("payload") is None:

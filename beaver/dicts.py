@@ -17,6 +17,51 @@ if TYPE_CHECKING:
     from .core import AsyncBeaverDB
 
 
+class AsyncDictBatch[T: BaseModel]:
+    """Async context manager for buffered bulk writes to a dict.
+
+    Buffers (key, serialized_value, expires_at) tuples on `set` / `__setitem__`,
+    flushing them in a single `executemany` inside one transaction on exit.
+    """
+
+    def __init__(self, manager: "AsyncBeaverDict[T]"):
+        self._manager = manager
+        self._pending: list[tuple[str, str, str, float | None]] = []
+
+    def set(self, key: str, value: T, ttl_seconds: float | None = None) -> None:
+        expires_at = None
+        if ttl_seconds is not None:
+            if not isinstance(ttl_seconds, (int, float)) or ttl_seconds <= 0:
+                raise ValueError("ttl_seconds must be a positive number.")
+            expires_at = time.time() + ttl_seconds
+        self._pending.append(
+            (self._manager._name, key, self._manager._serialize(value), expires_at)
+        )
+
+    def __setitem__(self, key: str, value: T) -> None:
+        self.set(key, value)
+
+    async def __aenter__(self) -> "AsyncDictBatch[T]":
+        if self._manager._secret_arg and not self._manager._cipher:
+            await self._manager._setup_security(self._manager._secret_arg)
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        if exc_type is not None or not self._pending:
+            return
+        async with self._manager._internal_lock:
+            async with self._manager._db.transaction():
+                await self._manager.connection.executemany(
+                    """
+                    INSERT OR REPLACE INTO __beaver_dicts__
+                    (dict_name, key, value, expires_at)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    self._pending,
+                )
+        self._pending.clear()
+
+
 class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverDict[T]):
     """
     A wrapper providing a Pythonic interface to a dictionary in the database.
@@ -324,3 +369,7 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverDict[T]):
 
     async def _load_item(self, item: dict) -> None:
         await self.set(item["key"], item["value"])
+
+    def batched(self) -> AsyncDictBatch[T]:
+        """Returns an async context manager for buffered bulk writes."""
+        return AsyncDictBatch(self)

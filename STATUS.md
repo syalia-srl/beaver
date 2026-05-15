@@ -1,8 +1,8 @@
 # beaver v2.0 — current status
 
 Living inventory of what's real vs missing through the v2.0 release cycle.
-Deletes itself at `2.0.0`. Last refreshed: 2026-05-15 (Phase 1 slices 1–3:
-docs.dump + JSON .load() + JSONL streaming on all six managers).
+Deletes itself at `2.0.0`. Last refreshed: 2026-05-15 (Phase 1 slice 4:
+`.batched()` API on dict, list, log, blob, docs — sketches already had it).
 
 Full release plan: `vault/Atlas/Architecture/2026-05-15-beaver-v2-release-plan.md` in the workspace.
 
@@ -21,7 +21,7 @@ Full release plan: `vault/Atlas/Architecture/2026-05-15-beaver-v2-release-plan.m
 | Feature | Issue | Status | Notes |
 |---|---|---|---|
 | LSH hybrid vector search | #24 | ⚠️ wired, low recall on small/uniform data | Schema in core.py, `_ensure_lsh_hyperplanes` + `near(method="lsh")` work. **Smoke (2k random unit vectors, k=10): exact=10 results 13.7ms; lsh=1 result 3.8ms; overlap=1/10.** Worth tuning before 2.0; may be expected on small N below the documented 10k crossover. |
-| `.batched()` API | #27 | ❌ partial | Only on `sketch`. Missing on **dict, list, queue, blob, log, docs** — all six other managers per #27 spec. Phase 1 work. |
+| `.batched()` API | #27 | ✅ on 6/7 managers | dict, list, log, blob, docs, sketch. Queues excluded per #27 §5 (batch consumption is `acquire()`'s job). Each batch buffers writes and flushes via one `executemany` per table inside one transaction. |
 | Probabilistic sketches | #30 | ✅ | `ApproximateSet` (HLL + Bloom packed). **Smoke (10k items): 0.9% cardinality error; membership round-trips correctly.** |
 
 ## Stability + client parity — Phase 3

@@ -105,6 +105,114 @@ class DocumentQuery[T: BaseModel](IDocumentQuery[T]):
             yield doc
 
 
+class AsyncDocumentsBatch[T: BaseModel]:
+    """Async context manager for buffered bulk document indexing.
+
+    Buffers full Document instances on `index()` and on exit flushes via three
+    coordinated `executemany` calls inside one transaction:
+      1. Main storage (__beaver_documents__)
+      2. FTS index (__beaver_fts_index__) — only for docs with fts=True
+      3. Trigram index (__beaver_trigrams__) — only for docs with fuzzy=True
+
+    Vector indexing is intentionally out of scope for the batched API in
+    Phase 1 (per #27 §4.C).
+    """
+
+    def __init__(self, manager: "AsyncBeaverDocuments[T]"):
+        self._manager = manager
+        # (doc, fts_enabled, fuzzy_enabled)
+        self._pending: list[tuple[Document[T], bool, bool]] = []
+
+    def index(
+        self,
+        document: Document[T] | None = None,
+        id: str | None = None,
+        body: T | None = None,
+        fts: bool = True,
+        fuzzy: bool = False,
+    ) -> Document[T]:
+        doc = self._manager._normalize_doc(document, id, body)
+        self._pending.append((doc, fts, fuzzy))
+        return doc
+
+    async def __aenter__(self) -> "AsyncDocumentsBatch[T]":
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        if exc_type is not None or not self._pending:
+            return
+
+        doc_rows: list[tuple[str, str, str]] = []
+        fts_delete_ids: list[tuple[str, str]] = []
+        fts_rows: list[tuple[str, str, str, str]] = []
+        trigram_delete_ids: list[tuple[str, str]] = []
+        trigram_rows: list[tuple[str, str, str]] = []
+
+        for doc, fts_enabled, fuzzy_enabled in self._pending:
+            if isinstance(doc.body, BaseModel):
+                body_json = doc.body.model_dump_json()
+            else:
+                body_json = json.dumps(doc.body)
+            doc_rows.append((self._manager._name, doc.id, body_json))
+
+            # Always clear stale FTS / trigram rows for this id (mirrors the
+            # non-batched path so re-indexing the same id is consistent).
+            fts_delete_ids.append((self._manager._name, doc.id))
+            trigram_delete_ids.append((self._manager._name, doc.id))
+
+            flat = list(_flatten_document(doc.body))
+            if fts_enabled:
+                for field_path, content in flat:
+                    if content.strip():
+                        fts_rows.append(
+                            (self._manager._name, doc.id, field_path, content)
+                        )
+
+            if fuzzy_enabled:
+                full_text = " ".join(c for _, c in flat).lower()
+                if len(full_text) >= 3:
+                    seen = set(full_text[i : i + 3] for i in range(len(full_text) - 2))
+                    for tri in seen:
+                        trigram_rows.append((self._manager._name, doc.id, tri))
+
+        conn = self._manager.connection
+        async with self._manager._internal_lock:
+            async with self._manager._db.transaction():
+                await conn.executemany(
+                    """
+                    INSERT OR REPLACE INTO __beaver_documents__
+                    (collection, item_id, data) VALUES (?, ?, ?)
+                    """,
+                    doc_rows,
+                )
+                await conn.executemany(
+                    "DELETE FROM __beaver_fts_index__ WHERE collection = ? AND item_id = ?",
+                    fts_delete_ids,
+                )
+                if fts_rows:
+                    await conn.executemany(
+                        """
+                        INSERT INTO __beaver_fts_index__
+                        (collection, item_id, field_path, field_content)
+                        VALUES (?, ?, ?, ?)
+                        """,
+                        fts_rows,
+                    )
+                await conn.executemany(
+                    "DELETE FROM __beaver_trigrams__ WHERE collection = ? AND item_id = ?",
+                    trigram_delete_ids,
+                )
+                if trigram_rows:
+                    await conn.executemany(
+                        """
+                        INSERT OR IGNORE INTO __beaver_trigrams__
+                        (collection, item_id, trigram) VALUES (?, ?, ?)
+                        """,
+                        trigram_rows,
+                    )
+        self._pending.clear()
+
+
 class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
     """
     Manages document storage, field-aware Full-Text Search, and Fuzzy Search.
@@ -498,3 +606,7 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
 
     async def _load_item(self, item: dict) -> None:
         await self.index(id=item["id"], body=item["body"])
+
+    def batched(self) -> AsyncDocumentsBatch[T]:
+        """Returns an async context manager for buffered bulk indexing."""
+        return AsyncDocumentsBatch(self)

@@ -11,6 +11,83 @@ from .manager import AsyncBeaverBase, atomic, emits
 from .interfaces import IAsyncBeaverList
 
 
+class AsyncListBatch[T: BaseModel]:
+    """Async context manager for buffered bulk push/prepend on a list.
+
+    Per #27 §5, only `push` and `prepend` are supported in batch mode —
+    arbitrary `insert(i, val)` is disallowed to keep `item_order` arithmetic
+    O(1). On exit, queries MIN/MAX(item_order) once and assigns increasing
+    orders for pushes / decreasing orders for prepends, then issues one
+    `executemany`.
+    """
+
+    def __init__(self, manager: "AsyncBeaverList[T]"):
+        self._manager = manager
+        self._pending_push: list[T] = []
+        self._pending_prepend: list[T] = []
+
+    def push(self, value: T) -> None:
+        self._pending_push.append(value)
+
+    def prepend(self, value: T) -> None:
+        self._pending_prepend.append(value)
+
+    async def __aenter__(self) -> "AsyncListBatch[T]":
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        if exc_type is not None:
+            return
+        if not self._pending_push and not self._pending_prepend:
+            return
+
+        async with self._manager._internal_lock:
+            async with self._manager._db.transaction():
+                cursor = await self._manager.connection.execute(
+                    "SELECT MIN(item_order), MAX(item_order) FROM __beaver_lists__ WHERE list_name = ?",
+                    (self._manager._name,),
+                )
+                row = await cursor.fetchone()
+                min_order = row[0] if row and row[0] is not None else 0.0
+                max_order = row[1] if row and row[1] is not None else 0.0
+
+                rows: list[tuple[str, float, str]] = []
+
+                # Pushes go to the end, increasing from max_order
+                next_order = max_order
+                for value in self._pending_push:
+                    next_order += 1.0
+                    rows.append(
+                        (
+                            self._manager._name,
+                            next_order,
+                            self._manager._serialize(value),
+                        )
+                    )
+
+                # Prepends decrement from min_order. Last call to .prepend()
+                # must end up at the front, matching the non-batched semantics
+                # where each prepend pushes prior items down.
+                next_order = min_order
+                for value in self._pending_prepend:
+                    next_order -= 1.0
+                    rows.append(
+                        (
+                            self._manager._name,
+                            next_order,
+                            self._manager._serialize(value),
+                        )
+                    )
+
+                await self._manager.connection.executemany(
+                    "INSERT INTO __beaver_lists__ (list_name, item_order, item_value) VALUES (?, ?, ?)",
+                    rows,
+                )
+
+        self._pending_push.clear()
+        self._pending_prepend.clear()
+
+
 class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverList[T]):
     """
     A wrapper providing a Pythonic, persistent list in the database.
@@ -87,6 +164,10 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverList[T]):
     async def _load_item(self, item) -> None:
         # List dump shape: items are the values themselves (not {key, value}).
         await self.push(item)
+
+    def batched(self) -> AsyncListBatch[T]:
+        """Returns an async context manager for buffered bulk push/prepend."""
+        return AsyncListBatch(self)
 
     async def count(self) -> int:
         """Returns the number of items in the list."""

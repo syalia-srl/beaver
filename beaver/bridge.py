@@ -83,8 +83,15 @@ class BeaverBridge:
                 if inspect.isasyncgen(result):
                     return _SyncIteratorBridge(result, self._loop)
 
-                # 3. Otherwise, run it (handles coroutines or regular values)
-                return self._run(result)
+                # 3. Run coroutines, pass through plain values
+                result = self._run(result)
+
+                # 4. Wrap async context managers (e.g. .batched()) so the
+                #    sync `with` protocol can drive them through the bridge.
+                if hasattr(result, "__aenter__") and hasattr(result, "__aexit__"):
+                    return BeaverBridge(result, self._loop)
+
+                return result
 
             return wrapper
 

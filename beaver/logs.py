@@ -17,6 +17,50 @@ from .manager import AsyncBeaverBase, atomic, emits
 from .interfaces import LogEntry, IAsyncBeaverLog
 
 
+class AsyncLogBatch[T: BaseModel]:
+    """Async context manager for buffered bulk appends to a log.
+
+    Buffers (timestamp, serialized_data) tuples on `log()`, flushing them in a
+    single `executemany` on exit. Enforces strict timestamp monotonicity to
+    avoid PK collisions in `__beaver_logs__` (the table's PK is (log_name, ts)).
+    """
+
+    def __init__(self, manager: "AsyncBeaverLog[T]"):
+        self._manager = manager
+        self._pending: list[tuple[str, float, str]] = []
+        self._last_ts: float = 0.0
+
+    def log(self, data: T, timestamp: float | None = None) -> None:
+        ts = timestamp if timestamp is not None else time.time()
+        if ts <= self._last_ts:
+            ts = self._last_ts + 1e-6
+        self._last_ts = ts
+        self._pending.append((self._manager._name, ts, self._manager._serialize(data)))
+
+    async def __aenter__(self) -> "AsyncLogBatch[T]":
+        # Seed _last_ts from the table's current max so batched timestamps
+        # don't collide with existing rows on the (log_name, timestamp) PK.
+        cursor = await self._manager.connection.execute(
+            "SELECT MAX(timestamp) FROM __beaver_logs__ WHERE log_name = ?",
+            (self._manager._name,),
+        )
+        row = await cursor.fetchone()
+        existing_max = row[0] if row and row[0] is not None else 0.0
+        self._last_ts = max(existing_max, 0.0)
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        if exc_type is not None or not self._pending:
+            return
+        async with self._manager._internal_lock:
+            async with self._manager._db.transaction():
+                await self._manager.connection.executemany(
+                    "INSERT INTO __beaver_logs__ (log_name, timestamp, data) VALUES (?, ?, ?)",
+                    self._pending,
+                )
+        self._pending.clear()
+
+
 class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverLog[T]):
     """
     A wrapper providing a Pythonic interface to a time-indexed log.
@@ -191,3 +235,7 @@ class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverLog[T]):
 
     async def _load_item(self, item: dict) -> None:
         await self.log(item["data"], timestamp=item.get("timestamp"))
+
+    def batched(self) -> AsyncLogBatch[T]:
+        """Returns an async context manager for buffered bulk appends."""
+        return AsyncLogBatch(self)
