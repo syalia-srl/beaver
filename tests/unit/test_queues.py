@@ -114,3 +114,27 @@ async def test_queue_clear(async_db_mem: AsyncBeaverDB):
     await q.put("a", 1)
     await q.clear()
     assert await q.count() == 0
+
+
+async def test_queue_dump_and_load(async_db_mem: AsyncBeaverDB, tmp_path):
+    """Dump → load preserves priority ordering."""
+    src = async_db_mem.queue("src")
+    await src.put("mid", priority=10)
+    await src.put("high", priority=1)
+    await src.put("low", priority=20)
+
+    out = tmp_path / "q.json"
+    with out.open("w") as fp:
+        await src.dump(fp)
+
+    target = async_db_mem.queue("target")
+    await target.put("stale", priority=5)
+    with out.open("r") as fp:
+        await target.load(fp)
+
+    assert await target.count() == 3
+    i1 = await target.get()
+    i2 = await target.get()
+    i3 = await target.get()
+    assert (i1.data, i2.data, i3.data) == ("high", "mid", "low")
+    assert i1.priority == 1.0

@@ -1,4 +1,4 @@
-from base64 import b64encode
+from base64 import b64decode, b64encode
 import json
 from typing import (
     IO,
@@ -179,3 +179,37 @@ class AsyncBeaverBlob[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverBlob[T]):
             return None
 
         return dump_obj
+
+    async def load(
+        self,
+        fp: IO[str],
+        format: str = "json",
+        strategy: str = "overwrite",
+    ) -> None:
+        """
+        Loads blobs from a serialized dump (JSON only).
+        Requires a dump produced with payload=True — metadata-only dumps cannot
+        be restored, since the binary data was never serialized.
+        """
+        if format != "json":
+            raise ValueError(f"Unsupported format: {format!r}. Use 'json'.")
+        if strategy not in ("overwrite", "append"):
+            raise ValueError(
+                f"Unsupported strategy: {strategy!r}. Use 'overwrite' or 'append'."
+            )
+
+        if strategy == "overwrite":
+            await self.clear()
+
+        data = json.load(fp)
+        for item in data.get("items", []):
+            await self._load_item(item)
+
+    async def _load_item(self, item: dict) -> None:
+        if item.get("payload") is None:
+            raise ValueError(
+                f"Cannot load blob {item.get('key')!r}: dump has no payload. "
+                "Re-dump the source with payload=True to make it restorable."
+            )
+        raw = b64decode(item["payload"])
+        await self.put(item["key"], raw, metadata=item.get("metadata"))

@@ -169,3 +169,29 @@ class AsyncBeaverQueue[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverQueue[T]):
             return None
 
         return dump_obj
+
+    async def load(
+        self,
+        fp: IO[str],
+        format: str = "json",
+        strategy: str = "overwrite",
+    ) -> None:
+        """Loads items from a serialized queue dump (JSON only)."""
+        if format != "json":
+            raise ValueError(f"Unsupported format: {format!r}. Use 'json'.")
+        if strategy not in ("overwrite", "append"):
+            raise ValueError(
+                f"Unsupported strategy: {strategy!r}. Use 'overwrite' or 'append'."
+            )
+
+        if strategy == "overwrite":
+            await self.clear()
+
+        data = json.load(fp)
+        for item in data.get("items", []):
+            await self._load_item(item)
+
+    async def _load_item(self, item: dict) -> None:
+        # Timestamp is re-assigned by put() to preserve PQ invariants; we keep
+        # priority and data which together determine ordering.
+        await self.put(item["data"], priority=item["priority"])

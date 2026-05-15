@@ -134,3 +134,56 @@ async def test_dict_dump(async_db_mem: AsyncBeaverDB):
     assert dump["metadata"]["name"] == "config"
     assert dump["metadata"]["count"] == 1
     assert dump["items"][0] == {"key": "theme", "value": "dark"}
+
+
+async def test_dict_load_overwrite_roundtrip(async_db_mem: AsyncBeaverDB, tmp_path):
+    """Dump → load with overwrite restores exact state."""
+    import json
+
+    src = async_db_mem.dict("config")
+    await src.set("theme", "dark")
+    await src.set("lang", "es")
+
+    out = tmp_path / "dump.json"
+    with out.open("w") as fp:
+        await src.dump(fp)
+
+    target = async_db_mem.dict("config2")
+    await target.set("stale", "value")  # will be wiped by overwrite
+    with out.open("r") as fp:
+        await target.load(fp)
+
+    assert await target.count() == 2
+    assert await target.fetch("theme") == "dark"
+    assert await target.fetch("lang") == "es"
+    assert await target.fetch("stale", default=None) is None
+
+
+async def test_dict_load_append(async_db_mem: AsyncBeaverDB, tmp_path):
+    """Append strategy merges with existing data."""
+    import json
+
+    src = async_db_mem.dict("src")
+    await src.set("a", 1)
+
+    out = tmp_path / "dump.json"
+    with out.open("w") as fp:
+        await src.dump(fp)
+
+    target = async_db_mem.dict("target")
+    await target.set("b", 2)
+    with out.open("r") as fp:
+        await target.load(fp, strategy="append")
+
+    assert await target.count() == 2
+    assert await target.fetch("a") == 1
+    assert await target.fetch("b") == 2
+
+
+async def test_dict_load_invalid_format(async_db_mem: AsyncBeaverDB, tmp_path):
+    """Unknown format raises ValueError."""
+    out = tmp_path / "x.json"
+    out.write_text("{}")
+    d = async_db_mem.dict("x")
+    with out.open("r") as fp, pytest.raises(ValueError):
+        await d.load(fp, format="toml")

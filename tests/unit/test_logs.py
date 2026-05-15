@@ -93,3 +93,23 @@ async def test_log_clear(async_db_mem: AsyncBeaverDB):
     await log.log("a")
     await log.clear()
     assert await log.count() == 0
+
+
+async def test_log_dump_and_load(async_db_mem: AsyncBeaverDB, tmp_path):
+    """Dump → load preserves entry data and timestamp order."""
+    src = async_db_mem.log("src")
+    await src.log("first")
+    await src.log("second")
+    await src.log("third")
+
+    out = tmp_path / "log.json"
+    with out.open("w") as fp:
+        await src.dump(fp)
+
+    target = async_db_mem.log("target")
+    with out.open("r") as fp:
+        await target.load(fp)
+
+    assert await target.count() == 3
+    entries = await target.range()
+    assert [e.data for e in entries] == ["first", "second", "third"]

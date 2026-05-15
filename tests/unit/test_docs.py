@@ -212,3 +212,27 @@ async def test_docs_dump_to_file(async_db_mem: AsyncBeaverDB, tmp_path):
     loaded = json.loads(out.read_text())
     assert loaded["metadata"]["name"] == "notes"
     assert loaded["items"][0] == {"id": "a", "body": "alpha"}
+
+
+async def test_docs_dump_and_load_roundtrip(async_db_mem: AsyncBeaverDB, tmp_path):
+    """Dump → load round-trips document IDs and bodies and re-indexes for search."""
+    src = async_db_mem.docs("src")
+    await src.index(id="d1", body={"title": "Hello", "tag": "intro"})
+    await src.index(id="d2", body={"title": "World", "tag": "intro"})
+
+    out = tmp_path / "docs.json"
+    with out.open("w") as fp:
+        await src.dump(fp)
+
+    target = async_db_mem.docs("target")
+    await target.index(id="stale", body={"title": "stale"})
+    with out.open("r") as fp:
+        await target.load(fp)
+
+    assert await target.count() == 2
+    d1 = await target.get("d1")
+    assert d1.body == {"title": "Hello", "tag": "intro"}
+    # search index rebuilt
+    results = await target.search("Hello")
+    assert len(results) == 1
+    assert results[0].document.id == "d1"

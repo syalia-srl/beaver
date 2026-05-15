@@ -150,3 +150,44 @@ async def test_list_dump(async_db_mem: AsyncBeaverDB):
     assert dump["metadata"]["name"] == "dumper"
     assert dump["metadata"]["count"] == 1
     assert dump["items"] == ["data"]
+
+
+async def test_list_load_overwrite_roundtrip(async_db_mem: AsyncBeaverDB, tmp_path):
+    """Dump → load with overwrite restores list order."""
+    src = async_db_mem.list("source")
+    await src.push("a")
+    await src.push("b")
+    await src.push("c")
+
+    out = tmp_path / "list.json"
+    with out.open("w") as fp:
+        await src.dump(fp)
+
+    target = async_db_mem.list("target")
+    await target.push("stale")
+    with out.open("r") as fp:
+        await target.load(fp)
+
+    assert await target.count() == 3
+    assert await target.get(0) == "a"
+    assert await target.get(1) == "b"
+    assert await target.get(2) == "c"
+
+
+async def test_list_load_append(async_db_mem: AsyncBeaverDB, tmp_path):
+    """Append strategy adds dump items after existing ones."""
+    src = async_db_mem.list("src")
+    await src.push("two")
+
+    out = tmp_path / "x.json"
+    with out.open("w") as fp:
+        await src.dump(fp)
+
+    target = async_db_mem.list("target")
+    await target.push("one")
+    with out.open("r") as fp:
+        await target.load(fp, strategy="append")
+
+    assert await target.count() == 2
+    assert await target.get(0) == "one"
+    assert await target.get(1) == "two"

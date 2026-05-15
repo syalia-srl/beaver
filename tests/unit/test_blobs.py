@@ -77,3 +77,41 @@ async def test_blob_type_validation(async_db_mem: AsyncBeaverDB):
 
     with pytest.raises(TypeError):
         await b.put("text_file", "I am a string, not bytes")
+
+
+async def test_blob_dump_and_load_payload_roundtrip(
+    async_db_mem: AsyncBeaverDB, tmp_path
+):
+    """Dump with payload=True → load reconstructs bytes and metadata."""
+    src = async_db_mem.blob("src")
+    await src.put("a.bin", b"\x00\x01\x02", metadata={"kind": "raw"})
+    await src.put("b.bin", b"\xff\xfe")
+
+    out = tmp_path / "blobs.json"
+    with out.open("w") as fp:
+        await src.dump(fp, payload=True)
+
+    target = async_db_mem.blob("target")
+    with out.open("r") as fp:
+        await target.load(fp)
+
+    assert await target.count() == 2
+    item_a = await target.fetch("a.bin")
+    assert item_a.data == b"\x00\x01\x02"
+    assert item_a.metadata == {"kind": "raw"}
+    item_b = await target.fetch("b.bin")
+    assert item_b.data == b"\xff\xfe"
+
+
+async def test_blob_load_skips_metadata_only(async_db_mem: AsyncBeaverDB, tmp_path):
+    """A dump without payload (metadata-only) is non-restorable — load raises."""
+    src = async_db_mem.blob("src")
+    await src.put("a.bin", b"\x00")
+
+    out = tmp_path / "meta.json"
+    with out.open("w") as fp:
+        await src.dump(fp)  # payload=False default
+
+    target = async_db_mem.blob("target")
+    with out.open("r") as fp, pytest.raises(ValueError, match="payload"):
+        await target.load(fp)

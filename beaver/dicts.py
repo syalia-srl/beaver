@@ -281,3 +281,30 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverDict[T]):
             return None
 
         return dump_obj
+
+    async def load(
+        self,
+        fp: IO[str],
+        format: str = "json",
+        strategy: str = "overwrite",
+    ) -> None:
+        """
+        Loads items from a serialized dump. JSON only in this slice;
+        JSONL streaming lands with the next slice (issue #18).
+        """
+        if format != "json":
+            raise ValueError(f"Unsupported format: {format!r}. Use 'json'.")
+        if strategy not in ("overwrite", "append"):
+            raise ValueError(
+                f"Unsupported strategy: {strategy!r}. Use 'overwrite' or 'append'."
+            )
+
+        if strategy == "overwrite":
+            await self.clear()
+
+        data = json.load(fp)
+        for item in data.get("items", []):
+            await self._load_item(item)
+
+    async def _load_item(self, item: dict) -> None:
+        await self.set(item["key"], item["value"])

@@ -46,6 +46,31 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverList[T]):
             return None
         return dump_object
 
+    async def load(
+        self,
+        fp: IO[str],
+        format: str = "json",
+        strategy: str = "overwrite",
+    ) -> None:
+        """Loads items from a serialized list dump (JSON only)."""
+        if format != "json":
+            raise ValueError(f"Unsupported format: {format!r}. Use 'json'.")
+        if strategy not in ("overwrite", "append"):
+            raise ValueError(
+                f"Unsupported strategy: {strategy!r}. Use 'overwrite' or 'append'."
+            )
+
+        if strategy == "overwrite":
+            await self.clear()
+
+        data = json.load(fp)
+        for item in data.get("items", []):
+            await self._load_item(item)
+
+    async def _load_item(self, item) -> None:
+        # List dump shape: items are the values themselves (not {key, value}).
+        await self.push(item)
+
     async def count(self) -> int:
         """Returns the number of items in the list."""
         cursor = await self.connection.execute(
