@@ -19,7 +19,9 @@ from beaver import AsyncBeaverDB, Document
 # Configuration
 DB_PATH = "benchmark_vectors.db"
 COLLECTION_NAME = "benchmark_1m"
-NUM_VECTORS = int(sys.argv[1]) if len(sys.argv) > 1 else 100_000  # Scale this up to 1_000_000 for full stress test
+NUM_VECTORS = (
+    int(sys.argv[1]) if len(sys.argv) > 1 else 100_000
+)  # Scale this up to 1_000_000 for full stress test
 VECTOR_DIM = 128
 SEARCH_QUERIES = 100
 TOP_K = 10

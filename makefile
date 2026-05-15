@@ -1,5 +1,9 @@
 default: test-unit
 
+.PHONY: sync
+sync:
+	uv sync --extra security --extra remote
+
 .PHONY: docs
 docs:
 	cd docs && quarto publish gh-pages
@@ -10,23 +14,26 @@ bugfix:
 
 .PHONY: format
 format:
-	black . && git commit -am "Apply code formatting"
+	uv run black . && git commit -am "Apply code formatting"
 
 .PHONY: format-check
 format-check:
-	black --check .
+	uv run black --check .
 
 .PHONY: type-check
 type-check:
-	mypy
+	uv run mypy
 
 .PHONY: test-unit test-all
 
 test-unit: format-check
-	pytest tests/unit --cov=beaver
+	uv run pytest tests/unit --cov=beaver
 
 test-all: format-check
-	pytest --cov=beaver
+	uv run pytest --cov=beaver
+
+.PHONY: ci
+ci: format-check test-unit
 
 .PHONY: docker-build
 docker-build:
