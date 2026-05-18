@@ -219,3 +219,36 @@ async def test_dict_jsonl_dump_requires_fp(async_db_mem: AsyncBeaverDB):
     await d.set("a", 1)
     with pytest.raises(ValueError):
         await d.dump(format="jsonl")
+
+
+async def test_encrypted_dict_iteration_as_first_op_decrypts(db_path):
+    """
+    Regression: values()/items() must lazily set up the Fernet cipher the same
+    way get()/set() do. If the first operation on a freshly-opened encrypted
+    dict is an iteration, the cipher was never initialised, so values were
+    yielded as raw ciphertext instead of decrypted objects.
+    """
+    secret = "s3cr3t-master-key"
+
+    db1 = AsyncBeaverDB(db_path)
+    await db1.connect()
+    d1 = db1.dict("vault", secret=secret)
+    await d1.set("k1", {"v": 1})
+    await d1.set("k2", {"v": 2})
+    await db1.close()
+
+    # Fresh db instance — singleton cache is empty, cipher is None until set up.
+    db2 = AsyncBeaverDB(db_path)
+    await db2.connect()
+    d2 = db2.dict("vault", secret=secret)
+    # FIRST op is iteration (no prior get/set on this handle).
+    vals = sorted([v["v"] async for v in d2.values()])
+    assert vals == [1, 2]
+    await db2.close()
+
+    db3 = AsyncBeaverDB(db_path)
+    await db3.connect()
+    d3 = db3.dict("vault", secret=secret)
+    items = sorted([(k, v["v"]) async for k, v in d3.items()])
+    assert items == [("k1", 1), ("k2", 2)]
+    await db3.close()

@@ -290,6 +290,8 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverDict[T]):
             yield row["key"]
 
     async def values(self):
+        if self._secret_arg and not self._cipher:
+            await self._setup_security(self._secret_arg)
         cursor = await self.connection.execute(
             "SELECT value FROM __beaver_dicts__ WHERE dict_name = ?", (self._name,)
         )
@@ -297,6 +299,8 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverDict[T]):
             yield self._deserialize(row["value"])
 
     async def items(self):
+        if self._secret_arg and not self._cipher:
+            await self._setup_security(self._secret_arg)
         cursor = await self.connection.execute(
             "SELECT key, value FROM __beaver_dicts__ WHERE dict_name = ?", (self._name,)
         )
