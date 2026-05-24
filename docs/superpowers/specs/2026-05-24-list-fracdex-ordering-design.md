@@ -39,6 +39,7 @@ This is a hard crash on a documented happy-path operation of an advertised headl
 - Migrating other tables that use `REAL` ordering columns. `__beaver_logs__.timestamp` is monotonic-ish under real-clock semantics; `__beaver_priority_queues__` has no `UNIQUE` constraint on `(queue_name, priority)` and duplicate priorities are well-defined. Neither has the collapse pathology.
 - Online migration of rc3 → rc4 databases. The way out for users with existing data is documented dump-on-rc3 + load-on-rc4.
 - Preserving the float `item_order` values across the upgrade for callers reading the column directly. The column is internal (double underscores); no public contract.
+- **Adding any new runtime dependency.** `beaver/_fracdex.py` must be pure Python, standard library only.
 
 ## Design
 
@@ -46,7 +47,7 @@ This is a hard crash on a documented happy-path operation of an advertised headl
 
 Replace the float-midpoint scheme with **fractional indexing** (the Figma / jsonjoy `fracdex` approach). Keys are short lexicographically-ordered strings over a fixed base-62 alphabet (`0-9A-Za-z`). Between any two distinct keys you can always construct a third key that sorts strictly between them — the key just gets one character longer when neighbors are densely packed. Storage cost is `O(log contention)` per key in the worst case; in practice keys stay short.
 
-New module `beaver/_fracdex.py` exposes a single primitive:
+New module `beaver/_fracdex.py` — pure Python, standard library only, ~100 lines — exposes a single primitive:
 
 ```python
 def key_between(a: str | None, b: str | None) -> str:
@@ -200,7 +201,6 @@ Databases created by rc3 or earlier are rejected on open by rc4. To migrate:
 
 ## Risks and open questions
 
-- **Fracdex algorithm choice.** The jsonjoy / Figma scheme is the most-validated reference. Worth porting a known implementation (e.g. the Python port in `fractional-indexing` on PyPI is MIT-licensed) rather than rolling our own. Decision: vendor a minimal implementation, ~80 lines, with attribution in the docstring.
 - **Where does `BeaverIncompatibleSchemaError` live?** Need to read the existing exception hierarchy in beaver to decide. Likely `beaver/errors.py` or co-located with `BeaverDB`. Resolved during plan execution.
 - **`list_names()` in the migration doc.** The snippet assumes a way to enumerate list names. If beaver doesn't expose one, the migration story is awkward — caller must know their list names out-of-band. Worth verifying and either documenting the workaround or adding an enumeration helper as part of this work.
 
