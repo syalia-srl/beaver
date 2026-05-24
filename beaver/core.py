@@ -38,6 +38,15 @@ from .sketches import AsyncBeaverSketch
 from .vectors import AsyncBeaverVectors
 
 
+BEAVER_DB_VERSION = 1
+
+
+class BeaverIncompatibleSchemaError(RuntimeError):
+    """Raised when opening a database whose schema is incompatible with this
+    version of beaver. The user must dump-and-reload to migrate.
+    See docs/migration-rc3-to-rc4-lists.md."""
+
+
 class Transaction:
     """
     A Reentrant Async Context Manager for database transactions.
@@ -170,8 +179,11 @@ class AsyncBeaverDB:
                 f"PRAGMA mmap_size = {self._pragma_mmap_size};"
             )
 
+        await self._check_version()
         await self._create_all_tables()
-        # await self._check_version()
+        await self._connection.execute(
+            f"PRAGMA user_version = {BEAVER_DB_VERSION}"
+        )
 
         return self
 
@@ -209,6 +221,47 @@ class AsyncBeaverDB:
         Use: async with db.transaction(): ...
         """
         return Transaction(self)
+
+    async def _check_version(self) -> None:
+        """Verify the open database is compatible with this beaver version.
+
+        Fresh databases have user_version=0; we accept that and stamp the
+        current version after _create_all_tables runs. rc3-era databases also
+        have user_version=0 but already have __beaver_lists__ with REAL
+        item_order — we reject those unless the lists table is empty.
+        """
+        cursor = await self._connection.execute("PRAGMA user_version")
+        row = await cursor.fetchone()
+        current = row[0] if row else 0
+
+        if current == BEAVER_DB_VERSION:
+            return
+
+        if current > BEAVER_DB_VERSION:
+            raise BeaverIncompatibleSchemaError(
+                f"Database user_version is {current}; this beaver only "
+                f"understands up to {BEAVER_DB_VERSION}. The database was "
+                "written by a newer beaver release."
+            )
+
+        cursor = await self._connection.execute(
+            "SELECT type FROM pragma_table_info('__beaver_lists__') WHERE name = 'item_order'"
+        )
+        row = await cursor.fetchone()
+        if row is not None and row[0].upper() == "REAL":
+            cursor = await self._connection.execute(
+                "SELECT 1 FROM __beaver_lists__ LIMIT 1"
+            )
+            has_row = await cursor.fetchone()
+            if has_row is not None:
+                raise BeaverIncompatibleSchemaError(
+                    "This database was created by beaver < 2.0rc4 and contains "
+                    "persistent-list data using the old REAL ordering format. "
+                    "rc4 changed __beaver_lists__.item_order from REAL to TEXT "
+                    "(fractional indexing) and no automatic migration is "
+                    "provided. See docs/migration-rc3-to-rc4-lists.md."
+                )
+            await self._connection.execute("DROP TABLE __beaver_lists__")
 
     async def _create_all_tables(self):
         """Initializes all required tables with the new __beaver__ naming convention."""
@@ -258,7 +311,7 @@ class AsyncBeaverDB:
             """
             CREATE TABLE IF NOT EXISTS __beaver_lists__ (
                 list_name TEXT NOT NULL,
-                item_order REAL NOT NULL,
+                item_order TEXT NOT NULL,
                 item_value TEXT NOT NULL,
                 PRIMARY KEY (list_name, item_order)
             )

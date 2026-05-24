@@ -1,4 +1,4 @@
-from .core import BeaverDB, AsyncBeaverDB
+from .core import BeaverDB, AsyncBeaverDB, BeaverIncompatibleSchemaError
 from .docs import Document
 from .events import Event
 from .queries import q
@@ -9,6 +9,7 @@ __version__ = "2.0rc4"
 __all__ = [
     "AsyncBeaverDB",
     "BeaverDB",
+    "BeaverIncompatibleSchemaError",
     "Document",
     "Secret",
     "Event",
