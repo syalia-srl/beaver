@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from .manager import AsyncBeaverBase, atomic, emits
 from .interfaces import IAsyncBeaverList
+from ._fracdex import key_between
 
 
 class AsyncListBatch[T: BaseModel]:
@@ -310,8 +311,8 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverList[T]):
         )
         return await cursor.fetchone() is not None
 
-    async def _get_order_at_index(self, index: int) -> float:
-        """Helper to get the float item_order at a specific index."""
+    async def _get_key_at_index(self, index: int) -> str:
+        """Helper to get the item_order string key at a specific index."""
         cursor = await self.connection.execute(
             "SELECT item_order FROM __beaver_lists__ WHERE list_name = ? ORDER BY item_order ASC LIMIT 1 OFFSET ?",
             (self._name, index),
@@ -331,12 +332,12 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverList[T]):
             (self._name,),
         )
         row = await cursor.fetchone()
-        max_order = row[0] if row and row[0] is not None else 0.0
-        new_order = max_order + 1.0
+        max_key = row[0] if row and row[0] is not None else None
+        new_key = key_between(max_key, None)
 
         await self.connection.execute(
             "INSERT INTO __beaver_lists__ (list_name, item_order, item_value) VALUES (?, ?, ?)",
-            (self._name, new_order, self._serialize(value)),
+            (self._name, new_key, self._serialize(value)),
         )
 
     @emits("prepend", payload=lambda *args, **kwargs: dict())
@@ -348,18 +349,18 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverList[T]):
             (self._name,),
         )
         row = await cursor.fetchone()
-        min_order = row[0] if row and row[0] is not None else 0.0
-        new_order = min_order - 1.0
+        min_key = row[0] if row and row[0] is not None else None
+        new_key = key_between(None, min_key)
 
         await self.connection.execute(
             "INSERT INTO __beaver_lists__ (list_name, item_order, item_value) VALUES (?, ?, ?)",
-            (self._name, new_order, self._serialize(value)),
+            (self._name, new_key, self._serialize(value)),
         )
 
     @emits("insert", payload=lambda index, *args, **kwargs: dict(index=index))
     @atomic
     async def insert(self, index: int, value: T):
-        """Inserts an item at a specific index using float order logic."""
+        """Inserts an item at a specific index using fractional-index ordering."""
         list_len = await self.count()
 
         if index <= 0:
@@ -369,14 +370,13 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverList[T]):
             await self.push(value)
             return
 
-        # Midpoint insertion
-        order_before = await self._get_order_at_index(index - 1)
-        order_after = await self._get_order_at_index(index)
-        new_order = order_before + (order_after - order_before) / 2.0
+        left_key = await self._get_key_at_index(index - 1)
+        right_key = await self._get_key_at_index(index)
+        new_key = key_between(left_key, right_key)
 
         await self.connection.execute(
             "INSERT INTO __beaver_lists__ (list_name, item_order, item_value) VALUES (?, ?, ?)",
-            (self._name, new_order, self._serialize(value)),
+            (self._name, new_key, self._serialize(value)),
         )
 
     @emits("pop", payload=lambda *args, **kwargs: dict())
