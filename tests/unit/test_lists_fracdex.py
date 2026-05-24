@@ -38,3 +38,47 @@ async def test_insert_preserves_strict_ordering(async_db_mem: AsyncBeaverDB):
     expected = ["a"] + [f"{i:02d}" for i in reversed(range(100))] + ["z"]
     actual = [item async for item in lst]
     assert actual == expected
+
+
+async def test_fuzz_against_python_list_oracle(async_db_mem: AsyncBeaverDB):
+    """Random sequence of push/prepend/insert/pop/deque/get operations.
+    The in-memory Python list is the oracle; the persisted list must match
+    after every operation."""
+    rng = random.Random(0xC0DE)
+    lst = async_db_mem.list("fuzz")
+    oracle: list[str] = []
+
+    ops = ["push", "prepend", "insert", "pop", "deque"]
+    for step in range(1000):
+        op = rng.choice(ops)
+        if op == "push":
+            v = f"v{step}"
+            await lst.push(v)
+            oracle.append(v)
+        elif op == "prepend":
+            v = f"v{step}"
+            await lst.prepend(v)
+            oracle.insert(0, v)
+        elif op == "insert":
+            if len(oracle) == 0:
+                continue
+            i = rng.randint(0, len(oracle))
+            v = f"v{step}"
+            await lst.insert(i, v)
+            oracle.insert(i, v)
+        elif op == "pop":
+            persisted = await lst.pop()
+            expected = oracle.pop() if oracle else None
+            assert persisted == expected, f"step {step} op {op}"
+        elif op == "deque":
+            persisted = await lst.deque()
+            expected = oracle.pop(0) if oracle else None
+            assert persisted == expected, f"step {step} op {op}"
+
+        if step % 50 == 0:
+            actual = [item async for item in lst]
+            assert actual == oracle, f"divergence at step {step}: {actual} != {oracle}"
+
+    actual = [item async for item in lst]
+    assert actual == oracle
+    assert await lst.count() == len(oracle)
