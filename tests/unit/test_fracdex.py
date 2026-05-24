@@ -22,7 +22,9 @@ def test_alphabet_is_lex_sorted():
     # ordering matches our semantic ordering.
     assert list(BASE_62_DIGITS) == sorted(BASE_62_DIGITS)
     assert len(BASE_62_DIGITS) == 62
-    assert set(BASE_62_DIGITS) == set(string.digits + string.ascii_uppercase + string.ascii_lowercase)
+    assert set(BASE_62_DIGITS) == set(
+        string.digits + string.ascii_uppercase + string.ascii_lowercase
+    )
 
 
 def test_first_key_is_midpoint_of_space():

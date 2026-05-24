@@ -39,7 +39,9 @@ def _midpoint(a: str, b: str | None) -> str:
     # No common prefix. Look at the first differing digit on each side.
     digit_a = BASE_62_DIGITS.index(a[0]) if a else 0
     digit_b = (
-        BASE_62_DIGITS.index(b[0]) if (b is not None and len(b) > 0) else len(BASE_62_DIGITS)
+        BASE_62_DIGITS.index(b[0])
+        if (b is not None and len(b) > 0)
+        else len(BASE_62_DIGITS)
     )
 
     if digit_b - digit_a > 1:

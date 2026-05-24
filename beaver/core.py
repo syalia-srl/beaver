@@ -181,9 +181,7 @@ class AsyncBeaverDB:
 
         await self._check_version()
         await self._create_all_tables()
-        await self._connection.execute(
-            f"PRAGMA user_version = {BEAVER_DB_VERSION}"
-        )
+        await self._connection.execute(f"PRAGMA user_version = {BEAVER_DB_VERSION}")
 
         return self
 
