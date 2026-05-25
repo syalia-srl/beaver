@@ -1,0 +1,41 @@
+import httpx
+import pytest
+from httpx import ASGITransport
+
+from beaver.server import create_app
+from beaver.core import AsyncBeaverDB
+from beaver.client import AsyncBeaverClient
+from beaver.errors import LocalOnlyError
+
+
+@pytest.mark.asyncio
+async def test_remote_keys_raises_local_only(tmp_path):
+    db = AsyncBeaverDB(str(tmp_path / "test.db"))
+    await db.connect()
+    app = create_app(db)
+    client = AsyncBeaverClient.__new__(AsyncBeaverClient)
+    client._http = httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+    try:
+        d = client.dict("u")
+        with pytest.raises(LocalOnlyError, match="local"):
+            async for _ in d.keys():
+                pass
+    finally:
+        await client.close()
+        await db.close()
+
+
+@pytest.mark.asyncio
+async def test_remote_batched_raises_local_only(tmp_path):
+    db = AsyncBeaverDB(str(tmp_path / "test.db"))
+    await db.connect()
+    app = create_app(db)
+    client = AsyncBeaverClient.__new__(AsyncBeaverClient)
+    client._http = httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+    try:
+        d = client.dict("u")
+        with pytest.raises(LocalOnlyError, match="transactional"):
+            d.batched()
+    finally:
+        await client.close()
+        await db.close()
