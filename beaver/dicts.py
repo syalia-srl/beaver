@@ -9,6 +9,7 @@ from typing import (
 
 from pydantic import BaseModel
 
+from .api import expose, local_only
 from .manager import AsyncBeaverBase, atomic, emits
 from .security import Cipher
 from .interfaces import IAsyncBeaverDict
@@ -175,6 +176,13 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverDict[T]):
 
     # --- Core Async API ---
 
+    @expose(
+        path="/{key}",
+        method="PUT",
+        cli_name="set",
+        cli_help="Set a value for a key.",
+        body_param="value",
+    )
     @emits("set", payload=lambda key, *args, **kwargs: dict(key=key))
     @atomic
     async def set(self, key: str, value: T, ttl_seconds: float | None = None):
@@ -199,6 +207,9 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverDict[T]):
             (self._name, key, serialized_value, expires_at),
         )
 
+    @expose(
+        path="/{key}", method="GET", cli_name="get", cli_help="Get the value for a key."
+    )
     @atomic
     async def get(self, key: str) -> T:
         """Retrieves a value for a key. Raises KeyError if missing or expired."""
@@ -227,6 +238,7 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverDict[T]):
 
         return self._deserialize(raw_value)
 
+    @expose(path="/{key}", method="DELETE", cli_name="delete", cli_help="Delete a key.")
     @emits("del", payload=lambda key, *args, **kwargs: dict(key=key))
     @atomic
     async def delete(self, key: str):
@@ -239,12 +251,25 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverDict[T]):
         if cursor.rowcount == 0:
             raise KeyError(f"Key '{key}' not found in dictionary '{self._name}'")
 
+    @expose(
+        path="/{key}/fetch",
+        method="GET",
+        cli_name="fetch",
+        cli_help="Get a key, returning a default if missing.",
+    )
     async def fetch(self, key: str, default: Any = None) -> T | Any:
         try:
             return await self.get(key)
         except KeyError:
             return default
 
+    @expose(
+        path="/{key}/pop",
+        method="POST",
+        cli_name="pop",
+        cli_help="Remove and return a key, or default if missing.",
+        body_param="default",
+    )
     @atomic
     async def pop(self, key: str, default: Any = None) -> T | Any:
         try:
@@ -254,6 +279,12 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverDict[T]):
         except KeyError:
             return default
 
+    @expose(
+        path="/count",
+        method="GET",
+        cli_name="count",
+        cli_help="Return the number of keys.",
+    )
     async def count(self) -> int:
         cursor = await self.connection.execute(
             "SELECT COUNT(*) FROM __beaver_dicts__ WHERE dict_name = ?", (self._name,)
@@ -261,6 +292,12 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverDict[T]):
         row = await cursor.fetchone()
         return row[0] if row else 0
 
+    @expose(
+        path="/{key}/contains",
+        method="GET",
+        cli_name="contains",
+        cli_help="Check whether a key exists.",
+    )
     async def contains(self, key: str) -> bool:
         cursor = await self.connection.execute(
             "SELECT 1 FROM __beaver_dicts__ WHERE dict_name = ? AND key = ? LIMIT 1",
@@ -268,6 +305,7 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverDict[T]):
         )
         return await cursor.fetchone() is not None
 
+    @expose(path="/clear", method="POST", cli_name="clear", cli_help="Remove all keys.")
     @emits("clear", payload=lambda *args, **kwargs: dict())
     @atomic
     async def clear(self):
@@ -282,6 +320,9 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverDict[T]):
         async for key in self.keys():
             yield key
 
+    @local_only(
+        "dict.keys() is only available on local databases (no streaming on the wire yet)"
+    )
     async def keys(self):
         cursor = await self.connection.execute(
             "SELECT key FROM __beaver_dicts__ WHERE dict_name = ?", (self._name,)
@@ -289,6 +330,7 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverDict[T]):
         async for row in cursor:
             yield row["key"]
 
+    @local_only("dict.values() is only available on local databases")
     async def values(self):
         if self._secret_arg and not self._cipher:
             await self._setup_security(self._secret_arg)
@@ -298,6 +340,7 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverDict[T]):
         async for row in cursor:
             yield self._deserialize(row["value"])
 
+    @local_only("dict.items() is only available on local databases")
     async def items(self):
         if self._secret_arg and not self._cipher:
             await self._setup_security(self._secret_arg)
@@ -314,6 +357,9 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverDict[T]):
                 val = json.loads(v.model_dump_json())
             yield {"key": k, "value": val}
 
+    @local_only(
+        "dict.dump() is only available on local databases (no chunked transfer yet)"
+    )
     async def dump(
         self,
         fp: IO[str] | None = None,
@@ -343,6 +389,9 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverDict[T]):
             return None
         raise ValueError(f"Unsupported format: {format!r}. Use 'json' or 'jsonl'.")
 
+    @local_only(
+        "dict.load() is only available on local databases (no chunked transfer yet)"
+    )
     async def load(
         self,
         fp: IO[str],
@@ -374,6 +423,9 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverDict[T]):
     async def _load_item(self, item: dict) -> None:
         await self.set(item["key"], item["value"])
 
+    @local_only(
+        "dict.batched() is only available on local databases (transactional session cannot cross HTTP)"
+    )
     def batched(self) -> AsyncDictBatch[T]:
         """Returns an async context manager for buffered bulk writes."""
         return AsyncDictBatch(self)
