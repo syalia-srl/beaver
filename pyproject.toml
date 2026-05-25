@@ -27,9 +27,12 @@ build-backend = "hatchling.build"
 packages = ["beaver"]
 
 [project.optional-dependencies]
-remote = ["fastapi[standard]>=0.118.0"]
+remote = ["fastapi[standard]>=0.118.0", "httpx>=0.27.0"]
 security = ["cryptography>=46.0.3"]
 full = ["beaver-db[remote]", "beaver-db[security]"]
+
+[project.scripts]
+beaver = "beaver.cli.main:app"
 
 [dependency-groups]
 dev = [
