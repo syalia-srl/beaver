@@ -16,10 +16,10 @@ class AsyncListBatch[T: BaseModel]:
     """Async context manager for buffered bulk push/prepend on a list.
 
     Per #27 §5, only `push` and `prepend` are supported in batch mode —
-    arbitrary `insert(i, val)` is disallowed to keep `item_order` arithmetic
-    O(1). On exit, queries MIN/MAX(item_order) once and assigns increasing
-    orders for pushes / decreasing orders for prepends, then issues one
-    `executemany`.
+    arbitrary `insert(i, val)` is disallowed. On exit, queries
+    MIN/MAX(item_order) once, then chains `key_between` to mint one
+    fracdex key per buffered item (descending for prepends so the last
+    prepend lands at the front), and issues a single `executemany`.
     """
 
     def __init__(self, manager: "AsyncBeaverList[T]"):
@@ -49,33 +49,34 @@ class AsyncListBatch[T: BaseModel]:
                     (self._manager._name,),
                 )
                 row = await cursor.fetchone()
-                min_order = row[0] if row and row[0] is not None else 0.0
-                max_order = row[1] if row and row[1] is not None else 0.0
+                min_order: str | None = row[0] if row and row[0] is not None else None
+                max_order: str | None = row[1] if row and row[1] is not None else None
 
-                rows: list[tuple[str, float, str]] = []
+                rows: list[tuple[str, str, str]] = []
 
-                # Pushes go to the end, increasing from max_order
-                next_order = max_order
+                # Pushes go to the end — chain key_between(prev, None) for each item.
+                prev = max_order
                 for value in self._pending_push:
-                    next_order += 1.0
+                    prev = key_between(prev, None)
                     rows.append(
                         (
                             self._manager._name,
-                            next_order,
+                            prev,
                             self._manager._serialize(value),
                         )
                     )
 
-                # Prepends decrement from min_order. Last call to .prepend()
-                # must end up at the front, matching the non-batched semantics
-                # where each prepend pushes prior items down.
-                next_order = min_order
+                # Prepends go before min_order. The last .prepend() call must
+                # end up at the front (smallest key), matching non-batched
+                # semantics. Generate keys in decreasing order by chaining
+                # key_between(None, prev) so each new key is smaller than the last.
+                prev = min_order
                 for value in self._pending_prepend:
-                    next_order -= 1.0
+                    prev = key_between(None, prev)
                     rows.append(
                         (
                             self._manager._name,
-                            next_order,
+                            prev,
                             self._manager._serialize(value),
                         )
                     )
