@@ -14,7 +14,9 @@ async def test_remote_keys_raises_local_only(tmp_path):
     await db.connect()
     app = create_app(db)
     client = AsyncBeaverClient.__new__(AsyncBeaverClient)
-    client._http = httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+    client._http = httpx.AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    )
     try:
         d = client.dict("u")
         with pytest.raises(LocalOnlyError, match="local"):
@@ -31,7 +33,9 @@ async def test_remote_batched_raises_local_only(tmp_path):
     await db.connect()
     app = create_app(db)
     client = AsyncBeaverClient.__new__(AsyncBeaverClient)
-    client._http = httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+    client._http = httpx.AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    )
     try:
         d = client.dict("u")
         with pytest.raises(LocalOnlyError, match="transactional"):

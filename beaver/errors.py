@@ -1,4 +1,5 @@
 """Error envelope, exception registry, and custom exceptions for SID consumers."""
+
 import pydantic
 from pydantic import BaseModel
 

@@ -20,7 +20,12 @@ def connect(source: str, *, sync: bool = True, api_key: str | None = None):
     """
     if source.startswith(("http://", "https://")):
         from .client import AsyncBeaverClient, BeaverClient
-        return BeaverClient(source, api_key=api_key) if sync else AsyncBeaverClient(source, api_key=api_key)
+
+        return (
+            BeaverClient(source, api_key=api_key)
+            if sync
+            else AsyncBeaverClient(source, api_key=api_key)
+        )
     return BeaverDB(source) if sync else AsyncBeaverDB(source)
 
 

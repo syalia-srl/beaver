@@ -41,7 +41,9 @@ async def test_missing_bearer_when_required_returns_401(tmp_path):
 async def test_valid_bearer_passes(tmp_path):
     db, client = await _make_client(tmp_path, api_key="secret")
     try:
-        r = await client.get("/dicts/u/alice", headers={"Authorization": "Bearer secret"})
+        r = await client.get(
+            "/dicts/u/alice", headers={"Authorization": "Bearer secret"}
+        )
         assert r.status_code == 404  # KeyError, auth passed
     finally:
         await client.aclose()
@@ -52,7 +54,9 @@ async def test_valid_bearer_passes(tmp_path):
 async def test_wrong_bearer_returns_401(tmp_path):
     db, client = await _make_client(tmp_path, api_key="secret")
     try:
-        r = await client.get("/dicts/u/alice", headers={"Authorization": "Bearer wrong"})
+        r = await client.get(
+            "/dicts/u/alice", headers={"Authorization": "Bearer wrong"}
+        )
         assert r.status_code == 401
     finally:
         await client.aclose()

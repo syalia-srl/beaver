@@ -14,7 +14,9 @@ async def db(tmp_path):
 @pytest.mark.asyncio
 async def test_router_has_all_eight_dict_routes(db):
     app = create_app(db)
-    paths = {(r.path, tuple(sorted(r.methods))) for r in app.routes if hasattr(r, "methods")}
+    paths = {
+        (r.path, tuple(sorted(r.methods))) for r in app.routes if hasattr(r, "methods")
+    }
     assert ("/dicts/{name}/{key}", ("GET",)) in paths
     assert ("/dicts/{name}/{key}", ("PUT",)) in paths
     assert ("/dicts/{name}/{key}", ("DELETE",)) in paths

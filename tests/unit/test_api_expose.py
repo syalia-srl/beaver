@@ -15,7 +15,9 @@ def test_expose_attaches_endpoint_meta():
 
 
 def test_expose_with_body_param():
-    @expose(path="/{key}", method="PUT", cli_name="set", cli_help="Set.", body_param="value")
+    @expose(
+        path="/{key}", method="PUT", cli_name="set", cli_help="Set.", body_param="value"
+    )
     def set(key, value, ttl_seconds=None): ...
 
     assert set.__beaver_endpoint__.body_param == "value"
@@ -30,6 +32,7 @@ def test_local_only_marks_method():
 
 def test_endpoint_meta_is_frozen():
     import dataclasses
+
     meta = EndpointMeta(path="/", method="GET", cli_name="x", cli_help="x")
     try:
         meta.path = "/changed"

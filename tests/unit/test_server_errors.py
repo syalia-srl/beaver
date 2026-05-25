@@ -11,7 +11,10 @@ async def client(tmp_path):
     db = AsyncBeaverDB(str(tmp_path / "test.db"))
     await db.connect()
     app = create_app(db)
-    async with httpx.AsyncClient(transport=ASGITransport(app=app, raise_app_exceptions=False), base_url="http://test") as c:
+    async with httpx.AsyncClient(
+        transport=ASGITransport(app=app, raise_app_exceptions=False),
+        base_url="http://test",
+    ) as c:
         yield c
     await db.close()
 

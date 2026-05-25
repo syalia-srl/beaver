@@ -44,7 +44,9 @@ def test_envelope_from_exception_known():
 
 
 def test_envelope_from_exception_unknown():
-    class WeirdError(Exception): pass
+    class WeirdError(Exception):
+        pass
+
     env = envelope_from_exception(WeirdError("bad"))
     assert env.error == "WeirdError"
     assert env.message == "bad"

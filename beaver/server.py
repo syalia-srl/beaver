@@ -1,4 +1,5 @@
 """FastAPI app factory + dynamic router generation for SID consumers."""
+
 from __future__ import annotations
 
 import json
@@ -30,7 +31,9 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         auth = request.headers.get("Authorization", "")
         if auth != f"Bearer {self._expected}":
-            env = ErrorEnvelope(error="AuthError", message="invalid or missing bearer token")
+            env = ErrorEnvelope(
+                error="AuthError", message="invalid or missing bearer token"
+            )
             return JSONResponse(status_code=401, content=env.model_dump())
         return await call_next(request)
 

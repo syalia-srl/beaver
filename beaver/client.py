@@ -1,4 +1,5 @@
 """AsyncBeaverClient + RemoteDict — remote dispatch via httpx, hand-written wrappers."""
+
 from __future__ import annotations
 
 import asyncio
@@ -61,7 +62,10 @@ class RemoteDict:
     Hand-written wrappers around _BUILDERS keep the class IDE-introspectable.
     Local-only methods (keys/values/items/dump/load/batched) raise LocalOnlyError.
     """
-    _BUILDERS: ClassVar[dict[str, Callable]] = _build_remote_dispatchers(AsyncBeaverDict)
+
+    _BUILDERS: ClassVar[dict[str, Callable]] = _build_remote_dispatchers(
+        AsyncBeaverDict
+    )
 
     def __init__(self, http: httpx.AsyncClient, name: str, model=None):
         self._http = http
@@ -71,7 +75,9 @@ class RemoteDict:
     # --- @expose'd methods ---
 
     async def set(self, key: str, value, ttl_seconds: float | None = None):
-        return await self._BUILDERS["set"](self._http, self._name, key=key, value=value, ttl_seconds=ttl_seconds)
+        return await self._BUILDERS["set"](
+            self._http, self._name, key=key, value=value, ttl_seconds=ttl_seconds
+        )
 
     async def get(self, key: str):
         return await self._BUILDERS["get"](self._http, self._name, key=key)
@@ -80,10 +86,14 @@ class RemoteDict:
         return await self._BUILDERS["delete"](self._http, self._name, key=key)
 
     async def fetch(self, key: str, default=None):
-        return await self._BUILDERS["fetch"](self._http, self._name, key=key, default=default)
+        return await self._BUILDERS["fetch"](
+            self._http, self._name, key=key, default=default
+        )
 
     async def pop(self, key: str, default=None):
-        return await self._BUILDERS["pop"](self._http, self._name, key=key, default=default)
+        return await self._BUILDERS["pop"](
+            self._http, self._name, key=key, default=default
+        )
 
     async def count(self) -> int:
         return await self._BUILDERS["count"](self._http, self._name)
@@ -137,7 +147,9 @@ class BeaverClient:
 
     def __init__(self, base_url: str, api_key: str | None = None):
         self._loop = asyncio.new_event_loop()
-        self._thread = threading.Thread(target=self._loop.run_forever, daemon=True, name="BeaverClient-Reactor")
+        self._thread = threading.Thread(
+            target=self._loop.run_forever, daemon=True, name="BeaverClient-Reactor"
+        )
         self._thread.start()
 
         async def init():
