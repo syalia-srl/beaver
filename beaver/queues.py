@@ -8,6 +8,7 @@ from typing import (
 
 from pydantic import BaseModel
 
+from .api import expose, local_only
 from .manager import AsyncBeaverBase, atomic, emits
 from .interfaces import QueueItem, IAsyncBeaverQueue
 
@@ -19,6 +20,13 @@ class AsyncBeaverQueue[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverQueue[T]):
     Refactored for Async-First architecture (v2.0).
     """
 
+    @expose(
+        path="/put",
+        method="POST",
+        cli_name="put",
+        cli_help="Put an item in the queue.",
+        body_param="data",
+    )
     @emits("put", payload=lambda *args, **kwargs: dict())
     @atomic
     async def put(self, data: T, priority: float):
@@ -65,6 +73,9 @@ class AsyncBeaverQueue[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverQueue[T]):
             priority=priority, timestamp=timestamp, data=self._deserialize(data)
         )
 
+    @expose(
+        path="/peek", method="GET", cli_name="peek", cli_help="Peek at the next item."
+    )
     @atomic
     async def peek(self) -> QueueItem[T] | None:
         """
@@ -105,12 +116,24 @@ class AsyncBeaverQueue[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverQueue[T]):
 
     # We override the public get to use the loop implementation
     # NOTE: We do NOT decorate this with @atomic, as it manages its own locking scope.
+    @expose(
+        path="/get",
+        method="POST",
+        cli_name="get",
+        cli_help="Get and remove the next item.",
+    )
     @emits("get", payload=lambda *args, **kwargs: dict())
     async def get(
         self, block: bool = True, timeout: float | None = None
     ) -> QueueItem[T]:
         return await self._get_loop_impl(block, timeout)
 
+    @expose(
+        path="/count",
+        method="GET",
+        cli_name="count",
+        cli_help="Return the number of items.",
+    )
     async def count(self) -> int:
         cursor = await self.connection.execute(
             "SELECT COUNT(*) FROM __beaver_priority_queues__ WHERE queue_name = ?",
@@ -119,6 +142,7 @@ class AsyncBeaverQueue[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverQueue[T]):
         count = await cursor.fetchone()
         return count[0] if count else 0
 
+    @expose(path="/clear", method="POST", cli_name="clear", cli_help="Clear all items.")
     async def clear(self):
         await self.connection.execute(
             "DELETE FROM __beaver_priority_queues__ WHERE queue_name = ?",
@@ -155,6 +179,9 @@ class AsyncBeaverQueue[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverQueue[T]):
                 "data": data,
             }
 
+    @local_only(
+        "queue.dump() is only available on local databases (no chunked transfer yet)"
+    )
     async def dump(
         self,
         fp: IO[str] | None = None,
@@ -182,6 +209,9 @@ class AsyncBeaverQueue[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverQueue[T]):
             return None
         raise ValueError(f"Unsupported format: {format!r}. Use 'json' or 'jsonl'.")
 
+    @local_only(
+        "queue.load() is only available on local databases (no chunked transfer yet)"
+    )
     async def load(
         self,
         fp: IO[str],

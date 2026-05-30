@@ -1,8 +1,10 @@
 # beaver v2.0 — current status
 
 Living inventory of what's real vs missing through the v2.0 release cycle.
-Deletes itself at `2.0.0`. Last refreshed: 2026-05-25 (slice 1 of #36 landed:
-`@expose` + server + client + CLI for `AsyncBeaverDict`).
+Deletes itself at `2.0.0`. Last refreshed: 2026-05-30 (slice 2 of #36 landed:
+generalized server router + `@expose`/`@local_only` on `AsyncBeaverList` +
+`AsyncBeaverQueue` + `RemoteList`/`RemoteQueue` + CLI groups `list` and
+`queue`; 247 tests green).
 
 Full release plan: `vault/Atlas/Architecture/2026-05-15-beaver-v2-release-plan.md` in the workspace.
 
@@ -33,7 +35,7 @@ Full release plan: `vault/Atlas/Architecture/2026-05-15-beaver-v2-release-plan.m
 | JSONL streaming dump+load | #18 | ✅ on six primary managers | Both directions stream; dump via async generator, load line-by-line. Blob JSONL always carries the payload. Smoke: 1k log entries round-trip. |
 | YAML dump+load | #18 | ⏸ deferred to 2.1 | JSON + JSONL satisfy the ETL story; YAML is a human-readable nicety, parked unless requested. |
 | HNSW vector strategy | #28 | ⏸ deferred indefinitely | Numpy-only constraint: no `hnswlib` / `faiss` / compiled-wheel deps. Unfreezes only if/when we design a pure-numpy ANN beating LSH on >100k. Linear + LSH are the only vector strategies 2.0 ships. |
-| SID consumers (CLI / Server / Client) | #36 | ✅ slice 1 (dict only) | `@expose`/`@local_only` on `AsyncBeaverDict`; `beaver/server.py` + `beaver/client.py` + `beaver/cli/`; `beaver.connect()` factory; bearer auth; 8 dict methods round-trip end-to-end. Fan-out to other 9 managers tracked separately. |
+| SID consumers (CLI / Server / Client) | #36 | ✅ slice 2 (dict + list + queue) | Slice 1: 8 dict methods. Slice 2: generalized `_router_for_manager` with path-param coercion (`int`, `float`, `Union[int, slice]`); NamedTuple results serialized as dicts (queue `peek`/`get`); 11 list methods (count/get/set/delete/contains/push/prepend/insert/pop/deque/clear) + 5 queue methods (put/peek/get/count/clear) round-trip end-to-end via CLI `beaver list ...` and `beaver queue ...`. Remaining managers: blob, log, docs, sketch, vectors, channels, graphs, events. |
 | CLI admin commands | #15 | ❌ none | Layered on top of #36. Phase 2 work. |
 | Concurrency tests | #19 Phase 3 | ✅ | `tests/concurrency/` covers cross-process lock mutual exclusion, list-push contention, log reader/writer race, and `.batched()` transactional isolation. 4 tests, ~16s wall-clock. `make test-concurrency` runs the suite. |
 | API/CLI tests | #19 Phase 4 | ❌ none | Blocked on #36. Phase 2 work. |
@@ -42,12 +44,12 @@ Full release plan: `vault/Atlas/Architecture/2026-05-15-beaver-v2-release-plan.m
 
 | Metric | Value |
 |---|---|
-| Unit tests | 130 passing |
-| Integration tests | 1 passing (`test_sync.py`) |
+| Unit tests | 241 passing |
+| Integration tests | 2 passing (`test_sync.py`, `test_server_subprocess.py`) |
 | Concurrency tests | 4 passing (`tests/concurrency/`) |
-| Total coverage | 85% |
-| Wall-clock (`make ci`) | ~13s after deps cached |
-| Wall-clock (`make test-all`) | ~36s |
+| Total coverage | 87% |
+| Wall-clock (`make ci`) | ~26s after deps cached |
+| Wall-clock (`make test-all`) | ~44s |
 | Known warning | 1 — unraisable exception (event loop closed) in pubsub teardown; cosmetic |
 
 ## Build + ops

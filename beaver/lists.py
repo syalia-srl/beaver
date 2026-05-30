@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 
 from pydantic import BaseModel
 
+from .api import expose, local_only
 from .manager import AsyncBeaverBase, atomic, emits
 from .interfaces import IAsyncBeaverList
 from ._fracdex import key_between
@@ -113,6 +114,9 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverList[T]):
         }
         return {"metadata": metadata, "items": items}
 
+    @local_only(
+        "list.dump() is only available on local databases (no chunked transfer yet)"
+    )
     async def dump(
         self,
         fp: IO[str] | None = None,
@@ -135,6 +139,9 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverList[T]):
             return None
         raise ValueError(f"Unsupported format: {format!r}. Use 'json' or 'jsonl'.")
 
+    @local_only(
+        "list.load() is only available on local databases (no chunked transfer yet)"
+    )
     async def load(
         self,
         fp: IO[str],
@@ -167,10 +174,19 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverList[T]):
         # List dump shape: items are the values themselves (not {key, value}).
         await self.push(item)
 
+    @local_only(
+        "list.batched() is only available on local databases (transactional session cannot cross HTTP)"
+    )
     def batched(self) -> AsyncListBatch[T]:
         """Returns an async context manager for buffered bulk push/prepend."""
         return AsyncListBatch(self)
 
+    @expose(
+        path="/count",
+        method="GET",
+        cli_name="count",
+        cli_help="Return the number of items.",
+    )
     async def count(self) -> int:
         """Returns the number of items in the list."""
         cursor = await self.connection.execute(
@@ -179,6 +195,12 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverList[T]):
         row = await cursor.fetchone()
         return row[0] if row else 0
 
+    @expose(
+        path="/item/{index}",
+        method="GET",
+        cli_name="get",
+        cli_help="Retrieve an item at an index.",
+    )
     @atomic
     async def get(self, index: Union[int, slice]) -> T | list[T]:
         """
@@ -228,6 +250,13 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverList[T]):
         else:
             raise TypeError("List indices must be integers or slices.")
 
+    @expose(
+        path="/item/{index}",
+        method="PUT",
+        cli_name="set",
+        cli_help="Set the value at an index.",
+        body_param="value",
+    )
     @emits("set", payload=lambda index, *args, **kwargs: dict(index=index))
     @atomic
     async def set(self, index: int, value: T):
@@ -261,6 +290,12 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverList[T]):
             (self._serialize(value), rowid_to_update),
         )
 
+    @expose(
+        path="/item/{index}",
+        method="DELETE",
+        cli_name="delete",
+        cli_help="Delete the item at an index.",
+    )
     @emits("del", payload=lambda index, *args, **kwargs: dict(index=index))
     @atomic
     async def delete(self, index: int):
@@ -303,6 +338,12 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverList[T]):
         async for row in cursor:
             yield self._deserialize(row["item_value"])
 
+    @expose(
+        path="/contains",
+        method="GET",
+        cli_name="contains",
+        cli_help="Check if an item exists.",
+    )
     async def contains(self, value: T) -> bool:
         """Checks for existence of an item."""
         serialized = self._serialize(value)
@@ -324,6 +365,13 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverList[T]):
             return result[0]
         raise IndexError(f"{index} out of range.")
 
+    @expose(
+        path="/push",
+        method="POST",
+        cli_name="push",
+        cli_help="Push an item to the end.",
+        body_param="value",
+    )
     @emits("push", payload=lambda *args, **kwargs: dict())
     @atomic
     async def push(self, value: T):
@@ -341,6 +389,13 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverList[T]):
             (self._name, new_key, self._serialize(value)),
         )
 
+    @expose(
+        path="/prepend",
+        method="POST",
+        cli_name="prepend",
+        cli_help="Prepend an item to the beginning.",
+        body_param="value",
+    )
     @emits("prepend", payload=lambda *args, **kwargs: dict())
     @atomic
     async def prepend(self, value: T):
@@ -358,6 +413,13 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverList[T]):
             (self._name, new_key, self._serialize(value)),
         )
 
+    @expose(
+        path="/insert/{index}",
+        method="POST",
+        cli_name="insert",
+        cli_help="Insert an item at an index.",
+        body_param="value",
+    )
     @emits("insert", payload=lambda index, *args, **kwargs: dict(index=index))
     @atomic
     async def insert(self, index: int, value: T):
@@ -380,6 +442,12 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverList[T]):
             (self._name, new_key, self._serialize(value)),
         )
 
+    @expose(
+        path="/pop",
+        method="POST",
+        cli_name="pop",
+        cli_help="Remove and return the last item.",
+    )
     @emits("pop", payload=lambda *args, **kwargs: dict())
     @atomic
     async def pop(self) -> T | None:
@@ -398,6 +466,12 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverList[T]):
         )
         return self._deserialize(value_to_return)
 
+    @expose(
+        path="/deque",
+        method="POST",
+        cli_name="deque",
+        cli_help="Remove and return the first item.",
+    )
     @emits("deque", payload=lambda *args, **kwargs: dict())
     @atomic
     async def deque(self) -> T | None:
@@ -416,6 +490,7 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverList[T]):
         )
         return self._deserialize(value_to_return)
 
+    @expose(path="/clear", method="POST", cli_name="clear", cli_help="Clear all items.")
     @emits("clear", payload=lambda *args, **kwargs: dict())
     @atomic
     async def clear(self):

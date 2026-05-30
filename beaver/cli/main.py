@@ -6,6 +6,8 @@ import typer
 
 import beaver
 from beaver.dicts import AsyncBeaverDict
+from beaver.lists import AsyncBeaverList
+from beaver.queues import AsyncBeaverQueue
 from .discovery import build_typer_for
 
 
@@ -65,6 +67,24 @@ app.add_typer(
         context_key="dict_name",
     ),
     name="dict",
+)
+
+app.add_typer(
+    build_typer_for(
+        AsyncBeaverList,
+        manager_accessor=lambda conn, name: conn.list(name),
+        context_key="list_name",
+    ),
+    name="list",
+)
+
+app.add_typer(
+    build_typer_for(
+        AsyncBeaverQueue,
+        manager_accessor=lambda conn, name: conn.queue(name),
+        context_key="queue_name",
+    ),
+    name="queue",
 )
 
 

@@ -101,3 +101,64 @@ def test_cli_remote_set_then_get(remote_server):
     result = runner.invoke(app, ["--url", "http://test", "dict", "u", "get", "alice"])
     assert result.exit_code == 0, result.output
     assert json.loads(result.output) == {"name": "Alice"}
+
+
+# --- list CLI ---
+
+
+def test_cli_list_push_count_get(tmp_path):
+    db_path = str(tmp_path / "x.db")
+    runner.invoke(app, ["--db", db_path, "list", "items", "push", '{"v":1}'])
+    runner.invoke(app, ["--db", db_path, "list", "items", "push", '{"v":2}'])
+    result = runner.invoke(app, ["--db", db_path, "list", "items", "count"])
+    assert json.loads(result.output) == 2
+    result = runner.invoke(app, ["--db", db_path, "list", "items", "get", "0"])
+    assert json.loads(result.output) == {"v": 1}
+
+
+def test_cli_list_insert_then_get(tmp_path):
+    db_path = str(tmp_path / "x.db")
+    runner.invoke(app, ["--db", db_path, "list", "items", "push", '{"v":1}'])
+    runner.invoke(app, ["--db", db_path, "list", "items", "push", '{"v":3}'])
+    runner.invoke(app, ["--db", db_path, "list", "items", "insert", "1", '{"v":2}'])
+    result = runner.invoke(app, ["--db", db_path, "list", "items", "get", "1"])
+    assert json.loads(result.output) == {"v": 2}
+
+
+def test_cli_list_pop(tmp_path):
+    db_path = str(tmp_path / "x.db")
+    runner.invoke(app, ["--db", db_path, "list", "items", "push", '{"v":1}'])
+    runner.invoke(app, ["--db", db_path, "list", "items", "push", '{"v":2}'])
+    result = runner.invoke(app, ["--db", db_path, "list", "items", "pop"])
+    assert json.loads(result.output) == {"v": 2}
+
+
+def test_cli_list_remote(remote_server):
+    result = runner.invoke(
+        app, ["--url", "http://test", "list", "items", "push", '{"v":1}']
+    )
+    assert result.exit_code == 0, result.output
+    result = runner.invoke(app, ["--url", "http://test", "list", "items", "count"])
+    assert json.loads(result.output) == 1
+
+
+# --- queue CLI ---
+
+
+def test_cli_queue_put_then_get(tmp_path):
+    db_path = str(tmp_path / "x.db")
+    runner.invoke(
+        app,
+        ["--db", db_path, "queue", "jobs", "put", '{"task":"a"}', "--priority", "1"],
+    )
+    result = runner.invoke(app, ["--db", db_path, "queue", "jobs", "count"])
+    assert json.loads(result.output) == 1
+    result = runner.invoke(app, ["--db", db_path, "queue", "jobs", "get", "--no-block"])
+    assert json.loads(result.output)["data"] == {"task": "a"}
+
+
+def test_cli_queue_peek_empty(tmp_path):
+    db_path = str(tmp_path / "x.db")
+    result = runner.invoke(app, ["--db", db_path, "queue", "jobs", "peek"])
+    assert result.exit_code == 0
+    assert result.output.strip() == ""  # None → no print
