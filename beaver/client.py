@@ -12,6 +12,7 @@ import httpx
 from .api import EndpointMeta
 from .dicts import AsyncBeaverDict
 from .lists import AsyncBeaverList
+from .logs import AsyncBeaverLog
 from .queues import AsyncBeaverQueue
 from .errors import ErrorEnvelope, LocalOnlyError, raise_from_envelope
 
@@ -242,6 +243,60 @@ class RemoteQueue:
         raise LocalOnlyError(AsyncBeaverQueue.load.__beaver_local_only__)
 
 
+class RemoteLog:
+    """Remote proxy for AsyncBeaverLog.
+
+    Local-only methods (live/dump/load/batched) raise LocalOnlyError.
+    """
+
+    _BUILDERS: ClassVar[dict[str, Callable]] = _build_remote_dispatchers(
+        AsyncBeaverLog, "/logs"
+    )
+
+    def __init__(self, http: httpx.AsyncClient, name: str, model=None):
+        self._http = http
+        self._name = name
+        self._model = model
+
+    # --- @expose'd methods ---
+
+    async def log(self, data, timestamp: float | None = None):
+        return await self._BUILDERS["log"](
+            self._http, self._name, data=data, timestamp=timestamp
+        )
+
+    async def range(
+        self,
+        start: float | None = None,
+        end: float | None = None,
+        limit: int | None = None,
+    ):
+        return await self._BUILDERS["range"](
+            self._http, self._name, start=start, end=end, limit=limit
+        )
+
+    async def count(self) -> int:
+        return await self._BUILDERS["count"](self._http, self._name)
+
+    async def clear(self):
+        return await self._BUILDERS["clear"](self._http, self._name)
+
+    # --- @local_only methods ---
+
+    async def live(self, *args, **kwargs):
+        raise LocalOnlyError(AsyncBeaverLog.live.__beaver_local_only__)
+        yield  # noqa
+
+    async def dump(self, *args, **kwargs):
+        raise LocalOnlyError(AsyncBeaverLog.dump.__beaver_local_only__)
+
+    async def load(self, *args, **kwargs):
+        raise LocalOnlyError(AsyncBeaverLog.load.__beaver_local_only__)
+
+    def batched(self):
+        raise LocalOnlyError(AsyncBeaverLog.batched.__beaver_local_only__)
+
+
 class AsyncBeaverClient:
     """Remote-DB equivalent of AsyncBeaverDB. Use beaver.connect(url) instead of instantiating directly."""
 
@@ -257,6 +312,9 @@ class AsyncBeaverClient:
 
     def queue(self, name: str, model=None) -> RemoteQueue:
         return RemoteQueue(self._http, name, model)
+
+    def log(self, name: str, model=None) -> RemoteLog:
+        return RemoteLog(self._http, name, model)
 
     async def close(self):
         await self._http.aclose()
@@ -306,6 +364,9 @@ class BeaverClient:
 
     def queue(self, name: str, model=None):
         return self._bridged(lambda: self._async.queue(name, model))
+
+    def log(self, name: str, model=None):
+        return self._bridged(lambda: self._async.log(name, model))
 
     def _bridged(self, factory_sync):
         from .bridge import BeaverBridge

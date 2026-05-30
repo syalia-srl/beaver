@@ -162,3 +162,80 @@ def test_cli_queue_peek_empty(tmp_path):
     result = runner.invoke(app, ["--db", db_path, "queue", "jobs", "peek"])
     assert result.exit_code == 0
     assert result.output.strip() == ""  # None → no print
+
+
+# --- log CLI ---
+
+
+def test_cli_log_then_count_and_range(tmp_path):
+    db_path = str(tmp_path / "x.db")
+    runner.invoke(
+        app,
+        ["--db", db_path, "log", "events", "log", '{"e":"a"}', "--timestamp", "100"],
+    )
+    runner.invoke(
+        app,
+        ["--db", db_path, "log", "events", "log", '{"e":"b"}', "--timestamp", "200"],
+    )
+    result = runner.invoke(app, ["--db", db_path, "log", "events", "count"])
+    assert json.loads(result.output) == 2
+
+    result = runner.invoke(app, ["--db", db_path, "log", "events", "range"])
+    entries = json.loads(result.output)
+    assert len(entries) == 2
+    assert entries[0]["data"] == {"e": "a"}
+    assert entries[0]["timestamp"] == 100.0
+
+
+def test_cli_log_range_with_bounds(tmp_path):
+    db_path = str(tmp_path / "x.db")
+    for i, ts in enumerate([100, 200, 300]):
+        runner.invoke(
+            app,
+            [
+                "--db",
+                db_path,
+                "log",
+                "events",
+                "log",
+                f'{{"i":{i}}}',
+                "--timestamp",
+                str(ts),
+            ],
+        )
+    result = runner.invoke(
+        app,
+        [
+            "--db",
+            db_path,
+            "log",
+            "events",
+            "range",
+            "--start",
+            "150",
+            "--end",
+            "250",
+        ],
+    )
+    entries = json.loads(result.output)
+    assert len(entries) == 1
+    assert entries[0]["data"] == {"i": 1}
+
+
+def test_cli_log_remote(remote_server):
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "http://test",
+            "log",
+            "events",
+            "log",
+            '{"e":"a"}',
+            "--timestamp",
+            "100",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    result = runner.invoke(app, ["--url", "http://test", "log", "events", "count"])
+    assert json.loads(result.output) == 1

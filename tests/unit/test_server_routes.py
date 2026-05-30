@@ -57,3 +57,15 @@ async def test_router_has_all_queue_routes(db):
     assert ("/queues/{name}/get", ("POST",)) in paths
     assert ("/queues/{name}/count", ("GET",)) in paths
     assert ("/queues/{name}/clear", ("POST",)) in paths
+
+
+@pytest.mark.asyncio
+async def test_router_has_all_log_routes(db):
+    app = create_app(db)
+    paths = {
+        (r.path, tuple(sorted(r.methods))) for r in app.routes if hasattr(r, "methods")
+    }
+    assert ("/logs/{name}/log", ("POST",)) in paths
+    assert ("/logs/{name}/range", ("GET",)) in paths
+    assert ("/logs/{name}/count", ("GET",)) in paths
+    assert ("/logs/{name}/clear", ("POST",)) in paths

@@ -7,6 +7,7 @@ import typer
 import beaver
 from beaver.dicts import AsyncBeaverDict
 from beaver.lists import AsyncBeaverList
+from beaver.logs import AsyncBeaverLog
 from beaver.queues import AsyncBeaverQueue
 from .discovery import build_typer_for
 
@@ -85,6 +86,15 @@ app.add_typer(
         context_key="queue_name",
     ),
     name="queue",
+)
+
+app.add_typer(
+    build_typer_for(
+        AsyncBeaverLog,
+        manager_accessor=lambda conn, name: conn.log(name),
+        context_key="log_name",
+    ),
+    name="log",
 )
 
 

@@ -13,6 +13,7 @@ from typing import (
 
 from pydantic import BaseModel
 
+from .api import expose, local_only
 from .manager import AsyncBeaverBase, atomic, emits
 from .interfaces import LogEntry, IAsyncBeaverLog
 
@@ -67,6 +68,13 @@ class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverLog[T]):
     Refactored for Async-First architecture (v2.0).
     """
 
+    @expose(
+        path="/log",
+        method="POST",
+        cli_name="log",
+        cli_help="Append an entry to the log.",
+        body_param="data",
+    )
     @emits("log", payload=lambda data, *args, **kwargs: dict(data=data))
     @atomic
     async def log(self, data: T, timestamp: float | None = None):
@@ -89,6 +97,12 @@ class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverLog[T]):
                 # Collision detected: shift by 1 microsecond and retry
                 ts += 0.000001
 
+    @expose(
+        path="/range",
+        method="GET",
+        cli_name="range",
+        cli_help="List entries within a time range.",
+    )
     async def range(
         self,
         start: float | None = None,
@@ -123,6 +137,9 @@ class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverLog[T]):
             for row in rows
         ]
 
+    @local_only(
+        "log.live() is only available on local databases (infinite stream, no SSE yet)"
+    )
     async def live(self, poll_interval: float = 0.1) -> AsyncIterator[LogEntry[T]]:
         """
         Yields new log entries as they are added in real-time.
@@ -153,6 +170,12 @@ class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverLog[T]):
             # Non-blocking sleep yields control to the event loop
             await asyncio.sleep(poll_interval)
 
+    @expose(
+        path="/count",
+        method="GET",
+        cli_name="count",
+        cli_help="Return the number of entries.",
+    )
     async def count(self) -> int:
         """Returns the total number of entries in the log."""
         cursor = await self.connection.execute(
@@ -161,6 +184,9 @@ class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverLog[T]):
         row = await cursor.fetchone()
         return row[0] if row else 0
 
+    @expose(
+        path="/clear", method="POST", cli_name="clear", cli_help="Clear all entries."
+    )
     @emits("clear", payload=lambda *args, **kwargs: dict())
     @atomic
     async def clear(self):
@@ -177,6 +203,9 @@ class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverLog[T]):
                 val = json.loads(val.model_dump_json())
             yield {"timestamp": entry.timestamp, "data": val}
 
+    @local_only(
+        "log.dump() is only available on local databases (no chunked transfer yet)"
+    )
     async def dump(
         self,
         fp: IO[str] | None = None,
@@ -205,6 +234,9 @@ class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverLog[T]):
             return None
         raise ValueError(f"Unsupported format: {format!r}. Use 'json' or 'jsonl'.")
 
+    @local_only(
+        "log.load() is only available on local databases (no chunked transfer yet)"
+    )
     async def load(
         self,
         fp: IO[str],
@@ -236,6 +268,9 @@ class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverLog[T]):
     async def _load_item(self, item: dict) -> None:
         await self.log(item["data"], timestamp=item.get("timestamp"))
 
+    @local_only(
+        "log.batched() is only available on local databases (transactional session cannot cross HTTP)"
+    )
     def batched(self) -> AsyncLogBatch[T]:
         """Returns an async context manager for buffered bulk appends."""
         return AsyncLogBatch(self)

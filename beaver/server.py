@@ -15,6 +15,7 @@ from . import __version__
 from .api import EndpointMeta
 from .dicts import AsyncBeaverDict
 from .lists import AsyncBeaverList
+from .logs import AsyncBeaverLog
 from .queues import AsyncBeaverQueue
 from .errors import ErrorEnvelope, envelope_from_exception, http_code_for
 
@@ -68,11 +69,13 @@ def _coerce_path_params(method: Callable, params: dict) -> dict:
 
 
 def _jsonify_result(result):
-    """Return a JSON-serializable representation. NamedTuples → dict."""
+    """Return a JSON-serializable representation. NamedTuples → dict, recursively."""
     if result is None:
         return None
     if isinstance(result, tuple) and hasattr(result, "_asdict"):
-        return result._asdict()
+        return {k: _jsonify_result(v) for k, v in result._asdict().items()}
+    if isinstance(result, list):
+        return [_jsonify_result(x) for x in result]
     return result
 
 
@@ -145,5 +148,10 @@ def create_app(db: "AsyncBeaverDB", *, api_key: str | None = None) -> FastAPI:
         _router_for_manager(AsyncBeaverQueue, lambda db, name: db.queue(name)),
         prefix="/queues",
         tags=["queues"],
+    )
+    app.include_router(
+        _router_for_manager(AsyncBeaverLog, lambda db, name: db.log(name)),
+        prefix="/logs",
+        tags=["logs"],
     )
     return app

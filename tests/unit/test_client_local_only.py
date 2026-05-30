@@ -78,3 +78,28 @@ async def test_remote_queue_dump_raises_local_only(tmp_path):
     finally:
         await client.close()
         await db.close()
+
+
+@pytest.mark.asyncio
+async def test_remote_log_live_raises_local_only(tmp_path):
+    db, client = await _make_client(tmp_path)
+    try:
+        lg = client.log("u")
+        with pytest.raises(LocalOnlyError, match="local"):
+            async for _ in lg.live():
+                pass
+    finally:
+        await client.close()
+        await db.close()
+
+
+@pytest.mark.asyncio
+async def test_remote_log_batched_raises_local_only(tmp_path):
+    db, client = await _make_client(tmp_path)
+    try:
+        lg = client.log("u")
+        with pytest.raises(LocalOnlyError, match="transactional"):
+            lg.batched()
+    finally:
+        await client.close()
+        await db.close()

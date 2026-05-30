@@ -111,6 +111,40 @@ def _build_command(method_name: str, meta: EndpointMeta, manager_accessor: Calla
         def cmd(ctx: typer.Context):
             _run(ctx, manager_accessor, method_name)
 
+    # --- log shapes ---
+    elif method_name == "log":
+
+        def cmd(
+            ctx: typer.Context,
+            data: str = typer.Argument(None),
+            timestamp: float | None = typer.Option(None, "--timestamp"),
+        ):
+            decoded = _read_json_value(data)
+            _run(
+                ctx,
+                manager_accessor,
+                method_name,
+                data=decoded,
+                timestamp=timestamp,
+            )
+
+    elif method_name == "range":
+
+        def cmd(
+            ctx: typer.Context,
+            start: float | None = typer.Option(None, "--start"),
+            end: float | None = typer.Option(None, "--end"),
+            limit: int | None = typer.Option(None, "--limit"),
+        ):
+            _run(
+                ctx,
+                manager_accessor,
+                method_name,
+                start=start,
+                end=end,
+                limit=limit,
+            )
+
     # --- queue shapes ---
     elif method_name == "put":
 
@@ -158,6 +192,17 @@ def _run(ctx: typer.Context, manager_accessor: Callable, method_name: str, **kwa
     _invoke_and_print(mgr, method_name, raw, **kwargs)
 
 
+def _jsonify(result):
+    """NamedTuples (e.g. QueueItem, LogEntry) JSON-dump as arrays; surface as dicts, recursively."""
+    if result is None:
+        return None
+    if isinstance(result, tuple) and hasattr(result, "_asdict"):
+        return {k: _jsonify(v) for k, v in result._asdict().items()}
+    if isinstance(result, list):
+        return [_jsonify(x) for x in result]
+    return result
+
+
 def _invoke_and_print(manager, method_name: str, raw: bool, **kwargs):
     """Call `manager.method_name(**kwargs)`. Manager may be sync (BeaverBridge) or async."""
     method = getattr(manager, method_name)
@@ -166,9 +211,7 @@ def _invoke_and_print(manager, method_name: str, raw: bool, **kwargs):
         result = asyncio.new_event_loop().run_until_complete(result)
     if result is None:
         return
-    # NamedTuples (e.g. QueueItem) JSON-dump as arrays; surface them as dicts.
-    if isinstance(result, tuple) and hasattr(result, "_asdict"):
-        result = result._asdict()
+    result = _jsonify(result)
     if raw:
         print(json.dumps(result))
     else:
