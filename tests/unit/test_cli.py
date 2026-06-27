@@ -78,7 +78,8 @@ def remote_server(tmp_path, monkeypatch):
         await adb.connect()
         return adb
 
-    adb = asyncio.new_event_loop().run_until_complete(boot())
+    loop = asyncio.new_event_loop()
+    adb = loop.run_until_complete(boot())
     fastapi_app = create_app(adb)
     transport = ASGITransport(app=fastapi_app)
 
@@ -89,7 +90,12 @@ def remote_server(tmp_path, monkeypatch):
         original_init(self, *args, transport=transport, **kwargs)
 
     monkeypatch.setattr(httpx.AsyncClient, "__init__", patched_init)
-    yield
+    try:
+        yield
+    finally:
+        # Close the DB (and its aiosqlite thread) so the test process can exit.
+        loop.run_until_complete(adb.close())
+        loop.close()
 
 
 def test_cli_remote_set_then_get(remote_server):

@@ -160,28 +160,36 @@ class AsyncBeaverDB:
             # We will manage transactions manually via .transaction()
             isolation_level=None,
         )
-        self._connection.row_factory = aiosqlite.Row
+        # If any setup step below fails (e.g. an incompatible-schema version
+        # check), close the just-opened connection so we don't leak its
+        # background aiosqlite thread.
+        try:
+            self._connection.row_factory = aiosqlite.Row
 
-        # Apply Pragmas
-        if self._pragma_wal:
-            await self._connection.execute("PRAGMA journal_mode = WAL;")
+            # Apply Pragmas
+            if self._pragma_wal:
+                await self._connection.execute("PRAGMA journal_mode = WAL;")
 
-        if self._pragma_synchronous:
-            await self._connection.execute("PRAGMA synchronous = FULL;")
-        else:
-            await self._connection.execute("PRAGMA synchronous = NORMAL;")
+            if self._pragma_synchronous:
+                await self._connection.execute("PRAGMA synchronous = FULL;")
+            else:
+                await self._connection.execute("PRAGMA synchronous = NORMAL;")
 
-        if self._pragma_temp_memory:
-            await self._connection.execute("PRAGMA temp_store = MEMORY;")
+            if self._pragma_temp_memory:
+                await self._connection.execute("PRAGMA temp_store = MEMORY;")
 
-        if self._pragma_mmap_size > 0:
-            await self._connection.execute(
-                f"PRAGMA mmap_size = {self._pragma_mmap_size};"
-            )
+            if self._pragma_mmap_size > 0:
+                await self._connection.execute(
+                    f"PRAGMA mmap_size = {self._pragma_mmap_size};"
+                )
 
-        await self._check_version()
-        await self._create_all_tables()
-        await self._connection.execute(f"PRAGMA user_version = {BEAVER_DB_VERSION}")
+            await self._check_version()
+            await self._create_all_tables()
+            await self._connection.execute(f"PRAGMA user_version = {BEAVER_DB_VERSION}")
+        except BaseException:
+            await self._connection.close()
+            self._connection = None
+            raise
 
         return self
 
