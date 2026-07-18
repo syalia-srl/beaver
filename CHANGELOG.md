@@ -2,6 +2,27 @@
 
 All notable changes to beaver-db will be recorded here.
 
+## 2.1.0 — 2026-07-18
+
+### Added
+
+- **`docs.search()` filtered/range search.** `search(query=None, *, on=None,
+  where=None, sort=None, limit=None, offset=None, fuzzy=False)` — the
+  `where`/`sort`/`limit`/`offset` keywords make metadata-filtered and numeric-range
+  document queries usable through the **sync** portal (previously only the async
+  fluent `query()...where()...execute()` builder could express them). Backward
+  compatible with the positional `search(query, on, fuzzy)` form.
+
+### Known issues
+
+- **`col.batched()` re-entry deadlock (#40).** A second *large* batched write on a
+  collection under the sync portal can deadlock (the `executemany` self-locks with
+  `BEGIN IMMEDIATE` held). Workaround: use one `batched()` context per collection.
+
+## 2.0.0 — 2026-06-27
+
+Final 2.0 release (concludes the `2.0rc*` series above).
+
 ## 2.0rc5 — 2026-05-25
 
 ### Fixed
