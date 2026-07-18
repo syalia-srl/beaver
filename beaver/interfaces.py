@@ -300,7 +300,15 @@ class IAsyncBeaverDocuments[T: BaseModel](Protocol):
     async def drop(self, id_or_document: str | Document[T]) -> None: ...
     def query(self) -> IDocumentQuery[T]: ...
     async def search(
-        self, query: str, on: List[str] | None = None, fuzzy: bool = False
+        self,
+        query: str | None = None,
+        on: List[str] | None = None,
+        fuzzy: bool = False,
+        *,
+        where: list | None = None,
+        sort: dict | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
     ) -> List[ScoredDocument[T]]: ...
     async def count(self) -> int: ...
     async def clear(self) -> None: ...
@@ -330,7 +338,15 @@ class IBeaverDocuments[T: BaseModel](Protocol):
     def drop(self, id_or_document: str | Document[T]) -> None: ...
     def query(self) -> Any: ...  # Returns sync-wrapped query builder
     def search(
-        self, query: str, on: List[str] | None = None, fuzzy: bool = False
+        self,
+        query: str | None = None,
+        on: List[str] | None = None,
+        fuzzy: bool = False,
+        *,
+        where: list | None = None,
+        sort: dict | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
     ) -> List[ScoredDocument[T]]: ...
     def count(self) -> int: ...
     def clear(self) -> None: ...

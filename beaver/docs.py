@@ -383,12 +383,28 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
         return DocumentQuery(self)
 
     async def search(
-        self, query: str, on: List[str] | None = None, fuzzy: bool = False
+        self,
+        query: str | None = None,
+        on: List[str] | None = None,
+        fuzzy: bool = False,
+        *,
+        where: list | None = None,
+        sort: dict | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
     ):
-        if fuzzy:
-            return await self.query().fuzzy(query).execute()
-        else:
-            return await self.query().fts(query, on=on).execute()
+        qb = self.query()
+        if query is not None:
+            qb = qb.fuzzy(query) if fuzzy else qb.fts(query, on=on)
+        if where:
+            qb = qb.where(*where)
+        if sort:
+            qb = qb.sort(**sort)
+        if limit is not None:
+            qb = qb.limit(limit)
+        if offset is not None:
+            qb = qb.offset(offset)
+        return await qb.execute()
 
     async def _execute_query(self, q: DocumentQuery) -> List[ScoredDocument[T]]:
         """
