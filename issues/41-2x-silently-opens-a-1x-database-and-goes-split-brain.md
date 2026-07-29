@@ -99,10 +99,22 @@ current version by the accidental 2.x open.
 Must not regress: fresh databases, existing 2.x databases, `:memory:`, and
 the rc3 lists check.
 
-### 5. Slice 2: in-place migrator (design only)
+### 5. Slice 2: the migrator — done
 
-The legacy tables are ordinary SQLite that 2.x can read directly, so a
-single-process, in-place `beaver_*` → `__beaver_*__` migration is feasible
-with no 1.x install. Design lives in
-`docs/migration-1x-to-2x.md`; not implemented yet — needs sign-off from the
-consumer side (AInBox) before it lands.
+`beaver migrate <path> [--dry-run] [--output PATH]`, implemented in
+`beaver/migrate.py`. No 1.x install needed; the legacy tables are ordinary
+SQLite that 2.x reads directly.
+
+Two safety properties hold by construction:
+
+- the source is opened **read-only**, so it cannot be mutated — not even by
+  checkpointing its WAL;
+- the destination is a **separate file**, so there is never a moment when a
+  half-migrated database is the only copy.
+
+Split-brain databases are refused rather than merged: reconciling two disjoint
+datasets is an application-level judgement, and making it silently would repeat
+the mistake this issue is about.
+
+Validated against a real production `superbot.db` from the demos VPS, read back
+through beaver's own API. Details in `docs/migration-1x-to-2x.md`.

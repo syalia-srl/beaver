@@ -29,7 +29,7 @@ def root(
         False, "--raw", help="Strip pretty-print from JSON output."
     ),
 ):
-    if ctx.invoked_subcommand == "serve":
+    if ctx.invoked_subcommand in ("serve", "migrate"):
         ctx.obj = {"raw": raw}
         return
     if (db is None) == (url is None):
@@ -59,6 +59,47 @@ def serve(
     adb = asyncio.run(_init())
     fastapi_app = create_app(adb, api_key=api_key)
     uvicorn.run(fastapi_app, host=host, port=port)
+
+
+@app.command()
+def migrate(
+    source: str = typer.Argument(..., help="Path to the beaver 1.x database."),
+    output: str | None = typer.Option(
+        None, "--output", "-o", help="Destination path (default: <source>.migrated)."
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Report what would be migrated; write nothing."
+    ),
+):
+    """Migrate a beaver 1.x database to the 2.x schema.
+
+    The source is opened read-only and is never modified. The migrated copy is
+    written to a new file, so swapping it in stays an explicit, reversible step.
+    """
+    import asyncio
+
+    from beaver.core import BeaverLegacySchemaError
+    from beaver.migrate import format_report, migrate_database, plan_migration
+
+    try:
+        if dry_run:
+            report = plan_migration(source)
+        else:
+            destination = output or f"{source}.migrated"
+            report = asyncio.run(migrate_database(source, destination))
+    except (BeaverLegacySchemaError, FileExistsError, FileNotFoundError) as exc:
+        typer.secho(str(exc), fg="red", err=True)
+        raise typer.Exit(code=1)
+
+    typer.echo(format_report(report))
+
+    if not report.dry_run:
+        typer.echo(
+            "\nThe original is untouched. To adopt the migrated copy:\n"
+            f"  mv {report.source} {report.source}.1x-backup\n"
+            f"  mv {report.destination} {report.source}\n"
+            "Keep the backup until you have verified the migration."
+        )
 
 
 app.add_typer(

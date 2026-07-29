@@ -14,11 +14,36 @@ fresh dunder table set beside the untouched legacy one. See `issues/41`.
 **Your data is intact.** Nothing was deleted, moved, or rewritten — 2.x simply
 cannot see tables under the old names. Stop writing to the file and migrate it.
 
-There is no automatic migrator yet (see the design below). Today the supported
-path is dump-and-load with both versions installed, the same shape as
-`migration-rc3-to-rc4-lists.md`: read with `beaver-db==1.3.0`, write the values
-out as JSON, then load them into a **new** database opened with 2.x. Do not
-load into the legacy file itself.
+Use the migrator:
+
+```bash
+beaver migrate mydata.db --dry-run   # report only; writes nothing
+beaver migrate mydata.db             # writes mydata.db.migrated
+```
+
+The source is opened **read-only** and is never modified — not even to
+checkpoint its WAL. The migrated database is written to a new file, so
+adopting it stays an explicit, reversible step:
+
+```bash
+mv mydata.db mydata.db.1x-backup
+mv mydata.db.migrated mydata.db
+```
+
+Keep the backup until you have verified the result. `--dry-run` reports rows
+per store, which lists need their ordering regenerated, which indices get
+rebuilt, and which tables are dropped and why — it predicts exactly what the
+real run does.
+
+### A note on WAL
+
+If the database has an uncheckpointed `-wal` sidecar, its contents *are*
+included: SQLite presents main+WAL as one coherent view, and the migrator
+reads that view. The dry run reports the WAL's size when one is present.
+
+This matters when you copy a database around: **a copy must carry the `-wal`
+file with it.** Copying only the `.db` silently gives you the state as of the
+last checkpoint, losing everything still in the WAL.
 
 ## If you hit the SPLIT-BRAIN variant
 
@@ -36,13 +61,11 @@ first, then dump both sides and merge deliberately.
 
 ---
 
-## Design: in-place migrator (proposed, NOT implemented)
+## How the migrator works
 
-Status: **design only.** Do not assume this exists.
-
-The legacy tables are ordinary SQLite that 2.x can read directly, so the
-dump-and-load dance above is unnecessary in principle. A single-process,
-in-place `beaver_*` → `__beaver_*__` migration needs no 1.x install at all.
+Implemented in `beaver/migrate.py`, exposed as `beaver migrate`. It needs no
+beaver 1.x install: the legacy tables are ordinary SQLite that 2.x reads
+directly.
 
 ### Table mapping
 
@@ -99,17 +122,32 @@ carry a schema mismatch across:
   waiter or an undelivered pub/sub message from a dead 1.x process is not
   worth carrying forward.
 
+### Encrypted values
+
+Dict values are copied as **opaque TEXT**. A beaver `Secret` field is Fernet
+ciphertext in that column, and the salt + verifier live in the `__security__`
+dict — which migrates like any other dict. So the migrator never decrypts
+anything, needs no key material, and encrypted dicts open afterwards with the
+same secret they had before.
+
 ### Mechanics
 
-Run the whole migration inside one transaction, after `_create_all_tables` has
-made the dunder tables, then `DROP TABLE` each legacy table and stamp
-`PRAGMA user_version`. If anything raises, the rollback leaves the file exactly
-as it was — which is the property that makes in-place safe enough to offer.
+The source is opened read-only (`file:<path>?mode=ro`). A read-only connection
+cannot checkpoint, so inspecting a database leaves its main file and `-wal`
+byte-identical. Data is written into a freshly created 2.x database inside one
+transaction; if anything raises, the destination is incomplete but the source
+was never a participant.
 
-Take a file copy first regardless. `VACUUM` afterwards to reclaim the space the
-dropped tables held.
+There is deliberately **no in-place mode**. Writing beside the original and
+leaving the swap to the operator means there is never a moment when a
+half-migrated file is the only copy — strictly safer than in-place-with-backup,
+and simpler to reason about.
 
-### Recommended surface: a CLI subcommand
+**Split-brain databases are refused, not merged.** Two disjoint datasets is a
+judgement about which writes matter, and that is exactly the kind of decision
+this tool must not make silently. Dump both sides and reconcile deliberately.
+
+### Surface: a CLI subcommand
 
 `beaver migrate <path>` — and **not** an opt-in `BeaverDB(path, migrate=True)`.
 
@@ -135,5 +173,15 @@ kept in step with the schema by hand, and the schema knowledge it needs already
 lives in the package.
 
 The CLI already exists as the `beaver` entry point (`issues/36`), so this is a
-new subcommand rather than new infrastructure. `BeaverLegacySchemaError`'s
-message should then name the exact command to run.
+new subcommand rather than new infrastructure.
+
+### Verified against a real database
+
+The migrator was validated on a production `superbot.db` pulled from the demos
+VPS (genuine beaver 1.3.0: 7 dicts, 5 lists, 1 collection, a 4.1 MB
+uncheckpointed WAL against a 340 KB main file). All 27 rows migrated, and the
+result was read back **through beaver's own API**, not SQL: dict counts match
+per store, `conv:*:pairs` lists come back in their original order, the
+collection fans out into 3 documents plus 3 384-dimension vectors, and
+rebuilt-from-scratch FTS answers `search("Habana")`. The source's main file and
+`-wal` were byte-identical afterwards.
