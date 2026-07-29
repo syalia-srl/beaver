@@ -1,4 +1,5 @@
 import asyncio
+import json
 import threading
 from typing import Any, Self, Type, AsyncContextManager
 
@@ -45,6 +46,40 @@ class BeaverIncompatibleSchemaError(RuntimeError):
     """Raised when opening a database whose schema is incompatible with this
     version of beaver. The user must dump-and-reload to migrate.
     See docs/migration-rc3-to-rc4-lists.md."""
+
+
+class BeaverLegacySchemaError(BeaverIncompatibleSchemaError):
+    """Raised when opening a database written by beaver 1.x.
+
+    1.x stored data in single-prefix tables (``beaver_dicts``, ``beaver_lists``,
+    ...); 2.x uses dunder names (``__beaver_dicts__``, ...). Opening a 1.x file
+    with 2.x would leave the legacy data invisible and start a parallel
+    dataset beside it, so we refuse instead. See docs/migration-1x-to-2x.md."""
+
+
+#: Core table names written by beaver 1.x. Detection keys on these exact names
+#: rather than a ``beaver_%`` prefix match so an unrelated user table in the
+#: same file cannot trigger a false refusal. 2.x never creates any of them —
+#: every ``CREATE TABLE`` in the package uses the dunder form.
+LEGACY_1X_TABLES = frozenset(
+    {
+        "beaver_blobs",
+        "beaver_collection_versions",
+        "beaver_collections",
+        "beaver_dicts",
+        "beaver_edges",
+        "beaver_fts_index",
+        "beaver_lists",
+        "beaver_lock_waiters",
+        "beaver_logs",
+        "beaver_manager_versions",
+        "beaver_priority_queues",
+        "beaver_pubsub_log",
+        "beaver_sketches",
+        "beaver_trigrams",
+        "beaver_vector_change_log",
+    }
+)
 
 
 class Transaction:
@@ -228,6 +263,92 @@ class AsyncBeaverDB:
         """
         return Transaction(self)
 
+    async def _tables_named(self, names) -> list[str]:
+        """Return which of `names` exist as tables in the open database."""
+        names = tuple(sorted(names))
+        placeholders = ",".join("?" * len(names))
+        cursor = await self._connection.execute(
+            f"SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ({placeholders})",
+            names,
+        )
+        return sorted(row[0] for row in await cursor.fetchall())
+
+    async def _modern_tables(self) -> list[str]:
+        """Return the __beaver_*__ tables present. GLOB is used because `_` is
+        a literal in GLOB patterns but a wildcard in LIKE."""
+        cursor = await self._connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name GLOB '__beaver_*__'"
+        )
+        return sorted(row[0] for row in await cursor.fetchall())
+
+    async def _legacy_version_label(self) -> str:
+        """Read the version beaver 1.x stamped into beaver_dicts.__metadata__."""
+        try:
+            cursor = await self._connection.execute(
+                "SELECT value FROM beaver_dicts "
+                "WHERE dict_name = '__metadata__' AND key = 'version'"
+            )
+            row = await cursor.fetchone()
+        except aiosqlite.Error:
+            return "unknown"
+
+        if row is None or row[0] is None:
+            return "unknown"
+
+        try:
+            return str(json.loads(row[0]))
+        except (TypeError, ValueError):
+            return str(row[0])
+
+    async def _check_legacy_schema(self) -> None:
+        """Refuse databases written by beaver 1.x.
+
+        1.x used single-prefix table names (`beaver_dicts`, `beaver_lists`, ...)
+        where 2.x uses dunder names. Opening one here would silently report the
+        database as empty and then write a second, parallel dataset beside the
+        untouched legacy tables. See issues/41.
+
+        Detection keys on the *presence* of legacy tables rather than the
+        absence of dunder ones, because a brand-new database also has no dunder
+        tables at this point — this runs before _create_all_tables.
+        """
+        legacy = await self._tables_named(LEGACY_1X_TABLES)
+        if not legacy:
+            return
+
+        version = await self._legacy_version_label()
+        modern = await self._modern_tables()
+        listed = ", ".join(legacy)
+
+        if modern:
+            raise BeaverLegacySchemaError(
+                f"Database {self._db_path!r} is SPLIT-BRAIN: it holds both a "
+                f"beaver 1.x dataset and a beaver 2.x dataset side by side.\n"
+                f"  legacy (beaver {version}) tables: {listed}\n"
+                f"  2.x tables: {', '.join(modern)}\n"
+                "A previous 2.x process opened this 1.x database without "
+                "noticing, so reads returned empty and every subsequent write "
+                "went into the 2.x tables. Both datasets are intact on disk, "
+                "but they are disjoint: rolling back to beaver 1.x now loses "
+                "everything written since that open, and continuing with 2.x "
+                "leaves the original 1.x data unreachable.\n"
+                "Do not write to this database again until it is reconciled. "
+                "See docs/migration-1x-to-2x.md."
+            )
+
+        raise BeaverLegacySchemaError(
+            f"Database {self._db_path!r} was created by beaver {version} and "
+            "cannot be opened by beaver 2.x.\n"
+            f"  legacy tables found: {listed}\n"
+            "beaver 1.x stored data in single-prefix tables (beaver_dicts, "
+            "beaver_lists, ...); 2.x uses dunder-prefixed tables "
+            "(__beaver_dicts__, ...). Opening this file with 2.x would report "
+            "every dict, list and collection as empty and then start a second, "
+            "parallel dataset beside the original one.\n"
+            "Your data is intact and untouched. Migrate it before reopening — "
+            "see docs/migration-1x-to-2x.md."
+        )
+
     async def _check_version(self) -> None:
         """Verify the open database is compatible with this beaver version.
 
@@ -236,6 +357,11 @@ class AsyncBeaverDB:
         have user_version=0 but already have __beaver_lists__ with REAL
         item_order — we reject those unless the lists table is empty.
         """
+        # Runs before the user_version fast path below: a split-brain database
+        # has already been stamped to the current version by the accidental
+        # 2.x open that created it, so the fast path would skip detection.
+        await self._check_legacy_schema()
+
         cursor = await self._connection.execute("PRAGMA user_version")
         row = await cursor.fetchone()
         current = row[0] if row else 0
@@ -634,7 +760,15 @@ class BeaverDB:
             return db
 
         future = asyncio.run_coroutine_threadsafe(init_engine(), self._loop)
-        self._async_db = future.result()
+        try:
+            self._async_db = future.result()
+        except BaseException:
+            # connect() can legitimately fail (e.g. a legacy 1.x schema). Stop
+            # the reactor thread we just started instead of leaking it.
+            self._loop.call_soon_threadsafe(self._loop.stop)
+            self._thread.join(timeout=1.0)
+            self._closed = True
+            raise
         self._closed = False
 
     def close(self):

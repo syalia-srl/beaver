@@ -3,7 +3,7 @@
 import pydantic
 from pydantic import BaseModel
 
-from .core import BeaverIncompatibleSchemaError
+from .core import BeaverIncompatibleSchemaError, BeaverLegacySchemaError
 
 
 class BeaverRemoteError(Exception):
@@ -25,6 +25,7 @@ _REGISTRY: dict[str, type[Exception]] = {
     "ValueError": ValueError,
     "TimeoutError": TimeoutError,
     "BeaverIncompatibleSchemaError": BeaverIncompatibleSchemaError,
+    "BeaverLegacySchemaError": BeaverLegacySchemaError,
     "ValidationError": pydantic.ValidationError,
 }
 
