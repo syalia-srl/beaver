@@ -2,6 +2,62 @@
 
 All notable changes to beaver-db will be recorded here.
 
+## 2.2.0 — 2026-07-29
+
+### Fixed — data-loss class (#41)
+
+- **beaver 2.x no longer opens a beaver 1.x database silently.** 1.x named its
+  tables `beaver_dicts` / `beaver_lists` / …; 2.x uses the dunder form
+  (`__beaver_dicts__`, …), and the version check only inspected the dunder
+  names. So a genuine 1.x file **opened without error and reported every dict,
+  list and collection as empty**, then wrote a second, parallel dataset beside
+  the untouched originals — leaving the database split-brain, where rolling back
+  to 1.x loses the new writes and staying on 2.x leaves the original data
+  unreachable. Nothing signalled that a migration was due.
+
+  Opening a 1.x database now raises **`BeaverLegacySchemaError`** (a subclass of
+  `BeaverIncompatibleSchemaError`, so existing handlers keep working). A
+  split-brain file gets a distinct, louder error. Both name the detected 1.x
+  version and point at `docs/migration-1x-to-2x.md`. Detection keys on the
+  presence of an explicit set of 1.x table names — not a `beaver_%` prefix — so
+  an unrelated user table cannot trigger a false refusal, and it runs *before*
+  the `user_version` fast path, which a split-brain file would otherwise skip.
+
+  **Upgrading with existing data:** this is deliberately a hard failure. Run
+  `beaver migrate` (below) before pointing 2.2 at a 1.x database.
+
+### Added
+
+- **`beaver migrate <path>`** — one-way 1.x → 2.x database migration.
+  `--dry-run` reports rows per store, list orderings to regenerate, indices to
+  rebuild and tables to drop *with a reason each*, and predicts the real run
+  exactly. `--output` chooses the destination.
+
+  The source is opened **read-only** and is never a participant in the write
+  path — it cannot be mutated, even by a WAL checkpoint. The destination is
+  always a new file; the command prints the `mv` commands to adopt it, so there
+  is no window in which a half-migrated database is the only copy.
+
+  Mapping: dicts, blobs, logs, priority queues, sketches and edges copy straight
+  across; list ordering is regenerated (1.x `item_order` was a `REAL` midpoint
+  scheme, 2.x is a fractional index); `beaver_collections` **fans out into two
+  tables** (`__beaver_documents__` + `__beaver_vectors__`), with document bodies
+  stored verbatim and vectors copied byte-for-byte; FTS and trigram indices are
+  rebuilt; ephemeral and cache-bookkeeping tables are dropped. Dict values move
+  as opaque text, so encrypted values round-trip without the tool holding key
+  material. Split-brain databases are refused rather than merged — deciding
+  which writes win is an application-level judgement.
+
+- `BeaverLegacySchemaError` exported from `beaver` and registered in the error
+  registry.
+- `docs/migration-1x-to-2x.md` — the schema diff and the migration procedure.
+
+### Fixed
+
+- `BeaverDB.__init__` now tears down its reactor thread when `connect()` fails,
+  instead of leaking a thread and event loop. Previously `connect()` almost
+  never raised; with the check above it legitimately can.
+
 ## 2.1.0 — 2026-07-18
 
 ### Added
