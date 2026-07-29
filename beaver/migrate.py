@@ -80,6 +80,11 @@ class MigrationReport:
     copied: dict[str, int] = field(default_factory=dict)
     rebuilt: dict[str, str] = field(default_factory=dict)
     dropped: dict[str, str] = field(default_factory=dict)
+    #: Set on a dry run over a split-brain database. The migration itself is
+    #: still refused; this only describes what is on each side.
+    split_brain: bool = False
+    #: kind -> {store name -> rows} for the 2.x half of a split-brain database.
+    modern: dict[str, dict[str, int]] = field(default_factory=dict)
 
     @property
     def total_rows(self) -> int:
@@ -140,8 +145,8 @@ def _wal_bytes(path: str) -> int | None:
     return os.path.getsize(wal) if os.path.exists(wal) else None
 
 
-def _require_migratable(conn: sqlite3.Connection, path: str) -> None:
-    """Reject anything that is not a plain, untouched 1.x database."""
+def _classify(conn: sqlite3.Connection, path: str) -> tuple[list[str], list[str]]:
+    """Return (legacy tables, 2.x tables) present, rejecting non-1.x files."""
     names = _table_names(conn)
     legacy = sorted(names & LEGACY_1X_TABLES)
     if not legacy:
@@ -149,8 +154,13 @@ def _require_migratable(conn: sqlite3.Connection, path: str) -> None:
             f"Database {path!r} has no beaver 1.x tables; there is nothing to "
             "migrate. If it is already a 2.x database, open it directly."
         )
-
     modern = sorted(n for n in names if n.startswith("__beaver_") and n.endswith("__"))
+    return legacy, modern
+
+
+def _require_migratable(conn: sqlite3.Connection, path: str) -> None:
+    """Reject anything that is not a plain, untouched 1.x database."""
+    legacy, modern = _classify(conn, path)
     if modern:
         raise BeaverLegacySchemaError(
             f"Database {path!r} is SPLIT-BRAIN: it holds both a beaver 1.x "
@@ -160,23 +170,77 @@ def _require_migratable(conn: sqlite3.Connection, path: str) -> None:
             "Automatic migration is refused. The two datasets are disjoint and "
             "reconciling them means deciding which writes win — an "
             "application-level judgement this tool must not make silently. "
-            "Dump both sides and merge them deliberately. See "
+            "Run `beaver migrate --dry-run` to see row counts on both sides, "
+            "then dump and merge them deliberately. See "
             "docs/migration-1x-to-2x.md."
         )
+
+
+#: Per-store 2.x tables, reported alongside their legacy counterparts so a
+#: split-brain dry run can be read as a side-by-side comparison.
+_MODERN_STORES: dict[str, tuple[str, str]] = {
+    "dicts": ("__beaver_dicts__", "dict_name"),
+    "lists": ("__beaver_lists__", "list_name"),
+    "documents": ("__beaver_documents__", "collection"),
+    "vectors": ("__beaver_vectors__", "collection"),
+}
+
+
+def _modern_side(
+    conn: sqlite3.Connection, modern: list[str]
+) -> dict[str, dict[str, int]]:
+    """Row counts for the 2.x half of a split-brain database.
+
+    Per-store for the four kinds that have a legacy counterpart, table-level
+    for anything else that is non-empty.
+    """
+    present = set(modern)
+    side: dict[str, dict[str, int]] = {}
+
+    for kind, (table, column) in _MODERN_STORES.items():
+        if table not in present:
+            continue
+        try:
+            rows = conn.execute(
+                f"SELECT {column}, COUNT(*) FROM {table} GROUP BY {column} ORDER BY {column}"
+            ).fetchall()
+        except sqlite3.Error:
+            continue
+        if rows:
+            side[kind] = {name: n for name, n in rows}
+
+    other = {}
+    accounted = {table for table, _ in _MODERN_STORES.values()}
+    for table in modern:
+        if table in accounted:
+            continue
+        n = _count(conn, table)
+        if n:
+            other[table] = n
+    if other:
+        side["other tables"] = other
+
+    return side
 
 
 def plan_migration(source: str) -> MigrationReport:
     """Inspect a 1.x database read-only and report what a migration would do."""
     conn = _open_readonly(source)
     try:
-        _require_migratable(conn, source)
+        legacy, modern = _classify(conn, source)
         report = MigrationReport(
             source=source,
             destination=None,
             legacy_version=_legacy_version(conn),
             dry_run=True,
             wal_bytes=_wal_bytes(source),
+            split_brain=bool(modern),
         )
+        if modern:
+            # Deliberately still described rather than refused: an operator who
+            # hit the split-brain error needs counts on both sides to decide
+            # which dataset matters. Migration itself remains refused.
+            report.modern = _modern_side(conn, modern)
         names = _table_names(conn)
 
         for name, n in conn.execute(
@@ -456,22 +520,68 @@ def format_report(report: MigrationReport) -> str:
             lines.append(f"  {name:<48} {n:>7} rows")
         lines.append("")
 
+    if report.split_brain:
+        lines.append("*** SPLIT-BRAIN — THIS DATABASE CANNOT BE MIGRATED ***")
+        lines.append("")
+        lines.append(
+            "It holds a beaver 1.x dataset and a beaver 2.x dataset side by side.\n"
+            "A 2.x process opened the 1.x file, read it as empty, and wrote its\n"
+            "data into the 2.x tables. The two sides are disjoint: neither is a\n"
+            "superset of the other, and no automatic merge is possible because\n"
+            "deciding which writes win is an application-level judgement.\n"
+            "\n"
+            "Below is what each side holds, so you can make that decision. The\n"
+            "real `beaver migrate` run refuses this database by design."
+        )
+        lines.append("")
+        lines.append("--- 1.x side (the original data) ---")
+        lines.append("")
+
     section("dicts", report.dicts)
-    section("lists (ordering regenerated REAL -> fractional index)", report.lists)
+    section(
+        (
+            "lists"
+            if report.split_brain
+            else "lists (ordering regenerated REAL -> fractional index)"
+        ),
+        report.lists,
+    )
     section("collections -> documents", report.documents)
     section("collections -> vectors", report.vectors)
     section("copied verbatim", report.copied)
 
-    if report.rebuilt:
-        lines.append(f"rebuilt ({len(report.rebuilt)}):")
-        for name, why in sorted(report.rebuilt.items()):
-            lines.append(f"  {name:<28} {why}")
-        lines.append("")
-    if report.dropped:
-        lines.append(f"dropped ({len(report.dropped)}):")
-        for name, why in sorted(report.dropped.items()):
-            lines.append(f"  {name:<28} {why}")
-        lines.append("")
+    if not report.split_brain:
+        if report.rebuilt:
+            lines.append(f"rebuilt ({len(report.rebuilt)}):")
+            for name, why in sorted(report.rebuilt.items()):
+                lines.append(f"  {name:<28} {why}")
+            lines.append("")
+        if report.dropped:
+            lines.append(f"dropped ({len(report.dropped)}):")
+            for name, why in sorted(report.dropped.items()):
+                lines.append(f"  {name:<28} {why}")
+            lines.append("")
 
-    lines.append(f"total rows {verb}: {report.total_rows}")
+        lines.append(f"total rows {verb}: {report.total_rows}")
+        return "\n".join(lines)
+
+    lines.append("--- 2.x side (written since that accidental open) ---")
+    lines.append("")
+    if not report.modern:
+        lines.append("  (2.x tables exist but are all empty)")
+        lines.append("")
+    for kind, stores in report.modern.items():
+        section(kind, stores)
+
+    lines.append(
+        f"1.x side: {report.total_rows} rows   |   "
+        f"2.x side: {sum(sum(s.values()) for s in report.modern.values())} rows"
+    )
+    lines.append("")
+    lines.append(
+        "No migration path exists without a human decision. Take a copy of the\n"
+        "file first, then dump each side and merge deliberately. Rolling back to\n"
+        "beaver 1.x loses the 2.x side; continuing with 2.x leaves the 1.x side\n"
+        "unreachable. See docs/migration-1x-to-2x.md."
+    )
     return "\n".join(lines)

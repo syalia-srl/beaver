@@ -297,19 +297,70 @@ async def test_migrated_database_opens_with_2x(paths):
     assert not any(n in names for n in ("beaver_dicts", "beaver_lists"))
 
 
-async def test_refuses_split_brain_source(paths):
-    src, dst = paths
+def make_split_brain(src: str) -> None:
+    """A 1.x file that some 2.x process already wrote into."""
     conn = make_legacy_db(src)
+    put_dict(conn, "settings", "theme", "dark")
+    put_list(conn, "events", ["a", "b", "c"])
     conn.execute(
         """CREATE TABLE __beaver_dicts__ (dict_name TEXT NOT NULL, key TEXT NOT NULL,
            value TEXT NOT NULL, expires_at REAL, PRIMARY KEY (dict_name, key))"""
     )
+    conn.execute(
+        """CREATE TABLE __beaver_lists__ (list_name TEXT NOT NULL, item_order TEXT NOT NULL,
+           item_value TEXT NOT NULL, PRIMARY KEY (list_name, item_order))"""
+    )
+    conn.execute(
+        "INSERT INTO __beaver_dicts__ (dict_name, key, value) VALUES (?, ?, ?)",
+        ("settings", "theme", '"light"'),
+    )
+    conn.execute(
+        "INSERT INTO __beaver_dicts__ (dict_name, key, value) VALUES (?, ?, ?)",
+        ("sessions", "sid-1", '"active"'),
+    )
+    conn.execute(
+        "INSERT INTO __beaver_lists__ (list_name, item_order, item_value) VALUES (?, ?, ?)",
+        ("events", "a0", '"d"'),
+    )
     conn.commit()
     conn.close()
+
+
+async def test_refuses_split_brain_source(paths):
+    src, dst = paths
+    make_split_brain(src)
 
     with pytest.raises(BeaverLegacySchemaError, match="SPLIT-BRAIN"):
         await migrate_database(src, dst)
     assert not os.path.exists(dst)
+
+
+async def test_dry_run_describes_split_brain_instead_of_refusing(paths):
+    """The real run refuses, but the dry run must still report both sides.
+
+    An operator who hits the split-brain error needs row counts on each side to
+    decide which dataset matters; refusing here would leave them without a tool
+    to investigate the situation the error told them to investigate.
+    """
+    src, _ = paths
+    make_split_brain(src)
+
+    report = plan_migration(src)
+
+    assert report.split_brain is True
+    # 1.x side, reported as usual.
+    assert report.dicts == {"settings": 1}
+    assert report.lists == {"events": 3}
+    # 2.x side, reported separately and per store.
+    assert report.modern["dicts"] == {"settings": 1, "sessions": 1}
+    assert report.modern["lists"] == {"events": 1}
+
+    rendered = format_report(report)
+    assert "SPLIT-BRAIN" in rendered
+    assert "CANNOT BE MIGRATED" in rendered
+    assert "1.x side" in rendered and "2.x side" in rendered
+    assert "sessions" in rendered
+    assert "No migration path exists without a human decision" in rendered
 
 
 async def test_refuses_a_non_legacy_source(paths):

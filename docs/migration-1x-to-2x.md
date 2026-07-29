@@ -59,6 +59,11 @@ continuing with 2.x loses the first. Reconciling is an application-level
 decision — beaver cannot know which record wins. Take a copy of the file
 first, then dump both sides and merge deliberately.
 
+`beaver migrate` **refuses** such a database. `beaver migrate --dry-run`
+**describes** it instead: row counts per store on each side, so you can see
+where the two datasets overlap and decide which one matters. That is the
+information the refusal is asking you to go and find.
+
 ---
 
 ## How the migrator works
@@ -145,7 +150,9 @@ and simpler to reason about.
 
 **Split-brain databases are refused, not merged.** Two disjoint datasets is a
 judgement about which writes matter, and that is exactly the kind of decision
-this tool must not make silently. Dump both sides and reconcile deliberately.
+this tool must not make silently. `--dry-run` still describes such a file —
+refusing to report on it would leave the operator without the row counts the
+refusal is telling them to go and check.
 
 ### Surface: a CLI subcommand
 
