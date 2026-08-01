@@ -98,6 +98,29 @@ Markers: `unit`, `integration`, `concurrency`.
 version in `pyproject.toml` *and* `beaver/__init__.py`, commits, tags, pushes and
 opens the GitHub release. Don't hand-edit those two version strings.
 
+The GitHub release is what actually ships it: `.github/workflows/release.yaml`
+fires on `release: created`, re-runs the suite, publishes to PyPI with
+`secrets.PYPI_TOKEN`, then pushes the image to GHCR. A tag alone publishes
+nothing.
+
+**Verify against an install, not against the tag — and not against the JSON API
+either.** Two things bite here, both observed releasing 2.3.0 on 2026-08-01:
+
+- `https://pypi.org/pypi/<pkg>/<ver>/json` returned **200** while `uv pip install`
+  still could not resolve the version. The JSON API and the simple index that
+  installers actually read propagate separately, so a 200 there is a proxy
+  signal, not proof the package is installable.
+- `uv` caches the index, and **`--refresh` does not clear it** — the install kept
+  failing with *"there is no version of beaver-db==2.3.0"* long after the simple
+  index listed both artifacts. `--no-cache` is what works.
+
+So the real check is a scratch venv that exercises the feature:
+
+```bash
+uv venv /tmp/verify && VIRTUAL_ENV=/tmp/verify uv pip install --no-cache "beaver-db==X.Y.Z"
+VIRTUAL_ENV=/tmp/verify uv run --no-project python -c "…exercise the new API…"
+```
+
 **Issues are files.** `issues/NN-slug.md` with `number / title / state / labels`
 frontmatter, round-tripped to GitHub by `make issues` (needs the `gh md-issues`
 extension). A substantial feature gets an issue file written *first* — see
