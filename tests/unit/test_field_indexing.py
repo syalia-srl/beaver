@@ -333,3 +333,21 @@ async def test_multiple_filters_intersect(async_db_mem):
         where=[q(Event).actor == "alex", q(Event).duration_ms > 1000]
     )
     assert [r.data.duration_ms for r in rows] == [2000]
+
+
+async def test_order_desc_returns_newest_first(async_db_mem):
+    log = await _seed(async_db_mem, [])
+    rows = await log.range(order="DESC")
+    assert [r.data.actor for r in rows] == ["yudi", "alex", "alex"]
+
+
+async def test_offset_paginates(async_db_mem):
+    log = await _seed(async_db_mem, [])
+    page = await log.range(order="ASC", limit=1, offset=1)
+    assert len(page) == 1 and page[0].data.duration_ms == 2000
+
+
+async def test_order_rejects_anything_but_asc_desc(async_db_mem):
+    log = await _seed(async_db_mem, [])
+    with pytest.raises(ValueError):
+        await log.range(order="ASC; DROP TABLE __beaver_logs__")

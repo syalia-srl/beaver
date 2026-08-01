@@ -161,6 +161,8 @@ class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverLog[T]):
         end: float | None = None,
         limit: int | None = None,
         where: list | None = None,
+        order: str = "ASC",
+        offset: int | None = None,
     ) -> list[LogEntry[T]]:
         """
         Retrieves a list of log entries within a time range.
@@ -195,11 +197,21 @@ class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverLog[T]):
                 query += f" AND {clause}"
             params.extend(filter_params)
 
-        query += " ORDER BY timestamp ASC"
+        direction = order.upper()
+        if direction not in ("ASC", "DESC"):
+            raise ValueError(f"order must be 'ASC' or 'DESC', got {order!r}")
+        query += f" ORDER BY timestamp {direction}"
 
         if limit is not None:
             query += " LIMIT ?"
             params.append(limit)
+
+        if offset is not None:
+            # SQLite requires LIMIT before OFFSET; -1 means "no limit".
+            if limit is None:
+                query += " LIMIT -1"
+            query += " OFFSET ?"
+            params.append(offset)
 
         cursor = await self.connection.execute(query, tuple(params))
         rows = await cursor.fetchall()
