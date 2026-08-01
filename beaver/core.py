@@ -484,6 +484,41 @@ class AsyncBeaverDB:
             "CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON __beaver_logs__ (log_name, timestamp)"
         )
 
+        # Field Index (issue #42) — uniform per-field indexing.
+        # Additive by design: new tables only, no ALTER, no version bump.
+        await c.execute(
+            """
+            CREATE TABLE IF NOT EXISTS __beaver_field_index__ (
+                kind      TEXT NOT NULL,
+                name      TEXT NOT NULL,
+                item_key  TEXT NOT NULL,
+                field     TEXT NOT NULL,
+                value     TEXT,
+                value_num REAL,
+                PRIMARY KEY (kind, name, item_key, field)
+            )
+        """
+        )
+        await c.execute(
+            "CREATE INDEX IF NOT EXISTS idx_field_lookup "
+            "ON __beaver_field_index__ (kind, name, field, value)"
+        )
+        await c.execute(
+            "CREATE INDEX IF NOT EXISTS idx_field_lookup_num "
+            "ON __beaver_field_index__ (kind, name, field, value_num)"
+        )
+        await c.execute(
+            """
+            CREATE TABLE IF NOT EXISTS __beaver_field_index_manifest__ (
+                kind     TEXT NOT NULL,
+                name     TEXT NOT NULL,
+                field    TEXT NOT NULL,
+                complete INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (kind, name, field)
+            )
+        """
+        )
+
         # Priority Queues
         await c.execute(
             """
