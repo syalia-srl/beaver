@@ -143,3 +143,19 @@ async def index_rows(conn, kind: str, name: str) -> int:
     )
     row = await cursor.fetchone()
     return row[0] if row else 0
+
+
+def compile_scan_filters(
+    column: str, filters: list[Filter], alias: str = "d"
+) -> tuple[list[str], list]:
+    """Compile filters to json_extract predicates — the unindexed fallback.
+
+    Correct for any field, indexed or not, which is what lets an incomplete
+    index degrade to something slower instead of something wrong.
+    """
+    clauses: list[str] = []
+    params: list = []
+    for f in filters:
+        clauses.append(f"json_extract({alias}.{column}, '$.{f.path}') {f.operator} ?")
+        params.append(f.value)
+    return clauses, params

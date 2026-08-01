@@ -11,6 +11,7 @@ from typing import (
 
 from pydantic import BaseModel
 
+from . import indexing
 from .queries import Filter
 from .manager import AsyncBeaverBase, atomic, emits
 from .interfaces import Document, ScoredDocument, IDocumentQuery
@@ -468,11 +469,11 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
                 params.extend(q._search_fields)
 
         if q._filters:
-            for filter in q._filters:
-                where.append(
-                    f"json_extract(d.data, '$.{filter.path}') {filter.operator} ?"
-                )
-                params.append(filter.value)
+            clauses, filter_params = indexing.compile_scan_filters(
+                "data", q._filters, alias="d"
+            )
+            where.extend(clauses)
+            params.extend(filter_params)
 
         parts.append("WHERE " + " AND ".join(where))
 

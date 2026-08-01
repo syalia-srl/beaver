@@ -249,3 +249,23 @@ async def test_clear_drops_the_index_too(async_db_mem):
     await log.log(Event(actor="a", duration_ms=1))
     await log.clear()
     assert await index_rows(async_db_mem.connection, "log", "audit") == 0
+
+
+from beaver.indexing import compile_scan_filters
+from beaver import q
+
+
+def test_compile_scan_filters_emits_json_extract_clauses():
+    clauses, params = compile_scan_filters(
+        "data", [q(Item).actor == "alex", q(Item).duration_ms > 1000], alias="l"
+    )
+    assert clauses == [
+        "json_extract(l.data, '$.actor') == ?",
+        "json_extract(l.data, '$.duration_ms') > ?",
+    ]
+    assert params == ["alex", 1000]
+
+
+def test_compile_scan_filters_supports_nested_paths():
+    clauses, _ = compile_scan_filters("data", [q(Item).inner.name == "deep"], alias="d")
+    assert clauses == ["json_extract(d.data, '$.inner.name') == ?"]
