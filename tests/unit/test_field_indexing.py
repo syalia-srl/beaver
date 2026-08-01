@@ -85,3 +85,34 @@ def test_normalize_none_is_a_real_indexable_null():
 def test_normalize_rejects_non_scalar():
     with pytest.raises(UnindexableFieldError):
         normalize(["a", "b"])
+
+
+from beaver.indexing import declare, manifest, mark_complete
+
+
+async def test_declare_records_fields_as_incomplete(async_db_mem):
+    conn = async_db_mem.connection
+    await declare(conn, "log", "audit", ["actor", "app"])
+    assert await manifest(conn, "log", "audit") == {"actor": False, "app": False}
+
+
+async def test_mark_complete_flips_only_named_fields(async_db_mem):
+    conn = async_db_mem.connection
+    await declare(conn, "log", "audit", ["actor", "app"])
+    await mark_complete(conn, "log", "audit", ["actor"])
+    assert await manifest(conn, "log", "audit") == {"actor": True, "app": False}
+
+
+async def test_declare_is_idempotent_and_preserves_complete(async_db_mem):
+    conn = async_db_mem.connection
+    await declare(conn, "log", "audit", ["actor"])
+    await mark_complete(conn, "log", "audit", ["actor"])
+    await declare(conn, "log", "audit", ["actor", "app"])
+    assert await manifest(conn, "log", "audit") == {"actor": True, "app": False}
+
+
+async def test_manifest_is_scoped_per_collection(async_db_mem):
+    conn = async_db_mem.connection
+    await declare(conn, "log", "audit", ["actor"])
+    await declare(conn, "log", "other", ["thing"])
+    assert await manifest(conn, "log", "audit") == {"actor": False}

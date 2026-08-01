@@ -60,3 +60,34 @@ def normalize(value: Any) -> tuple[str | None, float | None]:
         f"Cannot index a value of type {type(value).__name__}; "
         "only str, int, float, bool and None are indexable."
     )
+
+
+async def declare(conn, kind: str, name: str, fields: list[str]) -> None:
+    """Record fields as declared. Idempotent, and never downgrades `complete`.
+
+    Re-declaring an already-complete field must not reset it, or every process
+    restart would silently drop the collection back to scanning.
+    """
+    await conn.executemany(
+        f"INSERT OR IGNORE INTO {MANIFEST_TABLE} (kind, name, field, complete) "
+        "VALUES (?, ?, ?, 0)",
+        [(kind, name, f) for f in fields],
+    )
+
+
+async def manifest(conn, kind: str, name: str) -> dict[str, bool]:
+    """Map declared field -> whether the read path may trust its index."""
+    cursor = await conn.execute(
+        f"SELECT field, complete FROM {MANIFEST_TABLE} WHERE kind = ? AND name = ?",
+        (kind, name),
+    )
+    return {row[0]: bool(row[1]) for row in await cursor.fetchall()}
+
+
+async def mark_complete(conn, kind: str, name: str, fields: list[str]) -> None:
+    """Mark fields as fully backfilled, so queries may use the index."""
+    await conn.executemany(
+        f"UPDATE {MANIFEST_TABLE} SET complete = 1 "
+        "WHERE kind = ? AND name = ? AND field = ?",
+        [(kind, name, f) for f in fields],
+    )
