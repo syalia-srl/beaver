@@ -383,3 +383,40 @@ async def test_reindex_subset_marks_only_those_fields_complete(async_db_mem):
         "actor": True,
         "duration_ms": False,
     }
+
+
+from beaver.indexing import FieldIndex, QueryPlan
+
+
+async def test_indexes_reports_incomplete_before_reindex(async_db_mem):
+    log = await _seed(async_db_mem, ["actor"])
+    await async_db_mem.connection.execute("DELETE FROM __beaver_field_index__")
+    [fi] = await log.indexes()
+    assert fi.field == "actor" and fi.declared and not fi.complete and fi.rows == 0
+
+
+async def test_indexes_reports_complete_after_reindex(async_db_mem):
+    log = await _seed(async_db_mem, ["actor"])
+    await log.reindex()
+    [fi] = await log.indexes()
+    assert fi.complete and fi.rows == 3
+
+
+async def test_explain_names_indexed_and_scanned_fields(async_db_mem):
+    log = await _seed(async_db_mem, ["actor"])
+    await log.reindex()
+    plan = await log.explain(
+        where=[q(Event).actor == "alex", q(Event).duration_ms > 10]
+    )
+    assert plan.indexed == ["actor"]
+    assert plan.scanned == ["duration_ms"]
+
+
+async def test_db_indexes_lists_every_collection(async_db_mem):
+    a = async_db_mem.log("a", model=Event, indexed=["actor"])
+    await a.log(Event(actor="x", duration_ms=1))
+    b = async_db_mem.log("b", model=Event, indexed=["duration_ms"])
+    await b.log(Event(actor="y", duration_ms=2))
+    everything = await async_db_mem.indexes()
+    assert set(everything) == {("log", "a"), ("log", "b")}
+    assert [f.field for f in everything[("log", "a")]] == ["actor"]

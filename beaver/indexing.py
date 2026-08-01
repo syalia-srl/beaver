@@ -6,6 +6,7 @@ Knows nothing about any specific collection; callers pass their `kind`, `name`
 and per-item key.
 """
 
+from dataclasses import dataclass, field as _dc_field
 from typing import Any
 
 from pydantic import BaseModel
@@ -16,6 +17,29 @@ INDEX_TABLE = "__beaver_field_index__"
 MANIFEST_TABLE = "__beaver_field_index_manifest__"
 
 _MISSING = object()
+
+
+@dataclass
+class FieldIndex:
+    """The state of one declared field.
+
+    `declared` says the write path maintains it; `complete` says the read path
+    may trust it. They are different questions and both matter.
+    """
+
+    field: str
+    declared: bool
+    complete: bool
+    rows: int
+
+
+@dataclass
+class QueryPlan:
+    """Which filters resolved by index and which fell back to a scan."""
+
+    indexed: list[str] = _dc_field(default_factory=list)
+    scanned: list[str] = _dc_field(default_factory=list)
+    estimated_rows: int = 0
 
 
 class UnindexableFieldError(TypeError):
@@ -212,3 +236,25 @@ def plan_filters(
             params.extend(ps)
             scanned.append(f.path)
     return clauses, params, indexed, scanned
+
+
+async def field_indexes(conn, kind: str, name: str) -> list[FieldIndex]:
+    declared = await manifest(conn, kind, name)
+    cursor = await conn.execute(
+        f"SELECT field, COUNT(*) FROM {INDEX_TABLE} "
+        "WHERE kind = ? AND name = ? GROUP BY field",
+        (kind, name),
+    )
+    counts = {row[0]: row[1] for row in await cursor.fetchall()}
+    return [
+        FieldIndex(field=f, declared=True, complete=c, rows=counts.get(f, 0))
+        for f, c in sorted(declared.items())
+    ]
+
+
+async def all_field_indexes(conn) -> dict[tuple[str, str], list[FieldIndex]]:
+    cursor = await conn.execute(
+        f"SELECT DISTINCT kind, name FROM {MANIFEST_TABLE} ORDER BY kind, name"
+    )
+    pairs = [(r[0], r[1]) for r in await cursor.fetchall()]
+    return {(k, n): await field_indexes(conn, k, n) for k, n in pairs}

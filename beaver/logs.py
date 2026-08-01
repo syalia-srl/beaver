@@ -221,6 +221,48 @@ class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverLog[T]):
             for row in rows
         ]
 
+    @expose(
+        path="/indexes",
+        method="GET",
+        cli_name="indexes",
+        cli_help="Show declared field indexes and whether they are complete.",
+    )
+    async def indexes(self) -> list[indexing.FieldIndex]:
+        """The declared fields, whether each is trusted, and its row count."""
+        await self._ensure_declared()
+        return await indexing.field_indexes(
+            self.connection, self._INDEX_KIND, self._name
+        )
+
+    @expose(
+        path="/explain",
+        method="POST",
+        cli_name="explain",
+        cli_help="Show which filters would use the index and which would scan.",
+    )
+    async def explain(self, where: list) -> indexing.QueryPlan:
+        """Which filters resolve by index and which fall back to a scan.
+
+        Without this the fallback is invisible: a query that quietly degraded
+        looks exactly like one that used the index, only slower.
+        """
+        await self._ensure_declared()
+        complete = await indexing.manifest(
+            self.connection, self._INDEX_KIND, self._name
+        )
+        _, _, indexed, scanned = indexing.plan_filters(
+            self._INDEX_KIND,
+            self._name,
+            where,
+            complete,
+            key_expr="l.timestamp",
+            column="data",
+            alias="l",
+        )
+        return indexing.QueryPlan(
+            indexed=indexed, scanned=scanned, estimated_rows=await self.count()
+        )
+
     @local_only("reindex() rewrites the local index and is not exposed remotely")
     async def reindex(self, fields: list[str] | None = None) -> int:
         """Backfill the field index for this log and mark those fields complete.

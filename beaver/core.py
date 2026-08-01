@@ -737,6 +737,12 @@ class AsyncBeaverDB:
         """
         return self.singleton(AsyncBeaverLog, name, model=model, indexed=indexed)
 
+    async def indexes(self) -> dict:
+        """Every declared field index in this database, by (kind, name)."""
+        from . import indexing
+
+        return await indexing.all_field_indexes(self.connection)
+
     def lock(
         self, name: str, timeout=None, lock_ttl=60.0, poll_interval=0.1
     ) -> AsyncBeaverLock:
