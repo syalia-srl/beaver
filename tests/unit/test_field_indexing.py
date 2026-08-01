@@ -420,3 +420,44 @@ async def test_db_indexes_lists_every_collection(async_db_mem):
     everything = await async_db_mem.indexes()
     assert set(everything) == {("log", "a"), ("log", "b")}
     assert [f.field for f in everything[("log", "a")]] == ["actor"]
+
+
+import os
+import uuid
+from beaver.core import BEAVER_DB_VERSION, AsyncBeaverDB
+
+
+async def test_existing_database_gains_the_tables_without_a_version_bump(tmp_path):
+    """An unmigrated file must open, gain the new tables, and keep its
+    user_version — that is the whole no-migration promise."""
+    path = str(tmp_path / f"legacy_{uuid.uuid4().hex}.db")
+
+    db = AsyncBeaverDB(path)
+    await db.connect()
+    log = db.log("audit", model=Event)
+    await log.log(Event(actor="alex", duration_ms=1))
+    # Simulate a file written before this feature existed.
+    await db.connection.execute("DROP TABLE __beaver_field_index__")
+    await db.connection.execute("DROP TABLE __beaver_field_index_manifest__")
+    await db.connection.commit()
+    await db.close()
+
+    db2 = AsyncBeaverDB(path)
+    await db2.connect()
+    try:
+        cur = await db2.connection.execute("PRAGMA user_version")
+        assert (await cur.fetchone())[0] == BEAVER_DB_VERSION == 1
+
+        names = await _tables(db2)
+        assert "__beaver_field_index__" in names
+
+        # The pre-existing row is still readable and still findable by filter,
+        # via the scan fallback, with no reindex.
+        log2 = db2.log("audit", model=Event, indexed=["actor"])
+        rows = await log2.range(where=[q(Event).actor == "alex"])
+        assert len(rows) == 1
+    finally:
+        # Close on the failure path too. A leaked connection keeps a non-daemon
+        # aiosqlite thread alive and hangs the interpreter at exit, which would
+        # turn this gate's failure into a CI timeout instead of a clear red.
+        await db2.close()

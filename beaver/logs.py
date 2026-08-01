@@ -234,11 +234,9 @@ class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverLog[T]):
             self.connection, self._INDEX_KIND, self._name
         )
 
-    @expose(
-        path="/explain",
-        method="POST",
-        cli_name="explain",
-        cli_help="Show which filters would use the index and which would scan.",
+    @local_only(
+        "explain() takes a list of Filter objects, which has no CLI or wire "
+        "encoding yet — see issue #44"
     )
     async def explain(self, where: list) -> indexing.QueryPlan:
         """Which filters resolve by index and which fall back to a scan.

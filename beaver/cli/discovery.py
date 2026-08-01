@@ -171,7 +171,7 @@ def _build_command(method_name: str, meta: EndpointMeta, manager_accessor: Calla
             _run(ctx, manager_accessor, method_name, block=block, timeout=timeout)
 
     # --- shared no-arg shapes ---
-    elif method_name in ("count", "clear"):
+    elif method_name in ("count", "clear", "indexes"):
 
         def cmd(ctx: typer.Context):
             _run(ctx, manager_accessor, method_name)
