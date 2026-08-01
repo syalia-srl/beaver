@@ -231,6 +231,51 @@ Mirroring `_index_trigrams`, in the same transaction as the item write:
 Batched writes (`AsyncLogBatch`, `AsyncDocumentsBatch`) extend their
 `executemany` to cover index rows, so batching keeps its advantage.
 
+### 3.8 Introspection — seeing what is indexed, from Python
+
+Because a declared-but-incomplete field silently falls back to a scan (§3.5),
+"is this actually indexed?" is a question the consumer **must** be able to answer
+without opening the database file. All three are `@expose`d so they also reach
+the CLI and the remote client, like `count` does today (`beaver/logs.py:173-178`).
+
+**Collection state:**
+
+```python
+await db.log("audit").indexes()
+# [FieldIndex(field='actor_id',    complete=True,  rows=12043, declared=True),
+#  FieldIndex(field='duration_ms', complete=False, rows=0,     declared=True)]
+```
+
+`declared` and `complete` are different questions, and both matter: `declared`
+says the write path is maintaining it, `complete` says the read path is allowed
+to trust it. A field that is declared but incomplete is the state right after you
+add it and before you `reindex()` — correct, but scanning. `rows` gives the
+storage cost, which is what tells you whether a wide declaration was a good idea.
+
+**Whole database:**
+
+```python
+await db.indexes()
+# {('log', 'audit'): [...], ('doc', 'notes'): [...]}
+```
+
+One call to see every index in the file — the view you want when a database has
+grown collections across several releases and nobody remembers what was declared
+where.
+
+**Query plan**, for the "why is this slow" case:
+
+```python
+await db.log("audit").explain(where=[q(AuditEvent).actor_id == "alex",
+                                     q(AuditEvent).note_title == "x"])
+# QueryPlan(indexed=['actor_id'], scanned=['note_title'], estimated_rows=12043)
+```
+
+Without `explain`, the fallback in §3.5 is invisible: a query that quietly
+degraded to a full scan looks exactly like one that used the index, only slower —
+and "slower" is not a signal anyone notices until it is a problem. This is the
+call that makes the fallback a **choice** rather than a surprise.
+
 ## 4. Migration: none
 
 The change is additive by construction and this is a **constraint the
@@ -275,7 +320,9 @@ Each slice is independently useful and independently testable.
 
 1. **The substrate.** Both tables, value normalization, the manifest, the shared
    filter→SQL compiler extracted from `docs.py:_execute_query` so `docs` and the
-   new consumers cannot drift, and `reindex()`.
+   new consumers cannot drift, `reindex()`, and the introspection calls (§3.8) —
+   `indexes()` ships **with** the substrate, not after it, because until it
+   exists nobody can tell an index from a fallback.
 2. **`log`** — `indexed=`, plus `where` / `order` / `offset` on `range()`. This
    is the motivating consumer (§7).
 3. **`docs`** — route the existing `where()` through the index when the field is
@@ -315,6 +362,11 @@ general, and solving it once per collection type is how it stops recurring.
 - **Incomplete index never lies:** write rows, *then* declare a field, and assert
   queries still return every matching row (fallback), and that `reindex()` does
   not change the result set — only the query plan.
+- **Introspection tells the truth:** `indexes()` reports `complete=False` before
+  `reindex()` and `True` after, and `explain()` names the undeclared field under
+  `scanned` while the declared one appears under `indexed`. An introspection API
+  that reports the intent rather than the state would be worse than none — it
+  would make the fallback *look* handled.
 - **Numeric ordering:** `duration_ms > 1000` must exclude `900`. This fails
   without `value_num`, so assert it directly.
 - **Maintenance:** update and delete leave no orphan index rows; `clear()` drops
