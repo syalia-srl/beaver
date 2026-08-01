@@ -116,3 +116,85 @@ async def test_manifest_is_scoped_per_collection(async_db_mem):
     await declare(conn, "log", "audit", ["actor"])
     await declare(conn, "log", "other", ["thing"])
     assert await manifest(conn, "log", "audit") == {"actor": False}
+
+
+from beaver.indexing import clear_index, index_item, index_rows, unindex_item
+
+
+async def _rows(conn, kind, name):
+    cur = await conn.execute(
+        "SELECT item_key, field, value, value_num FROM __beaver_field_index__ "
+        "WHERE kind = ? AND name = ? ORDER BY item_key, field",
+        (kind, name),
+    )
+    return await cur.fetchall()
+
+
+async def test_index_item_writes_one_row_per_declared_field(async_db_mem):
+    conn = async_db_mem.connection
+    it = Item(actor="alex", duration_ms=900, ok=True)
+    await index_item(conn, "log", "audit", "k1", it, ["actor", "duration_ms"])
+    rows = await _rows(conn, "log", "audit")
+    assert [(r[1], r[2], r[3]) for r in rows] == [
+        ("actor", "alex", None),
+        ("duration_ms", "900", 900.0),
+    ]
+
+
+async def test_absent_field_writes_no_row(async_db_mem):
+    conn = async_db_mem.connection
+    await index_item(
+        conn, "log", "audit", "k1", Item(actor="a", duration_ms=1, ok=True), ["nope"]
+    )
+    assert await _rows(conn, "log", "audit") == []
+
+
+async def test_reindexing_same_key_replaces_rather_than_duplicates(async_db_mem):
+    conn = async_db_mem.connection
+    await index_item(
+        conn, "log", "audit", "k1", Item(actor="a", duration_ms=1, ok=True), ["actor"]
+    )
+    await index_item(
+        conn, "log", "audit", "k1", Item(actor="b", duration_ms=1, ok=True), ["actor"]
+    )
+    rows = await _rows(conn, "log", "audit")
+    assert len(rows) == 1 and rows[0][2] == "b"
+
+
+async def test_unindex_item_removes_only_that_item(async_db_mem):
+    conn = async_db_mem.connection
+    await index_item(
+        conn, "log", "audit", "k1", Item(actor="a", duration_ms=1, ok=True), ["actor"]
+    )
+    await index_item(
+        conn, "log", "audit", "k2", Item(actor="b", duration_ms=1, ok=True), ["actor"]
+    )
+    await unindex_item(conn, "log", "audit", "k1")
+    rows = await _rows(conn, "log", "audit")
+    assert len(rows) == 1 and rows[0][0] == "k2"
+
+
+async def test_clear_index_is_scoped_to_one_collection(async_db_mem):
+    conn = async_db_mem.connection
+    await index_item(
+        conn, "log", "a", "k", Item(actor="x", duration_ms=1, ok=True), ["actor"]
+    )
+    await index_item(
+        conn, "log", "b", "k", Item(actor="y", duration_ms=1, ok=True), ["actor"]
+    )
+    await clear_index(conn, "log", "a")
+    assert await _rows(conn, "log", "a") == []
+    assert len(await _rows(conn, "log", "b")) == 1
+
+
+async def test_index_rows_counts_the_collection(async_db_mem):
+    conn = async_db_mem.connection
+    await index_item(
+        conn,
+        "log",
+        "audit",
+        "k1",
+        Item(actor="a", duration_ms=1, ok=True),
+        ["actor", "duration_ms"],
+    )
+    assert await index_rows(conn, "log", "audit") == 2

@@ -91,3 +91,55 @@ async def mark_complete(conn, kind: str, name: str, fields: list[str]) -> None:
         "WHERE kind = ? AND name = ? AND field = ?",
         [(kind, name, f) for f in fields],
     )
+
+
+def build_rows(
+    kind: str, name: str, item_key: str, item: Any, fields: list[str]
+) -> list[tuple]:
+    """The index rows for one item. Absent fields produce no row."""
+    rows: list[tuple] = []
+    for field in fields:
+        found, raw = extract_path(item, field)
+        if not found:
+            continue
+        value, value_num = normalize(raw)
+        rows.append((kind, name, item_key, field, value, value_num))
+    return rows
+
+
+async def index_item(
+    conn, kind: str, name: str, item_key: str, item: Any, fields: list[str]
+) -> None:
+    """Replace this item's index rows. Delete-then-insert so an overwrite
+    cannot leave a stale row behind for a field that is now absent."""
+    await unindex_item(conn, kind, name, item_key)
+    rows = build_rows(kind, name, item_key, item, fields)
+    if rows:
+        await conn.executemany(
+            f"INSERT INTO {INDEX_TABLE} "
+            "(kind, name, item_key, field, value, value_num) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            rows,
+        )
+
+
+async def unindex_item(conn, kind: str, name: str, item_key: str) -> None:
+    await conn.execute(
+        f"DELETE FROM {INDEX_TABLE} WHERE kind = ? AND name = ? AND item_key = ?",
+        (kind, name, item_key),
+    )
+
+
+async def clear_index(conn, kind: str, name: str) -> None:
+    await conn.execute(
+        f"DELETE FROM {INDEX_TABLE} WHERE kind = ? AND name = ?", (kind, name)
+    )
+
+
+async def index_rows(conn, kind: str, name: str) -> int:
+    cursor = await conn.execute(
+        f"SELECT COUNT(*) FROM {INDEX_TABLE} WHERE kind = ? AND name = ?",
+        (kind, name),
+    )
+    row = await cursor.fetchone()
+    return row[0] if row else 0
