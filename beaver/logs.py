@@ -13,6 +13,7 @@ from typing import (
 
 from pydantic import BaseModel
 
+from . import indexing
 from .api import expose, local_only
 from .manager import AsyncBeaverBase, atomic, emits
 from .interfaces import LogEntry, IAsyncBeaverLog
@@ -29,6 +30,7 @@ class AsyncLogBatch[T: BaseModel]:
     def __init__(self, manager: "AsyncBeaverLog[T]"):
         self._manager = manager
         self._pending: list[tuple[str, float, str]] = []
+        self._pending_items: list[tuple] = []
         self._last_ts: float = 0.0
 
     def log(self, data: T, timestamp: float | None = None) -> None:
@@ -37,6 +39,8 @@ class AsyncLogBatch[T: BaseModel]:
             ts = self._last_ts + 1e-6
         self._last_ts = ts
         self._pending.append((self._manager._name, ts, self._manager._serialize(data)))
+        # Keep the original object so the batch can index without re-parsing.
+        self._pending_items.append((self._manager._name, ts, None, data))
 
     async def __aenter__(self) -> "AsyncLogBatch[T]":
         # Seed _last_ts from the table's current max so batched timestamps
@@ -59,7 +63,20 @@ class AsyncLogBatch[T: BaseModel]:
                     "INSERT INTO __beaver_logs__ (log_name, timestamp, data) VALUES (?, ?, ?)",
                     self._pending,
                 )
+                mgr = self._manager
+                if mgr._indexed:
+                    await mgr._ensure_declared()
+                    for _name, ts, _payload, item in self._pending_items:
+                        await indexing.index_item(
+                            mgr.connection,
+                            mgr._INDEX_KIND,
+                            mgr._name,
+                            mgr._item_key(ts),
+                            item,
+                            mgr._indexed,
+                        )
         self._pending.clear()
+        self._pending_items.clear()
 
 
 class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverLog[T]):
@@ -67,6 +84,30 @@ class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverLog[T]):
     A wrapper providing a Pythonic interface to a time-indexed log.
     Refactored for Async-First architecture (v2.0).
     """
+
+    _INDEX_KIND = "log"
+
+    @staticmethod
+    def _item_key(ts: float) -> str:
+        """repr() round-trips a float exactly; SQLite's CAST(x AS TEXT) does
+        not always agree with it. Queries must compare CAST(item_key AS REAL)
+        back to the timestamp, never text to text."""
+        return repr(ts)
+
+    async def _ensure_declared(self) -> None:
+        """Record this log's `indexed=` declaration in the manifest.
+
+        Declaration lands on the **first awaited operation**, not on `db.log()`:
+        the factory is synchronous, so there is no await point at which to write
+        the row. This is safe because an absent manifest row makes the planner
+        fall back to a `json_extract` scan — slower, never wrong — while a
+        `complete = 1` row, once written, persists in the database.
+        """
+        if self._indexed and not getattr(self, "_declared", False):
+            await indexing.declare(
+                self.connection, self._INDEX_KIND, self._name, self._indexed
+            )
+            self._declared = True
 
     @expose(
         path="/log",
@@ -97,6 +138,17 @@ class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverLog[T]):
                 # Collision detected: shift by 1 microsecond and retry
                 ts += 0.000001
 
+        if self._indexed:
+            await self._ensure_declared()
+            await indexing.index_item(
+                self.connection,
+                self._INDEX_KIND,
+                self._name,
+                self._item_key(ts),
+                data,
+                self._indexed,
+            )
+
     @expose(
         path="/range",
         method="GET",
@@ -112,6 +164,8 @@ class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverLog[T]):
         """
         Retrieves a list of log entries within a time range.
         """
+        await self._ensure_declared()
+
         query = "SELECT timestamp, data FROM __beaver_logs__ WHERE log_name = ?"
         params = [self._name]
 
@@ -194,6 +248,7 @@ class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverLog[T]):
         await self.connection.execute(
             "DELETE FROM __beaver_logs__ WHERE log_name = ?", (self._name,)
         )
+        await indexing.clear_index(self.connection, self._INDEX_KIND, self._name)
 
     async def _iter_dump_items(self):
         entries = await self.range()

@@ -20,7 +20,13 @@ class AsyncBeaverBase[T: BaseModel]:
     Handles serialization, locking, and basic connection access.
     """
 
-    def __init__(self, name: str, db: "AsyncBeaverDB", model: Type[T] | None = None):
+    def __init__(
+        self,
+        name: str,
+        db: "AsyncBeaverDB",
+        model: Type[T] | None = None,
+        indexed: list[str] | None = None,
+    ):
         """
         Initializes the base manager.
         """
@@ -36,6 +42,7 @@ class AsyncBeaverBase[T: BaseModel]:
         self._name = name
         self._db = db
         self._model = model
+        self._indexed: list[str] = list(indexed or [])
         self._topic = f"{manager_type_prefix}:{self._name}"
 
         # Lazy-loaded event manager

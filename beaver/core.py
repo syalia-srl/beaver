@@ -720,9 +720,22 @@ class AsyncBeaverDB:
         return self.singleton(AsyncBeaverBlob, name, model=model)
 
     def log[T: BaseModel](
-        self, name: str, model: type[T] | None = None
+        self,
+        name: str,
+        model: type[T] | None = None,
+        # Quoted: inside a PEP 695 generic scope the class body is visible, so
+        # a bare `list[str]` resolves to AsyncBeaverDB.list, not the builtin.
+        indexed: "list[str] | None" = None,
     ) -> AsyncBeaverLog[T]:
-        return self.singleton(AsyncBeaverLog, name, model=model)
+        """Open a log.
+
+        `indexed` declares the fields whose values are maintained in the field
+        index. **Declare on first use:** `singleton()` keys its cache on
+        `(cls, name)` only, so after a bare `db.log("audit")` a later
+        `db.log("audit", indexed=[...])` returns the already-cached, undeclared
+        manager and the declaration is silently dropped.
+        """
+        return self.singleton(AsyncBeaverLog, name, model=model, indexed=indexed)
 
     def lock(
         self, name: str, timeout=None, lock_ttl=60.0, poll_interval=0.1

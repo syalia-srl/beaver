@@ -198,3 +198,54 @@ async def test_index_rows_counts_the_collection(async_db_mem):
         ["actor", "duration_ms"],
     )
     assert await index_rows(conn, "log", "audit") == 2
+
+
+class Event(BaseModel):
+    actor: str
+    duration_ms: int
+
+
+async def test_log_write_populates_the_index(async_db_mem):
+    log = async_db_mem.log("audit", model=Event, indexed=["actor", "duration_ms"])
+    await log.log(Event(actor="alex", duration_ms=900))
+    assert await index_rows(async_db_mem.connection, "log", "audit") == 2
+
+
+async def test_declaration_lands_on_the_first_awaited_operation(async_db_mem):
+    """`db.log()` is a synchronous factory, so it cannot write the manifest.
+    Declaration lands on the first awaited call. This is safe because an
+    absent manifest row falls back to a scan — slower, never wrong."""
+    log = async_db_mem.log("audit", model=Event, indexed=["actor"])
+    assert await manifest(async_db_mem.connection, "log", "audit") == {}
+    await log.log(Event(actor="alex", duration_ms=1))
+    assert await manifest(async_db_mem.connection, "log", "audit") == {"actor": False}
+
+
+async def test_item_key_round_trips_exactly_through_text(async_db_mem):
+    """repr(float) round-trips; CAST(x AS TEXT) does not always agree with it.
+    Comparing back numerically is what makes the index findable at all."""
+    log = async_db_mem.log("audit", model=Event, indexed=["actor"])
+    await log.log(Event(actor="alex", duration_ms=1))
+    entries = await log.range()
+    ts = entries[0].timestamp
+    cur = await async_db_mem.connection.execute(
+        "SELECT COUNT(*) FROM __beaver_field_index__ "
+        "WHERE kind='log' AND name='audit' AND CAST(item_key AS REAL) = ?",
+        (ts,),
+    )
+    assert (await cur.fetchone())[0] == 1
+
+
+async def test_batched_writes_index_like_individual_ones(async_db_mem):
+    log = async_db_mem.log("audit", model=Event, indexed=["actor"])
+    async with log.batched() as batch:
+        batch.log(Event(actor="a", duration_ms=1))
+        batch.log(Event(actor="b", duration_ms=2))
+    assert await index_rows(async_db_mem.connection, "log", "audit") == 2
+
+
+async def test_clear_drops_the_index_too(async_db_mem):
+    log = async_db_mem.log("audit", model=Event, indexed=["actor"])
+    await log.log(Event(actor="a", duration_ms=1))
+    await log.clear()
+    assert await index_rows(async_db_mem.connection, "log", "audit") == 0
