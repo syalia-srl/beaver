@@ -269,3 +269,67 @@ def test_compile_scan_filters_emits_json_extract_clauses():
 def test_compile_scan_filters_supports_nested_paths():
     clauses, _ = compile_scan_filters("data", [q(Item).inner.name == "deep"], alias="d")
     assert clauses == ["json_extract(d.data, '$.inner.name') == ?"]
+
+
+async def _seed(db, indexed):
+    log = db.log("audit", model=Event, indexed=indexed)
+    await log.log(Event(actor="alex", duration_ms=900))
+    await log.log(Event(actor="alex", duration_ms=2000))
+    await log.log(Event(actor="yudi", duration_ms=50))
+    return log
+
+
+async def test_where_filters_by_equality_when_indexed(async_db_mem):
+    log = await _seed(async_db_mem, ["actor", "duration_ms"])
+    await log.reindex()
+    rows = await log.range(where=[q(Event).actor == "alex"])
+    assert {r.data.duration_ms for r in rows} == {900, 2000}
+
+
+async def test_where_is_correct_without_any_index(async_db_mem):
+    """The fallback path must return the same rows, just slower."""
+    log = await _seed(async_db_mem, [])
+    rows = await log.range(where=[q(Event).actor == "alex"])
+    assert {r.data.duration_ms for r in rows} == {900, 2000}
+
+
+async def test_where_is_correct_while_the_index_is_incomplete(async_db_mem):
+    """Declared but never reindexed: must not silently return a subset."""
+    log = async_db_mem.log("audit", model=Event, indexed=["actor"])
+    await log.log(Event(actor="alex", duration_ms=900))
+    await async_db_mem.connection.execute(
+        "DELETE FROM __beaver_field_index__"
+    )  # simulate rows written before declaration
+    rows = await log.range(where=[q(Event).actor == "alex"])
+    assert len(rows) == 1
+
+
+async def test_absent_manifest_falls_back_to_a_scan_and_stays_correct(async_db_mem):
+    """The invariant the whole lazy-declaration design rests on.
+
+    An absent manifest row means `complete.get(field)` is None -> falsy -> scan.
+    Deleting the manifest can therefore only make a query slower, never wrong.
+    If someone "optimizes" the planner to trust an absent manifest, this fails.
+    """
+    log = await _seed(async_db_mem, ["actor"])
+    await log.reindex()
+    await async_db_mem.connection.execute("DELETE FROM __beaver_field_index_manifest__")
+    assert await manifest(async_db_mem.connection, "log", "audit") == {}
+    rows = await log.range(where=[q(Event).actor == "alex"])
+    assert {r.data.duration_ms for r in rows} == {900, 2000}
+
+
+async def test_numeric_comparison_does_not_compare_as_text(async_db_mem):
+    log = await _seed(async_db_mem, ["duration_ms"])
+    await log.reindex()
+    rows = await log.range(where=[q(Event).duration_ms > 1000])
+    assert [r.data.duration_ms for r in rows] == [2000]
+
+
+async def test_multiple_filters_intersect(async_db_mem):
+    log = await _seed(async_db_mem, ["actor", "duration_ms"])
+    await log.reindex()
+    rows = await log.range(
+        where=[q(Event).actor == "alex", q(Event).duration_ms > 1000]
+    )
+    assert [r.data.duration_ms for r in rows] == [2000]

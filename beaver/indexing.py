@@ -159,3 +159,56 @@ def compile_scan_filters(
         clauses.append(f"json_extract({alias}.{column}, '$.{f.path}') {f.operator} ?")
         params.append(f.value)
     return clauses, params
+
+
+_NUMERIC_OPS = {">", ">=", "<", "<="}
+
+
+def compile_indexed_filter(
+    kind: str, name: str, f: Filter, key_expr: str
+) -> tuple[str, list]:
+    """One filter as a membership test against the field index.
+
+    ``key_expr`` is how the outer table's row identity is written in SQL —
+    for logs, ``timestamp``, compared against ``CAST(item_key AS REAL)``.
+    """
+    column = "value_num" if f.operator in _NUMERIC_OPS else "value"
+    value = float(f.value) if f.operator in _NUMERIC_OPS else f.value
+    sql = (
+        f"{key_expr} IN (SELECT CAST(item_key AS REAL) FROM {INDEX_TABLE} "
+        f"WHERE kind = ? AND name = ? AND field = ? AND {column} {f.operator} ?)"
+    )
+    return sql, [kind, name, f.path, value]
+
+
+def plan_filters(
+    kind: str,
+    name: str,
+    filters: list[Filter],
+    complete: dict[str, bool],
+    key_expr: str,
+    column: str,
+    alias: str,
+) -> tuple[list[str], list, list[str], list[str]]:
+    """Split filters into indexed and scanned, and compile both.
+
+    Returns ``(clauses, params, indexed_paths, scanned_paths)``. A field is only
+    routed to the index when the manifest says it is complete — an unbackfilled
+    index would answer with a subset and say nothing about it.
+    """
+    clauses: list[str] = []
+    params: list = []
+    indexed: list[str] = []
+    scanned: list[str] = []
+    for f in filters:
+        if complete.get(f.path):
+            sql, ps = compile_indexed_filter(kind, name, f, key_expr)
+            clauses.append(sql)
+            params.extend(ps)
+            indexed.append(f.path)
+        else:
+            sql_list, ps = compile_scan_filters(column, [f], alias=alias)
+            clauses.extend(sql_list)
+            params.extend(ps)
+            scanned.append(f.path)
+    return clauses, params, indexed, scanned

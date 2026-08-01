@@ -160,14 +160,15 @@ class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverLog[T]):
         start: float | None = None,
         end: float | None = None,
         limit: int | None = None,
+        where: list | None = None,
     ) -> list[LogEntry[T]]:
         """
         Retrieves a list of log entries within a time range.
         """
         await self._ensure_declared()
 
-        query = "SELECT timestamp, data FROM __beaver_logs__ WHERE log_name = ?"
-        params = [self._name]
+        query = "SELECT timestamp, data FROM __beaver_logs__ AS l WHERE log_name = ?"
+        params: list = [self._name]
 
         if start is not None:
             query += " AND timestamp >= ?"
@@ -176,6 +177,23 @@ class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverLog[T]):
         if end is not None:
             query += " AND timestamp <= ?"
             params.append(end)
+
+        if where:
+            complete = await indexing.manifest(
+                self.connection, self._INDEX_KIND, self._name
+            )
+            clauses, filter_params, _, _ = indexing.plan_filters(
+                self._INDEX_KIND,
+                self._name,
+                where,
+                complete,
+                key_expr="l.timestamp",
+                column="data",
+                alias="l",
+            )
+            for clause in clauses:
+                query += f" AND {clause}"
+            params.extend(filter_params)
 
         query += " ORDER BY timestamp ASC"
 
