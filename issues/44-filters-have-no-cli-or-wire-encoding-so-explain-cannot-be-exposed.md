@@ -30,14 +30,32 @@ arguments and is exposed normally.
 
 ### 2. Scope — this is bigger than `explain`
 
-The same gap silently limits `range(where=...)`:
+The same gap limits `range(where=...)` — but **it fails loudly, and that is worth
+being precise about**, because the first draft of this issue claimed otherwise:
 
+- **Remote client.** `RemoteLog.range` (`client.py:268`) has a hand-written
+  signature of exactly `start`, `end`, `limit`. Passing `where`, `order` or
+  `offset` raises `TypeError`; it does **not** forward them and does **not**
+  return an unfiltered result set. Verified by binding the signature:
+
+  ```
+  RemoteLog.range params: ['start', 'end', 'limit']
+    where:  TypeError    order: TypeError    offset: TypeError
+  ```
+
+  So this is a **missing feature**, not a silent-wrong-answer bug. An earlier
+  version of this issue said a filtered `range()` "degrades to unfiltered over
+  the wire" — that was wrong, and overstating a bug is its own cost: it sends
+  whoever picks this up hunting for a data-integrity failure that does not exist.
 - **CLI.** `_build_command`'s `range` shape (`discovery.py:131`) passes only
-  `start`, `end` and `limit`. `beaver log range` cannot filter at all. It does
-  not error — it just quietly has no `--where`, which is its own small version
-  of "silence is the bug".
-- **Remote client.** Same reason. A filtered `range()` works locally and
-  degrades to unfiltered over the wire, which is worse than refusing.
+  `start`, `end` and `limit`, so `beaver log range` cannot filter. A user asking
+  for a filter they cannot express gets no option to pass, rather than a wrong
+  answer.
+
+The **server** side is the one place still worth checking when this is fixed: a
+hand-crafted `GET /logs/<name>/range?where=…` bypasses the client's signature, so
+whatever encoding lands must reject unknown or malformed filter params rather
+than ignore them.
 
 And it will recur for every collection in #42 slices 3–6, plus `aggregate()`
 in slice 4, all of which take `where=`.
