@@ -118,6 +118,17 @@ db.dict("settings",                indexed=["tenant"])
 `beaver/core.py` (§6 lists them). Dotted paths address nested fields, matching
 the `Query.__getattr__` path convention in `beaver/queries.py:17`.
 
+> ⚠️ **Quote the annotation on the factories.** Write
+> `indexed: "list[str] | None" = None`, not the bare form. The factories are
+> PEP 695 generics (`def log[T: BaseModel](...)`), and a generic scope *can*
+> see the enclosing class body — so inside `AsyncBeaverDB` the name `list`
+> resolves to the `list()` factory method, not the builtin, and the annotation
+> raises `TypeError: 'function' object is not subscriptable` at import time.
+> This bites `dict()` and `list()` directly, since both are shadowed method
+> names on that class, and any factory annotated with `list[...]`. Quoting
+> defers evaluation and sidesteps it; keep a comment saying why, because the
+> error message points nowhere near the cause.
+
 ### 3.3 The query surface, identical everywhere
 
 Filters are the existing `Filter` dataclass (`beaver/queries.py:6` — `path`,
@@ -214,8 +225,29 @@ await db.log("audit").reindex(["actor_id"])
 It is **not** run automatically on open. Backfilling a large collection is real
 work, and doing it silently inside `connect()` turns an innocuous version bump
 into a startup stall on a database the developer did not choose to reindex. On
-open, a declaration whose manifest is missing or incomplete is recorded as
-declared-and-incomplete, and `reindex()` is left to the consumer.
+**the first awaited operation**, a declaration whose manifest is missing or
+incomplete is recorded as declared-and-incomplete, and `reindex()` is left to
+the consumer.
+
+"First awaited operation" and not "on open" because the factories
+(`db.log(...)`, `db.docs(...)`, …) are **synchronous** — they return the manager
+directly, with no await point at which the manifest row could be written. The
+alternative, scheduling the write with `asyncio.create_task` from `__init__`,
+would touch the single shared connection outside any transaction while
+`@atomic` methods hold `_internal_lock` with a transaction open; that race is
+not worth buying eagerness.
+
+Deferring it is safe because the two directions are asymmetric:
+
+- **Absent manifest row → scan.** `complete.get(field)` is `None`, which is
+  falsy, so the planner falls back to `json_extract`. A missing declaration can
+  only make a query *slower*, never wrong.
+- **`complete = 1` is persistent.** Once `reindex()` writes it, the row is in
+  the database; a later process reads it back without anyone having to touch
+  the manager first.
+
+So the failure direction is conservative, which is the whole reason this is a
+docstring contract rather than a bug.
 
 ### 3.7 Index maintenance
 
