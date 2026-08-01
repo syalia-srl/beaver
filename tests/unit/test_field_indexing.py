@@ -351,3 +351,35 @@ async def test_order_rejects_anything_but_asc_desc(async_db_mem):
     log = await _seed(async_db_mem, [])
     with pytest.raises(ValueError):
         await log.range(order="ASC; DROP TABLE __beaver_logs__")
+
+
+async def test_reindex_backfills_rows_written_before_declaration(async_db_mem):
+    plain = async_db_mem.log("hist", model=Event)
+    await plain.log(Event(actor="alex", duration_ms=5))
+    async_db_mem._manager_cache.clear()  # reopen the log with a declaration
+    log = async_db_mem.log("hist", model=Event, indexed=["actor"])
+    assert await index_rows(async_db_mem.connection, "log", "hist") == 0
+    written = await log.reindex()
+    assert written == 1
+    assert await manifest(async_db_mem.connection, "log", "hist") == {"actor": True}
+
+
+async def test_reindex_does_not_change_results_only_the_plan(async_db_mem):
+    log = await _seed(async_db_mem, ["actor"])
+    before = [
+        r.data.duration_ms for r in await log.range(where=[q(Event).actor == "alex"])
+    ]
+    await log.reindex()
+    after = [
+        r.data.duration_ms for r in await log.range(where=[q(Event).actor == "alex"])
+    ]
+    assert before == after
+
+
+async def test_reindex_subset_marks_only_those_fields_complete(async_db_mem):
+    log = await _seed(async_db_mem, ["actor", "duration_ms"])
+    await log.reindex(["actor"])
+    assert await manifest(async_db_mem.connection, "log", "audit") == {
+        "actor": True,
+        "duration_ms": False,
+    }

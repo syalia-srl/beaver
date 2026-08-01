@@ -221,6 +221,34 @@ class AsyncBeaverLog[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverLog[T]):
             for row in rows
         ]
 
+    @local_only("reindex() rewrites the local index and is not exposed remotely")
+    async def reindex(self, fields: list[str] | None = None) -> int:
+        """Backfill the field index for this log and mark those fields complete.
+
+        Not run automatically on open: backfilling a large log is real work, and
+        doing it silently inside connect() turns opening a database into a stall
+        nobody asked for.
+        """
+        target = list(fields) if fields else list(self._indexed)
+        if not target:
+            return 0
+        await indexing.declare(self.connection, self._INDEX_KIND, self._name, target)
+        written = 0
+        for entry in await self.range():
+            await indexing.index_item(
+                self.connection,
+                self._INDEX_KIND,
+                self._name,
+                self._item_key(entry.timestamp),
+                entry.data,
+                target,
+            )
+            written += 1
+        await indexing.mark_complete(
+            self.connection, self._INDEX_KIND, self._name, target
+        )
+        return written
+
     @local_only(
         "log.live() is only available on local databases (infinite stream, no SSE yet)"
     )
