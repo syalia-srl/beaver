@@ -11,7 +11,7 @@ from .queries import q
 from .security import Secret
 from .errors import BeaverRemoteError, LocalOnlyError
 
-__version__ = "2.4.0"
+__version__ = "2.4.1"
 
 
 def connect(source: str, *, sync: bool = True, api_key: str | None = None):
