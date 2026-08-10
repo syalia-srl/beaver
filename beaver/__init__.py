@@ -3,6 +3,7 @@ from .core import (
     AsyncBeaverDB,
     BeaverIncompatibleSchemaError,
     BeaverLegacySchemaError,
+    TransactionTimeoutError,
 )
 from .docs import Document
 from .events import Event
@@ -39,6 +40,7 @@ __all__ = [
     "BeaverDB",
     "BeaverIncompatibleSchemaError",
     "BeaverLegacySchemaError",
+    "TransactionTimeoutError",
     "Document",
     "Secret",
     "Event",

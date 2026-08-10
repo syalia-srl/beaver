@@ -2,6 +2,57 @@
 
 All notable changes to beaver-db will be recorded here.
 
+## 2.4.0 — 2026-08-10
+
+### Fixed — availability class
+
+- **A cancelled transaction no longer deadlocks every writer.** `Transaction.
+  __aenter__` had two windows in which it could leave `_tx_lock` held with
+  `__aexit__` never running, because the `async with` body was never entered:
+  cancellation between acquiring the lock and returning, and `BEGIN IMMEDIATE`
+  raising. Both left the lock held forever; the cancellation case *also* left
+  SQLite's write lock held, because cancelling the wait on
+  `connection.execute("BEGIN IMMEDIATE")` does not un-run the statement on
+  aiosqlite's worker thread.
+
+  In WAL mode this is nearly invisible: readers keep working while every
+  writer queues behind a lock with no owner. It took down authentication on an
+  AInBox appliance for hours on 2026-08-10 while the process kept serving its
+  login page and passing its healthcheck. Starlette/uvicorn cancel a request
+  task whenever a client disconnects, so the trigger is ordinary.
+
+  The enter path now cleans up after itself: a failed or cancelled `BEGIN` is
+  rolled back (shielded, so it survives the cancellation that caused it) and
+  the lock is released in a `finally`.
+
+- **Ownership is claimed only once the transaction has actually begun.**
+  `_tx_owner_task` was set *before* `BEGIN IMMEDIATE`, so a raising BEGIN left
+  it naming a transaction that never started — and the reentrancy check then
+  waved that task's next transaction through as a silent no-op, so a rolled
+  back block would persist.
+
+- **The reentrancy check no longer matches outside a task.**
+  `_tx_owner_task == current_task` was true when both were `None`, which
+  reads a caller with no running task as already owning the transaction.
+
+### Added
+
+- **`TransactionTimeoutError`** (exported from `beaver`, subclass of
+  `TimeoutError`). Waiting for the write lock is now bounded by
+  `connection_timeout` (default 30 s) instead of being unbounded. beaver
+  multiplexes every modality over a single connection, so contending tasks
+  queue on an in-process `asyncio.Lock` that SQLite's busy-timeout — which
+  only arbitrates between *separate* connections — never gets a say over.
+  An unbounded wait there is indistinguishable from a hang.
+
+- **`db.transaction(timeout=…)`** overrides that bound per call, for callers
+  with their own latency budget (a healthcheck, a request handler).
+
+- **An orphaned transaction is reclaimed, not waited on.** If the lock's owner
+  is a task that has already finished, the next writer rolls its transaction
+  back, logs a warning on the `beaver` logger and takes over. Recovery is
+  loud on purpose: it means something leaked.
+
 ## 2.2.0 — 2026-07-29
 
 ### Fixed — data-loss class (#41)

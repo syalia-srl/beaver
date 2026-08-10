@@ -47,6 +47,34 @@ class BeaverDB:
   * When Thread B calls `db.dict("x")`, it gets a different connection dedicated to Thread B.
   * Both connections talk to the same file, mediated by SQLite's file locking.
 
+## The in-process write lock (`Transaction`)
+
+`AsyncBeaverDB` runs on **one** connection, so two tasks cannot both hold a
+transaction open on it. `db.transaction()` serialises them on an
+`asyncio.Lock`, and only the outermost `async with` per task issues the real
+`BEGIN IMMEDIATE` / `COMMIT` — nested ones pass through, which is what makes
+`@atomic`-style composition work.
+
+Two consequences are easy to miss:
+
+  * **SQLite's busy-timeout does not apply.** `connection_timeout` is handed to
+    `aiosqlite.connect(timeout=…)`, which arbitrates between *separate*
+    connections. Tasks contending on the *same* connection never reach it —
+    they queue on the `asyncio.Lock` instead. So that lock is bounded by the
+    same `connection_timeout`, and exceeding it raises
+    **`TransactionTimeoutError`**. Pass `db.transaction(timeout=…)` for a
+    caller with a tighter budget.
+  * **A wait here is invisible from outside.** In WAL mode readers keep
+    working while writers queue, so a process holding the lock looks perfectly
+    healthy: it serves reads, it answers HTTP, it passes a healthcheck that
+    only reads. Any liveness probe over a beaver-backed service has to perform
+    a **write** to mean anything.
+
+If the owning task finishes without releasing — the shape of any leak on this
+path — the next writer detects that the owner is `done()`, rolls the orphaned
+transaction back, logs a warning on the `beaver` logger and takes over, rather
+than waiting out a timeout for a holder that is never coming back.
+
 ## Logical Concurrency (`LockManager`)
 
 SQLite handles *data* safety, but it doesn't handle *logical* safety.

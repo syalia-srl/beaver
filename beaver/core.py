@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import threading
 from typing import Any, Self, Type, AsyncContextManager
 
@@ -40,6 +41,8 @@ from .vectors import AsyncBeaverVectors
 
 
 BEAVER_DB_VERSION = 1
+
+_log = logging.getLogger("beaver")
 
 
 class BeaverIncompatibleSchemaError(RuntimeError):
@@ -82,6 +85,19 @@ LEGACY_1X_TABLES = frozenset(
 )
 
 
+class TransactionTimeoutError(TimeoutError):
+    """Raised when a transaction could not take the write lock in time.
+
+    beaver multiplexes every modality over a *single* connection, so tasks that
+    want to write queue on an in-process lock and SQLite's busy-timeout — which
+    only arbitrates between separate connections — never applies to them. The
+    bound is `connection_timeout` (or the per-call `timeout=` on
+    ``db.transaction()``).
+
+    Seeing this means a writer is holding the transaction open longer than the
+    budget: a long-running block, a stalled task, or a genuine write storm."""
+
+
 class Transaction:
     """
     A Reentrant Async Context Manager for database transactions.
@@ -91,28 +107,127 @@ class Transaction:
     at the outermost level.
     """
 
-    def __init__(self, db: "AsyncBeaverDB"):
+    def __init__(self, db: "AsyncBeaverDB", *, timeout: float | None = None):
         self.db = db
         self._is_root = False
+        self._timeout = db._timeout if timeout is None else timeout
 
     async def __aenter__(self):
         current_task = asyncio.current_task()
 
         # 1. Check Reentrancy: Do we already own the transaction?
-        if self.db._tx_owner_task == current_task:
+        #    `is not None` matters: outside a task `current_task()` is None,
+        #    and a bare `==` would read that as owning the transaction.
+        if current_task is not None and self.db._tx_owner_task is current_task:
             self._is_root = False
             return self
 
-        # 2. Acquire Lock (Wait for other tasks)
-        await self.db._tx_lock.acquire()
+        # 2. Acquire the write lock, bounded (see _acquire).
+        await self._acquire()
 
-        # 3. Mark ownership and start DB transaction
+        # 3. Start the DB transaction, THEN claim ownership.
+        #
+        #    Order matters. `__aexit__` never runs when `__aenter__` raises, so
+        #    everything between the acquire above and the return below has to
+        #    clean up after itself — and ownership must not name a transaction
+        #    that never began, or the reentrancy check above waves this task's
+        #    next transaction through as a no-op.
+        #
+        #    Using isolation_level=None globally means we MUST start manually.
+        try:
+            await self.db.connection.execute("BEGIN IMMEDIATE")
+        except BaseException:
+            try:
+                await self._rollback_quietly()
+            finally:
+                self.db._tx_lock.release()
+            raise
+
         self.db._tx_owner_task = current_task
         self._is_root = True
-
-        # Using isolation_level=None globally means we MUST start manually
-        await self.db.connection.execute("BEGIN IMMEDIATE")
         return self
+
+    async def _acquire(self) -> None:
+        """Take the write lock, waiting at most `self._timeout` seconds.
+
+        The wait has to be bounded because beaver multiplexes every modality
+        over a *single* connection: contending tasks queue here, on an
+        in-process `asyncio.Lock`, and SQLite's busy-timeout — which only
+        arbitrates between separate connections — never gets a say. An
+        unbounded wait here is indistinguishable from a hang, and in WAL mode
+        readers keep working throughout, so the process looks alive while every
+        writer is stuck behind it.
+        """
+        if await self._steal_if_orphaned():
+            return
+
+        try:
+            async with asyncio.timeout(self._timeout):
+                await self.db._tx_lock.acquire()
+        except TimeoutError:
+            # A holder that finished without releasing may have appeared while
+            # we waited; take it over rather than reporting contention.
+            if await self._steal_if_orphaned():
+                return
+            raise TransactionTimeoutError(
+                f"could not take the database write lock within "
+                f"{self._timeout:g}s — another task is holding a transaction "
+                f"open on {self.db._db_path!r}"
+            ) from None
+
+    async def _steal_if_orphaned(self) -> bool:
+        """Take over a lock whose owner has already finished.
+
+        A task that is `done()` cannot still be inside its `async with` body,
+        so nobody is coming back to commit or release: waiting out the timeout
+        would only delay an error. The rollback matters as much as the lock —
+        the orphan's `BEGIN IMMEDIATE` is what pins the file for every *other*
+        connection too, and SQLite refuses to begin a transaction inside one.
+
+        Returns True when this call now holds the lock. The lock object stays
+        `locked()` throughout; only ownership changes hands, so tasks already
+        queued on it keep waiting instead of racing us for it.
+
+        An owner of None means someone is mid-BEGIN and has not claimed the
+        lock yet — that is live, not orphaned. Nothing else can be `done()` and
+        still be running its transaction body, so there is no false positive
+        here that would roll back somebody's in-flight work.
+        """
+        owner = self.db._tx_owner_task
+        if owner is None or not owner.done() or not self.db._tx_lock.locked():
+            return False
+
+        # Loud, per beaver's rule about partial state: reclaiming is recovery
+        # from a bug somewhere, not a normal event, and a silent recovery is
+        # how the caller never learns it has a leak.
+        _log.warning(
+            "reclaiming an orphaned transaction on %r: its owning task (%s) "
+            "finished without committing or rolling back",
+            self.db._db_path,
+            owner.get_name(),
+        )
+        await self._rollback_quietly()
+        self.db._tx_owner_task = None
+        return True
+
+    async def _rollback_quietly(self) -> None:
+        """Undo a BEGIN that may have taken effect even though its await did not.
+
+        `await connection.execute("BEGIN IMMEDIATE")` is two things: the
+        statement running on aiosqlite's worker thread, and the future we wait
+        on. Cancelling the wait does not un-run the statement — so a cancelled
+        BEGIN can leave SQLite's write lock held with nothing left to release
+        it. That is the whole outage.
+
+        Shielded, because the rollback has to survive the very cancellation
+        that made it necessary. Errors are swallowed: this runs while another
+        exception is already propagating, and `rollback()` is a no-op when no
+        transaction turned out to be open.
+        """
+        try:
+            await asyncio.shield(self.db.connection.rollback())
+        except Exception:
+            pass
 
     async def __aexit__(self, exc_type, exc, tb):
         # Only the root transaction performs the Commit/Rollback and Release
@@ -152,6 +267,10 @@ class AsyncBeaverDB:
         pragma_mmap_size: int = 256 * 1024 * 1024,
     ):
         self._db_path = db_path
+        # Bounds both ways a write can be made to wait: SQLite's busy-timeout
+        # (contention from another *connection*) and the transaction lock below
+        # (contention from another *task* on this one). Only the second one
+        # applies in a single-process app, which is why it must be bounded too.
         self._timeout = connection_timeout
         self._cache_timeout = cache_timeout
 
@@ -256,12 +375,18 @@ class AsyncBeaverDB:
 
         return self._connection
 
-    def transaction(self) -> AsyncContextManager:
+    def transaction(self, *, timeout: float | None = None) -> AsyncContextManager:
         """
         Returns an async context manager for an atomic transaction.
         Use: async with db.transaction(): ...
+
+        `timeout` bounds the wait for the write lock, defaulting to this
+        database's `connection_timeout`. Pass a tighter one from a caller with
+        its own latency budget — a healthcheck, a request handler — so a
+        contended write fails fast with `TransactionTimeoutError` instead of
+        holding the caller for the full default.
         """
-        return Transaction(self)
+        return Transaction(self, timeout=timeout)
 
     async def _tables_named(self, names) -> list[str]:
         """Return which of `names` exist as tables in the open database."""
