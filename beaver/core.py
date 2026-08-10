@@ -137,10 +137,7 @@ class Transaction:
         try:
             await self.db.connection.execute("BEGIN IMMEDIATE")
         except BaseException:
-            try:
-                await self._rollback_quietly()
-            finally:
-                self.db._tx_lock.release()
+            self._clean_up_in_the_background()
             raise
 
         self.db._tx_owner_task = current_task
@@ -206,28 +203,81 @@ class Transaction:
             self.db._db_path,
             owner.get_name(),
         )
-        await self._rollback_quietly()
         self.db._tx_owner_task = None
+
+        # Awaited, unlike the cleanup on the failure path below. There, the
+        # release()/wake-up of the next waiter is itself scheduled *after* the
+        # rollback task, so the queue order works out on its own. Here the same
+        # coroutine goes straight on to BEGIN IMMEDIATE without yielding, so a
+        # merely-scheduled rollback would land behind it — and SQLite refuses
+        # to begin a transaction inside one.
+        #
+        # Bounded, because the orphan's own transaction did complete its BEGIN,
+        # so the worker thread should be free; if it is not, something worse is
+        # wrong and the caller deserves to hear about it rather than wait.
+        try:
+            async with asyncio.timeout(self._timeout):
+                await self.db.connection.rollback()
+        except TimeoutError:
+            self.db._tx_lock.release()
+            raise TransactionTimeoutError(
+                f"could not roll back an orphaned transaction on "
+                f"{self.db._db_path!r} within {self._timeout:g}s — the "
+                f"connection is not responding"
+            ) from None
+        except Exception:
+            pass  # nothing was open after all; the lock is ours either way
         return True
 
-    async def _rollback_quietly(self) -> None:
-        """Undo a BEGIN that may have taken effect even though its await did not.
+    def _clean_up_in_the_background(self) -> None:
+        """Undo a BEGIN that failed, and release the lock once it is undone.
 
-        `await connection.execute("BEGIN IMMEDIATE")` is two things: the
-        statement running on aiosqlite's worker thread, and the future we wait
-        on. Cancelling the wait does not un-run the statement — so a cancelled
-        BEGIN can leave SQLite's write lock held with nothing left to release
-        it. That is the whole outage.
+        A BEGIN can fail two ways, and they need opposite things:
 
-        Shielded, because the rollback has to survive the very cancellation
-        that made it necessary. Errors are swallowed: this runs while another
-        exception is already propagating, and `rollback()` is a no-op when no
-        transaction turned out to be open.
+        * **It raised.** Nothing began; the rollback is a formality.
+        * **Its await was cancelled.** `connection.execute("BEGIN IMMEDIATE")`
+          is two things — the statement running on aiosqlite's worker thread,
+          and the future we wait on. Cancelling the wait does not un-run the
+          statement, so SQLite's write lock may now be held with nothing left
+          to release it. That is the whole outage this class exists to prevent.
+
+        We cannot tell which happened, so we always roll back. What we must not
+        do is **await** it here: the worker thread may be parked inside
+        SQLite's busy handler because another *connection* holds the write
+        lock, and aiosqlite serialises one queue onto that thread — so the
+        rollback would sit behind the very statement that is stuck, turning a
+        caller's 1.5 s deadline into a 30 s hang. (Measured: warden's /healthz
+        sat through the full 10 s of curl's `--max-time` exactly this way.)
+
+        So the caller leaves immediately and a background task finishes the
+        job. **It holds `_tx_lock` until the rollback lands**, which is what
+        makes the ordering safe: without that, an uncontended `Lock.acquire()`
+        does not yield, so the very next transaction in this task would enqueue
+        its BEGIN *ahead* of our pending ROLLBACK — and get rolled back by it.
+        Mutual exclusion orders the two; scheduling luck does not. Anyone
+        waiting meanwhile is bounded by `_acquire`, and a store this wedged
+        genuinely is unavailable.
         """
+
+        async def clean_up():
+            try:
+                await self.db.connection.rollback()
+            except Exception as exc:
+                # Expected when the BEGIN never took: there is no transaction
+                # to undo. The caller already has its own exception.
+                _log.debug("rollback of an abandoned transaction failed: %r", exc)
+            finally:
+                self.db._tx_lock.release()
+
         try:
-            await asyncio.shield(self.db.connection.rollback())
-        except Exception:
-            pass
+            task = asyncio.ensure_future(clean_up())
+        except RuntimeError:  # no running loop left to clean up on
+            self.db._tx_lock.release()
+            return
+        # Hold a reference: a bare ensure_future() can be garbage-collected
+        # mid-flight, and this one is holding the write lock.
+        self.db._pending_rollbacks.add(task)
+        task.add_done_callback(self.db._pending_rollbacks.discard)
 
     async def __aexit__(self, exc_type, exc, tb):
         # Only the root transaction performs the Commit/Rollback and Release
@@ -280,6 +330,9 @@ class AsyncBeaverDB:
         # Locking Primitives
         self._tx_lock = asyncio.Lock()
         self._tx_owner_task: asyncio.Task | None = None  # Track owner for reentrancy
+        # In-flight cleanup rollbacks (see Transaction._rollback_quietly), held
+        # only so the event loop cannot garbage-collect them mid-flight.
+        self._pending_rollbacks: set[asyncio.Task] = set()
 
         # Manager Singleton Cache
         self._manager_cache: dict[tuple[type, str], Any] = {}

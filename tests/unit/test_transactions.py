@@ -9,8 +9,8 @@ writer queued behind an `asyncio.Lock` that no longer had an owner. The
 appliance served its login page and answered its healthcheck for hours while
 nobody could authenticate.
 
-The four properties below are what makes that unreachable. Each one is written
-so that removing the corresponding guard in `Transaction` makes it fail.
+The properties below are what makes that unreachable. Each one is written so
+that removing the corresponding guard in `Transaction` makes it fail.
 """
 
 import asyncio
@@ -40,6 +40,34 @@ def write_lock_is_free(db_path: str, *, timeout: float = 0.5) -> bool:
         return False
     finally:
         conn.close()
+
+
+async def eventually(predicate, *, within: float = 2.0) -> bool:
+    """Poll a predicate. Cleanup after a failed BEGIN is deliberately deferred
+    to a background task, so the guarantees are *prompt*, not synchronous."""
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + within
+    while loop.time() < deadline:
+        if predicate():
+            return True
+        await asyncio.sleep(0.01)
+    return False
+
+
+async def eventually_write_lock_free(db_path: str, *, within: float = 2.0) -> bool:
+    """Poll `write_lock_is_free` for a short while.
+
+    The cleanup rollback runs in a background task rather than being awaited
+    (it has to be — see `Transaction._clean_up_in_the_background`), so the
+    guarantee is that the lock comes back *promptly*, not synchronously.
+    """
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + within
+    while loop.time() < deadline:
+        if write_lock_is_free(db_path, timeout=0.05):
+            return True
+        await asyncio.sleep(0.02)
+    return False
 
 
 @pytest.fixture
@@ -102,9 +130,11 @@ async def test_a_cancelled_begin_strands_neither_lock(db):
         await task
 
     # SQLite's write lock: released, or every other process stays blocked.
-    assert write_lock_is_free(db.test_path)
+    assert await eventually_write_lock_free(db.test_path)
     # Beaver's own lock: released, or every other task in this process does.
-    assert not db._tx_lock.locked()
+    # "Eventually" because cleanup deliberately keeps the lock until the
+    # rollback has landed — see Transaction._clean_up_in_the_background.
+    assert await eventually(lambda: not db._tx_lock.locked())
     assert db._tx_owner_task is None
 
 
@@ -156,7 +186,7 @@ async def test_a_failing_begin_does_not_leave_a_phantom_owner(db):
             pass
 
     assert db._tx_owner_task is None
-    assert not db._tx_lock.locked()
+    assert await eventually(lambda: not db._tx_lock.locked())
 
     db.connection.execute = real
     with pytest.raises(RuntimeError):
@@ -252,7 +282,7 @@ async def test_an_orphaned_transaction_is_reclaimed_rather_than_waited_on(db):
     # Under the 0.5 s default this would have been a TransactionTimeoutError.
     assert waited < 0.4, f"waited {waited:.3f}s — that is a timeout, not a reclaim"
     assert await db.dict("d").fetch("k") == "reclaimed"
-    assert write_lock_is_free(db.test_path)
+    assert await eventually_write_lock_free(db.test_path)
 
 
 async def test_a_live_holder_is_never_mistaken_for_an_orphan(db):
@@ -283,6 +313,37 @@ async def test_a_live_holder_is_never_mistaken_for_an_orphan(db):
     await task
     assert committed.is_set()
     assert await db.dict("d").fetch("k") == "holder's write"
+
+
+async def test_a_deadline_survives_a_write_lock_held_by_another_process(tmp_path):
+    """The caller's deadline has to win even when the *statement* is what blocks.
+
+    Found live, not in a unit test: a second connection holding the write lock
+    blocks `BEGIN IMMEDIATE` inside aiosqlite's worker thread, and cancelling
+    the await does not unblock the thread. Any cleanup the enter path performs
+    on that connection queues *behind* the statement that is stuck — so an
+    awaited rollback turns a 1.5 s deadline into a 30 s hang. `curl` on
+    warden's /healthz sat for the full 10 s of its --max-time proving it.
+    """
+    path = str(tmp_path / "blocked.db")
+    database = AsyncBeaverDB(path, connection_timeout=30.0)
+    await database.connect()
+
+    blocker = sqlite3.connect(path, timeout=30)
+    blocker.execute("BEGIN IMMEDIATE")
+    try:
+        loop = asyncio.get_running_loop()
+        started = loop.time()
+        with pytest.raises(TimeoutError):
+            async with asyncio.timeout(0.5):
+                async with database.transaction():
+                    await database.dict("d").set("k", 1)
+        elapsed = loop.time() - started
+        assert elapsed < 3, f"the deadline was 0.5s and the call took {elapsed:.1f}s"
+    finally:
+        blocker.execute("ROLLBACK")
+        blocker.close()
+        await database.close()
 
 
 async def test_nested_transactions_still_pass_through(db):

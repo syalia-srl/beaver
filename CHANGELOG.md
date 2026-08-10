@@ -2,6 +2,36 @@
 
 All notable changes to beaver-db will be recorded here.
 
+## 2.4.1 — 2026-08-10
+
+### Fixed
+
+- **2.4.0's cleanup could itself hang, and could roll back the wrong
+  transaction.** Both were found by exercising a real service over HTTP rather
+  than in a unit test, and both come from the same fact: aiosqlite serialises
+  every statement onto one worker thread.
+
+  * *The hang.* When a **separate connection** holds the write lock, the
+    worker thread is parked inside SQLite's busy handler with `BEGIN
+    IMMEDIATE` still running. 2.4.0 *awaited* its cleanup rollback, which
+    queued behind that stuck statement — so a caller's 1.5 s deadline became a
+    30 s wait for SQLite's busy-timeout. Measured on warden's `/healthz`: curl
+    sat through the full 10 s of its `--max-time` and returned nothing.
+  * *The wrong rollback.* Merely scheduling it instead is not enough. An
+    uncontended `asyncio.Lock.acquire()` does not yield, so the next
+    transaction in the same task enqueues its `BEGIN` **ahead** of the pending
+    `ROLLBACK` — which then rolls back that innocent transaction, silently
+    committing its writes in autocommit.
+
+  Cleanup now runs in a background task that **holds the transaction lock
+  until the rollback has landed**. The caller returns immediately, and
+  ordering comes from mutual exclusion rather than from scheduling order.
+  Waiters are bounded by the same `connection_timeout` as before.
+
+- **Reclaiming an orphaned transaction awaits its rollback**, for the same
+  ordering reason — that path continues straight to `BEGIN` without yielding.
+  Bounded, and a timeout there raises `TransactionTimeoutError`.
+
 ## 2.4.0 — 2026-08-10
 
 ### Fixed — availability class
