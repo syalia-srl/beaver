@@ -1,5 +1,23 @@
 # beaver v2.0 — current status
 
+> **Historical inventory:** this document was last refreshed during the v2.0
+> release cycle and is stale relative to beaver 2.4.1. The tables below are
+> retained as a record of that cycle; do not use them as the current feature
+> matrix.
+
+## Current branch work (2.4.1)
+
+Issue #45 adds the Beaver Studio MVP: a local, read-only database inspector with
+semantic catalog and overview views, bounded browsing for dictionaries, lists,
+queues, logs, documents, vectors, graphs, blobs, channels, sketches, and locks,
+plus `beaver info --db app.db` for terminal inspection. Document views include
+safe FTS/fuzzy search and index coverage; payload-heavy modalities use explicit
+bounded details; logs and channels support time ranges; external schema, index
+health, and in-memory Studio operations are visible. Oversized, deeply nested,
+binary, encrypted, or malformed values degrade explicitly. This work is in
+progress on the Studio branch and is not represented in the historical tables
+below.
+
 Living inventory of what's real vs missing through the v2.0 release cycle.
 Deletes itself at `2.0.0`. Last refreshed: 2026-05-30 (slice 3 of #36 landed:
 `AsyncBeaverLog` joins the SID surface — `@expose` on log/range/count/clear,
