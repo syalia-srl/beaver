@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Beaver Studio</title>
+    <link rel="stylesheet" href="/assets/app.css">
+    <script src="/assets/app.js" defer></script>
+  </head>
+  <body>
+    <header>
+      <div>
+        <p class="eyebrow">Local database inspector</p>
+        <h1>Beaver Studio</h1>
+      </div>
+      <span class="badge" aria-label="Database access mode">Read only</span>
+    </header>
+    <main>
+      <section id="overview" aria-labelledby="overview-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Database</p>
+            <h2 id="overview-title">Overview</h2>
+          </div>
+          <p id="refresh-status" role="status" aria-live="polite">Connecting…</p>
+        </div>
+        <dl id="database-facts" class="facts"></dl>
+        <div id="warnings" class="warnings" aria-live="polite"></div>
+        <div class="admin-panels">
+          <details>
+            <summary>Index diagnostics</summary>
+            <pre id="diagnostics-output">Loading…</pre>
+          </details>
+          <details>
+            <summary>External SQLite schema</summary>
+            <pre id="schema-output">Loading…</pre>
+          </details>
+          <details>
+            <summary>Studio operations</summary>
+            <pre id="operations-output">Loading…</pre>
+          </details>
+        </div>
+      </section>
+
+      <section class="workspace" aria-label="Store explorer">
+        <nav class="sidebar" aria-labelledby="stores-title">
+          <h2 id="stores-title">Stores</h2>
+          <div id="catalog"></div>
+        </nav>
+
+        <section class="results" aria-labelledby="results-title">
+          <div class="section-heading">
+            <div>
+              <p id="store-kind" class="eyebrow">Select a store</p>
+              <h2 id="results-title">Items</h2>
+            </div>
+            <label id="follow-control" class="follow-control" hidden>
+              <input id="follow" type="checkbox">
+              Follow log
+            </label>
+          </div>
+          <p id="result-status" role="status" aria-live="polite">
+            Choose a browsable store from the sidebar.
+          </p>
+          <form id="document-search" class="viewer-controls" hidden>
+            <label>
+              Search documents
+              <input id="document-query" type="search" placeholder="Words or phrase">
+            </label>
+            <label>
+              Mode
+              <select id="document-search-mode">
+                <option value="fts">Full text</option>
+                <option value="fuzzy">Fuzzy</option>
+              </select>
+            </label>
+            <button type="submit">Search</button>
+            <button id="document-search-clear" type="button" class="secondary">Clear</button>
+          </form>
+          <form id="log-range" class="viewer-controls" hidden>
+            <label>
+              From
+              <input id="log-start" type="datetime-local">
+            </label>
+            <label>
+              To
+              <input id="log-end" type="datetime-local">
+            </label>
+            <button type="submit">Apply range</button>
+            <button id="log-range-clear" type="button" class="secondary">Clear</button>
+          </form>
+          <form id="graph-filters" class="viewer-controls" hidden>
+            <label>
+              Source
+              <input id="graph-source" type="search" placeholder="Exact node ID">
+            </label>
+            <label>
+              Target
+              <input id="graph-target" type="search" placeholder="Exact node ID">
+            </label>
+            <label>
+              Label
+              <input id="graph-label" type="search" placeholder="Exact edge label">
+            </label>
+            <button type="submit">Apply filters</button>
+            <button id="graph-filters-clear" type="button" class="secondary">Clear</button>
+          </form>
+          <div id="index-status" class="index-status" hidden></div>
+          <div class="table-wrap">
+            <table>
+              <thead id="items-head"></thead>
+              <tbody id="items-body"></tbody>
+            </table>
+          </div>
+          <button id="load-more" type="button" hidden>Load more</button>
+        </section>
+
+        <aside class="detail" aria-labelledby="detail-title">
+          <h2 id="detail-title">Item detail</h2>
+          <pre id="item-detail" tabindex="0">Select a row to inspect its JSON.</pre>
+        </aside>
+      </section>
+    </main>
+  </body>
+</html>
