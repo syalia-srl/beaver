@@ -1,0 +1,62 @@
+name: pages
+# beaver.syalia.com: the product page in site/ at the root, the Quarto docs
+# under /docs/, and a redirect page for each old docs URL. One artifact,
+# assembled by site/build.py. Pull requests build it; main deploys it.
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", "docs/**", "pyproject.toml", ".github/workflows/pages.yml"]
+  pull_request:
+    branches: [main]
+    paths: ["site/**", "docs/**", "pyproject.toml", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      build_type: ${{ steps.pages.outputs.build_type }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: 1.9.37
+      - name: Render the docs
+        run: quarto render docs
+      - name: Assemble the site
+        run: python site/build.py public
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+      # Deploying needs the repository's Pages source set to "GitHub Actions".
+      # While it is still the gh-pages branch, the deploy job is skipped and
+      # the old site stays up; re-run this workflow after switching.
+      - id: pages
+        name: Read the Pages source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          build_type=$(gh api "repos/${{ github.repository }}/pages" --jq .build_type || echo none)
+          echo "build_type=$build_type" >> "$GITHUB_OUTPUT"
+          if [ "$build_type" != workflow ]; then
+            echo "::notice::Pages source is '$build_type', not 'workflow': the deploy job will be skipped."
+          fi
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.build.outputs.build_type == 'workflow'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

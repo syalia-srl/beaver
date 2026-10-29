@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beaver · The Swiss army knife of local data</title>
+<meta name="description" content="Beaver is an embedded database for Python: dicts, lists, queues, logs, searchable documents, vectors, graphs, blobs, locks and channels, all in one SQLite file.">
+<link rel="canonical" href="https://beaver.syalia.com/">
+<meta property="og:title" content="Beaver · The Swiss army knife of local data">
+<meta property="og:description" content="An embedded database for Python: ten data structures in one SQLite file. No server to run, nothing to configure.">
+<meta property="og:url" content="https://beaver.syalia.com/">
+<meta property="og:type" content="website">
+<link rel="icon" type="image/png" sizes="32x32" href="img/beaver-32.png">
+<link rel="apple-touch-icon" href="img/beaver-180.png">
+<link rel="preload" href="fonts/nunito-800.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+
+<header class="top">
+  <a class="brand" href="./"><img src="img/beaver-96.webp" width="34" height="34" alt="">Beaver</a>
+  <nav class="nav">
+    <a href="docs/">Docs</a>
+    <a class="hide-phone" href="https://github.com/syalia-srl/beaver">GitHub</a>
+    <a class="hide-phone" href="https://pypi.org/project/beaver-db/">PyPI</a>
+  </nav>
+  <div class="lang" role="group" aria-label="Language"><button type="button" data-l="en" class="on">EN</button><button type="button" data-l="es">ES</button></div>
+</header>
+
+<main>
+<section class="hero wrap">
+  <div>
+    <span class="chip" data-en="Embedded database for Python · MIT" data-es="Base de datos embebida para Python · MIT">Embedded database for Python · MIT</span>
+    <h1 class="h"><span data-en="The Swiss army knife of" data-es="La navaja suiza de los">The Swiss army knife of</span> <em data-en="local data." data-es="datos locales.">local data.</em></h1>
+    <p class="sub" data-en="Dicts, lists, queues, logs, searchable documents, vectors, graphs, blobs, locks and channels, all in one SQLite file. No server to run, nothing to configure." data-es="Dicts, listas, colas, logs, documentos con búsqueda, vectores, grafos, blobs, locks y canales, todo en un archivo SQLite. Sin servidor que arrancar ni nada que configurar.">Dicts, lists, queues, logs, searchable documents, vectors, graphs, blobs, locks and channels, all in one SQLite file. No server to run, nothing to configure.</p>
+    <div class="install"><code><span class="d">$</span> <span id="install-cmd">pip install beaver-db</span></code><button type="button" class="copy" data-copy="install-cmd" data-en="Copy" data-es="Copiar">Copy</button></div>
+    <div class="facts">v<span data-version>2.4.1</span> · Python 3.12+ · MIT</div>
+    <div class="ctas"><a class="btn p" href="docs/" data-en="Read the docs" data-es="Leer la documentación">Read the docs</a><a class="btn" href="https://github.com/syalia-srl/beaver">GitHub ↗</a></div>
+  </div>
+  <div class="sticker"><img src="img/logo-400.webp" width="400" height="400" alt="Beaver logo: a beaver with a Swiss army knife in front of a database"></div>
+</section>
+
+<section class="sec" id="shapes">
+  <div class="wrap">
+    <div class="eb" data-en="One file, many shapes" data-es="Un archivo, muchas formas">One file, many shapes</div>
+    <h2 class="t" data-en="Pick the shape your data has." data-es="Elige la forma que tienen tus datos.">Pick the shape your data has.</h2>
+    <p class="lead" data-en="Each manager is a name inside the same app.db. Every snippet below runs as is after pip install beaver-db." data-es="Cada estructura es un nombre dentro del mismo app.db. Cada fragmento de abajo corre tal cual después de pip install beaver-db.">Each manager is a name inside the same app.db. Every snippet below runs as is after pip install beaver-db.</p>
+    <div class="tabs" id="tabs" role="tablist" aria-label="Data structures">
+      <button type="button" role="tab" aria-selected="true" class="on" data-t="dict" data-guide="guide-dicts.html">dict</button><button type="button" role="tab" aria-selected="false" data-t="list" data-guide="guide-lists.html">list</button><button type="button" role="tab" aria-selected="false" data-t="queue" data-guide="guide-queues.html">queue</button><button type="button" role="tab" aria-selected="false" data-t="log" data-guide="guide-logs.html">log</button><button type="button" role="tab" aria-selected="false" data-t="docs" data-guide="guide-collections.html">docs</button><button type="button" role="tab" aria-selected="false" data-t="vectors" data-guide="guide-collections.html">vectors</button><button type="button" role="tab" aria-selected="false" data-t="graph" data-guide="guide-collections.html">graph</button><button type="button" role="tab" aria-selected="false" data-t="blob" data-guide="guide-blobs.html">blob</button><button type="button" role="tab" aria-selected="false" data-t="lock" data-guide="guide-locks.html">lock</button><button type="button" role="tab" aria-selected="false" data-t="channel" data-guide="guide-channels.html">channel</button>
+    </div>
+    <div class="panel" role="tabpanel">
+      <div class="bar"><b id="fname">dict.py</b><span class="ver">beaver-db <span data-version>2.4.1</span> · <span data-en="runs as is" data-es="corre tal cual">runs as is</span></span><button type="button" class="copy" data-copy="snippet" data-en="Copy" data-es="Copiar">Copy</button><a id="guide" href="docs/guide-dicts.html" data-en="Guide →" data-es="Guía →">Guide →</a></div>
+<pre class="snip" data-snippet="dict"><span class="k">from</span> beaver <span class="k">import</span> BeaverDB
+
+db = BeaverDB(<span class="s">"app.db"</span>)
+config = db.dict(<span class="s">"config"</span>)
+config[<span class="s">"theme"</span>] = <span class="s">"dark"</span>
+config.set(<span class="s">"session"</span>, {<span class="s">"user"</span>: <span class="s">"ana"</span>}, ttl_seconds=<span class="n">3600</span>)
+print(config[<span class="s">"theme"</span>], len(config))</pre>
+<div class="out" data-out="dict">dark 2</div>
+<pre class="snip" data-snippet="list" hidden><span class="k">from</span> beaver <span class="k">import</span> BeaverDB
+
+db = BeaverDB(<span class="s">"app.db"</span>)
+todo = db.list(<span class="s">"todo"</span>)
+todo.push(<span class="s">"write the report"</span>)
+todo.push(<span class="s">"ship the release"</span>)
+todo.prepend(<span class="s">"buy coffee"</span>)
+print(todo[<span class="n">0</span>], todo[<span class="n">1</span>:], len(todo))</pre>
+<div class="out" data-out="list" hidden>buy coffee ['write the report', 'ship the release'] 3</div>
+<pre class="snip" data-snippet="queue" hidden><span class="k">from</span> beaver <span class="k">import</span> BeaverDB
+
+db = BeaverDB(<span class="s">"app.db"</span>)
+jobs = db.queue(<span class="s">"jobs"</span>)
+jobs.put({<span class="s">"task"</span>: <span class="s">"resize"</span>, <span class="s">"file"</span>: <span class="s">"a.png"</span>}, priority=<span class="n">2</span>)
+jobs.put({<span class="s">"task"</span>: <span class="s">"urgent"</span>}, priority=<span class="n">1</span>)
+job = jobs.get()          <span class="c"># lowest priority value first</span>
+print(job.data)</pre>
+<div class="out" data-out="queue" hidden>{'task': 'urgent'}</div>
+<pre class="snip" data-snippet="log" hidden><span class="k">import</span> time
+<span class="k">from</span> beaver <span class="k">import</span> BeaverDB
+
+db = BeaverDB(<span class="s">"app.db"</span>)
+metrics = db.log(<span class="s">"metrics"</span>)
+metrics.log({<span class="s">"cpu"</span>: <span class="n">0.42</span>, <span class="s">"host"</span>: <span class="s">"web-1"</span>})
+metrics.log({<span class="s">"cpu"</span>: <span class="n">0.57</span>, <span class="s">"host"</span>: <span class="s">"web-2"</span>})
+last_hour = metrics.range(start=time.time() - <span class="n">3600</span>)
+print(len(last_hour), last_hour[-<span class="n">1</span>].data)</pre>
+<div class="out" data-out="log" hidden>2 {'cpu': 0.57, 'host': 'web-2'}</div>
+<pre class="snip" data-snippet="docs" hidden><span class="k">from</span> beaver <span class="k">import</span> BeaverDB, Document
+
+db = BeaverDB(<span class="s">"app.db"</span>)
+notes = db.docs(<span class="s">"notes"</span>)
+notes.index(Document(id=<span class="s">"wal"</span>, body=<span class="s">"readers and writers share one file"</span>), fuzzy=<span class="k">True</span>)
+notes.index(Document(id=<span class="s">"aio"</span>, body=<span class="s">"asyncio runs coroutines"</span>), fuzzy=<span class="k">True</span>)
+print([h.document.id <span class="k">for</span> h <span class="k">in</span> notes.search(<span class="s">"readers"</span>)])                 <span class="c"># full-text</span>
+print([h.document.id <span class="k">for</span> h <span class="k">in</span> notes.search(<span class="s">"corutines"</span>, fuzzy=<span class="k">True</span>)])   <span class="c"># typo-tolerant</span></pre>
+<div class="out" data-out="docs" hidden>['wal']
+['aio']</div>
+<pre class="snip" data-snippet="vectors" hidden><span class="k">from</span> beaver <span class="k">import</span> BeaverDB
+
+db = BeaverDB(<span class="s">"app.db"</span>)
+emb = db.vectors(<span class="s">"embeddings"</span>)
+emb.set(<span class="s">"cat"</span>, [<span class="n">0.9</span>, <span class="n">0.1</span>, <span class="n">0.0</span>])
+emb.set(<span class="s">"dog"</span>, [<span class="n">0.8</span>, <span class="n">0.2</span>, <span class="n">0.1</span>])
+emb.set(<span class="s">"car"</span>, [<span class="n">0.0</span>, <span class="n">0.1</span>, <span class="n">0.9</span>])
+<span class="k">for</span> item <span class="k">in</span> emb.near([<span class="n">0.85</span>, <span class="n">0.15</span>, <span class="n">0.05</span>], k=<span class="n">2</span>):
+    print(item.id)</pre>
+<div class="out" data-out="vectors" hidden>cat
+dog</div>
+<pre class="snip" data-snippet="graph" hidden><span class="k">from</span> beaver <span class="k">import</span> BeaverDB
+
+db = BeaverDB(<span class="s">"app.db"</span>)
+g = db.graph(<span class="s">"people"</span>)
+g.link(<span class="s">"ana"</span>, <span class="s">"ben"</span>, <span class="s">"knows"</span>)
+g.link(<span class="s">"ben"</span>, <span class="s">"cara"</span>, <span class="s">"knows"</span>)
+g.link(<span class="s">"ana"</span>, <span class="s">"acme"</span>, <span class="s">"works_at"</span>)
+print(list(g.children(<span class="s">"ana"</span>, label=<span class="s">"knows"</span>)))
+print(list(g.parents(<span class="s">"cara"</span>)))</pre>
+<div class="out" data-out="graph" hidden>['ben']
+['ben']</div>
+<pre class="snip" data-snippet="blob" hidden><span class="k">from</span> beaver <span class="k">import</span> BeaverDB
+
+db = BeaverDB(<span class="s">"app.db"</span>)
+files = db.blob(<span class="s">"files"</span>)
+files.put(<span class="s">"logo.png"</span>, <span class="s">b"\x89PNG..."</span>, metadata={<span class="s">"type"</span>: <span class="s">"image/png"</span>})
+item = files.fetch(<span class="s">"logo.png"</span>)
+print(len(item.data), item.metadata)</pre>
+<div class="out" data-out="blob" hidden>7 {'type': 'image/png'}</div>
+<pre class="snip" data-snippet="lock" hidden><span class="k">from</span> beaver <span class="k">import</span> BeaverDB
+
+db = BeaverDB(<span class="s">"app.db"</span>)
+<span class="c"># coordinates threads and processes that share app.db</span>
+<span class="k">with</span> db.lock(<span class="s">"nightly-backup"</span>, timeout=<span class="n">5</span>):
+    print(<span class="s">"only this process runs the backup"</span>)</pre>
+<div class="out" data-out="lock" hidden>only this process runs the backup</div>
+<pre class="snip" data-snippet="channel" hidden><span class="k">import</span> threading
+<span class="k">from</span> beaver <span class="k">import</span> BeaverDB
+
+db = BeaverDB(<span class="s">"app.db"</span>)
+chat = db.channel(<span class="s">"chat"</span>)
+
+<span class="k">def</span> listen():
+    <span class="k">for</span> msg <span class="k">in</span> chat.listen():       <span class="c"># any process with app.db can listen</span>
+        print(<span class="s">"got"</span>, msg.payload)
+        <span class="k">break</span>
+
+t = threading.Thread(target=listen); t.start()
+chat.publish({<span class="s">"from"</span>: <span class="s">"ana"</span>, <span class="s">"text"</span>: <span class="s">"hello"</span>})
+t.join(timeout=<span class="n">5</span>)</pre>
+<div class="out" data-out="channel" hidden>got {'from': 'ana', 'text': 'hello'}</div>
+    </div>
+    <p class="note" data-en="The file is standard SQLite: open it with any SQLite tool. Python's own sqlite3 module reads all its tables." data-es="El archivo es SQLite estándar: ábrelo con cualquier herramienta de SQLite. El módulo sqlite3 de Python lee todas sus tablas.">The file is standard SQLite: open it with any SQLite tool. Python's own sqlite3 module reads all its tables.</p>
+  </div>
+</section>
+
+<section class="sec" id="grows">
+  <div class="wrap">
+    <div class="eb" data-en="Grows with you" data-es="Crece contigo">Grows with you</div>
+    <h2 class="t" data-en="Start with a script. Keep the file." data-es="Empieza con un script. Quédate con el archivo.">Start with a script. Keep the file.</h2>
+    <div class="ladder">
+      <div class="rung"><span class="no">1</span><b data-en="A script" data-es="Un script">A script</b><p data-en="Open a file and use it. The same API exists as async, with await." data-es="Abre un archivo y úsalo. La misma API existe en async, con await.">Open a file and use it. The same API exists as async, with await.</p><code>db = BeaverDB("app.db")</code></div>
+      <div class="rung"><span class="no">2</span><b data-en="Many processes" data-es="Varios procesos">Many processes</b><p data-en="Workers share app.db: a queue hands out jobs, a lock keeps one-at-a-time work, a channel tells the others." data-es="Los workers comparten app.db: una cola reparte trabajos, un lock deja la tarea a uno solo y un canal avisa a los demás.">Workers share app.db: a queue hands out jobs, a lock keeps one-at-a-time work, a channel tells the others.</p><code>jobs = db.queue("jobs")</code></div>
+      <div class="rung"><span class="no">3</span><b data-en="The shell" data-es="La terminal">The shell</b><p data-en="Read and write dicts, lists, queues and logs from the command line." data-es="Lee y escribe dicts, listas, colas y logs desde la línea de comandos.">Read and write dicts, lists, queues and logs from the command line.</p><code>beaver <span class="nw">--db</span> app.db dict config get theme</code></div>
+      <div class="rung"><span class="no">4</span><b data-en="Over the network" data-es="Por la red">Over the network</b><p data-en="Serve the file over REST and connect with the same API. Dicts, lists, queues and logs today." data-es="Sirve el archivo por REST y conéctate con la misma API. Hoy: dicts, listas, colas y logs.">Serve the file over REST and connect with the same API. Dicts, lists, queues and logs today.</p><code>beaver serve <span class="nw">--db</span> app.db <span class="nw">--api-key</span> "$KEY"</code><code>beaver.connect(url, api_key=key)</code><a class="more" href="docs/guide-deployment.html" data-en="Deployment guide →" data-es="Guía de despliegue →">Deployment guide →</a></div>
+    </div>
+    <div class="warn" data-en="Always start beaver serve with --api-key. Without it the server has no authentication, so keep it on 127.0.0.1 (the default)." data-es="Arranca siempre beaver serve con --api-key. Sin clave el servidor no tiene autenticación; déjalo en 127.0.0.1, que es el valor por defecto.">Always start beaver serve with --api-key. Without it the server has no authentication, so keep it on 127.0.0.1 (the default).</div>
+  </div>
+</section>
+
+<section class="sec" id="box">
+  <div class="wrap">
+    <div class="eb" data-en="What's in the box" data-es="Qué trae la caja">What's in the box</div>
+    <h2 class="t" data-en="Twelve tools, one handle." data-es="Doce herramientas, un mango.">Twelve tools, one handle.</h2>
+    <div class="grid">
+      <a class="tool" href="docs/guide-dicts.html"><b>Dicts</b><span data-en="Key-value with namespaces and per-key TTL." data-es="Clave-valor por espacios de nombres, con TTL por clave.">Key-value with namespaces and per-key TTL.</span></a>
+      <a class="tool" href="docs/guide-lists.html"><b>Lists</b><span data-en="Push, pop, prepend, insert, slices." data-es="Push, pop, prepend, insert, slices.">Push, pop, prepend, insert, slices.</span></a>
+      <a class="tool" href="docs/guide-queues.html"><b>Queues</b><span data-en="Priority queue shared across processes." data-es="Cola con prioridad compartida entre procesos.">Priority queue shared across processes.</span></a>
+      <a class="tool" href="docs/guide-logs.html"><b>Logs</b><span data-en="Time-indexed entries, range queries, a live view." data-es="Entradas por tiempo, consultas por rango, vista en vivo.">Time-indexed entries, range queries, a live view.</span></a>
+      <a class="tool" href="docs/guide-collections.html"><b>Documents</b><span data-en="Full-text search on SQLite FTS5, plus fuzzy matching." data-es="Búsqueda de texto con FTS5 de SQLite y coincidencia difusa.">Full-text search on SQLite FTS5, plus fuzzy matching.</span></a>
+      <a class="tool" href="docs/guide-collections.html"><b>Vectors</b><span data-en="Nearest neighbours, exact or with an LSH index." data-es="Vecinos más cercanos, exactos o con un índice LSH.">Nearest neighbours, exact or with an LSH index.</span></a>
+      <a class="tool" href="docs/guide-collections.html"><b>Graphs</b><span data-en="Labelled edges, children and parents." data-es="Aristas con etiqueta, hijos y padres.">Labelled edges, children and parents.</span></a>
+      <a class="tool" href="docs/guide-blobs.html"><b>Blobs</b><span data-en="Binary files with JSON metadata." data-es="Archivos binarios con metadatos JSON.">Binary files with JSON metadata.</span></a>
+      <a class="tool" href="docs/guide-locks.html"><b>Locks</b><span data-en="Named locks across processes, with a TTL." data-es="Locks con nombre entre procesos, con TTL.">Named locks across processes, with a TTL.</span></a>
+      <a class="tool" href="docs/guide-channels.html"><b>Channels</b><span data-en="Publish and subscribe between processes." data-es="Publicar y suscribirse entre procesos.">Publish and subscribe between processes.</span></a>
+      <a class="tool" href="docs/guide-sketches.html"><b>Sketches</b><span data-en="HyperLogLog counts and Bloom filters in fixed space." data-es="Conteos HyperLogLog y filtros de Bloom en espacio fijo.">HyperLogLog counts and Bloom filters in fixed space.</span></a>
+      <a class="tool" href="docs/guide.html"><b>Pydantic</b><span data-en="Attach a model to any structure for validation." data-es="Asocia un modelo a cualquier estructura para validar.">Attach a model to any structure for validation.</span></a>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="used">
+  <div class="wrap used">
+    <div>
+      <div class="eb" data-en="In production at Syalia" data-es="En producción en Syalia">In production at Syalia</div>
+      <p class="lead" data-en="Syalia builds its own products on Beaver. It is open source under the MIT licence, and contributions are welcome on GitHub." data-es="Syalia construye sus propios productos sobre Beaver. Es código abierto con licencia MIT, y las contribuciones son bienvenidas en GitHub.">Syalia builds its own products on Beaver. It is open source under the MIT licence, and contributions are welcome on GitHub.</p>
+    </div>
+    <div class="prods"><a href="https://diaitu.com/#apps">AInBox</a><a href="https://invox.diaitu.com/">Invox</a><a href="https://geocoder.syalia.com/">Geocoder</a><a href="https://resona.syalia.com/">Resona</a></div>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <span><b>Beaver</b> · MIT · <span data-en="built by" data-es="hecho por">built by</span> Syalia</span>
+  <nav class="r"><a href="docs/">Docs</a><a href="https://github.com/syalia-srl/beaver">GitHub</a><a href="https://pypi.org/project/beaver-db/">PyPI</a><a class="hide-phone" href="https://github.com/syalia-srl/beaver/blob/main/CHANGELOG.md">Changelog</a><a href="https://syalia.com/#products">syalia.com</a></nav>
+</footer>
+
+<script src="site.js"></script>
+</body>
+</html>

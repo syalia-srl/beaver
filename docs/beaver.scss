@@ -1,0 +1,29 @@
+/*-- scss:defaults --*/
+// Beaver's colours from logo.png on top of cosmo, so the docs match the
+// product page. No web font import: the fonts come from the site itself.
+$web-font-path: false;
+$navy: #1a2757;
+$fur: #cc722d;
+$paper: #fbf6ee;
+$primary: $navy;
+$body-bg: $paper;
+$body-color: $navy;
+$link-color: #a85a1f;
+$navbar-bg: #fffdf9;
+$navbar-fg: $navy;
+$font-family-sans-serif: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+$font-family-monospace: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+$headings-font-family: "Nunito", "Inter", system-ui, sans-serif;
+$headings-font-weight: 800;
+
+/*-- scss:rules --*/
+// Paths are relative to docs/: Quarto copies the files from site/fonts/
+// into the rendered docs, so they work wherever the docs are served.
+@font-face { font-family: "Nunito"; font-weight: 800; font-display: swap; src: url("../site/fonts/nunito-800.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-weight: 400; font-display: swap; src: url("../site/fonts/inter-400.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-weight: 600; font-display: swap; src: url("../site/fonts/inter-600.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 400; font-display: swap; src: url("../site/fonts/jbmono-400.woff2") format("woff2"); }
+
+.navbar { border-bottom: 2px solid $navy; }
+.navbar-brand .navbar-title { font-family: "Nunito", "Inter", sans-serif; font-weight: 800; }
+.navbar-logo { border-radius: 8px; }
