@@ -2,23 +2,29 @@
 project:
   type: website
   output-dir: _site
+  # Internal design notes stay in the repo, not on the published docs.
+  render:
+    - "*.md"
+    - "!superpowers/"
 
 # Website-level metadata
 website:
   title: "BeaverDB"
+  site-url: https://beaver.syalia.com/docs/
   # author: "SYALIA S.R.L."
   # license: "CC BY-NC-SA 4.0"
 
 
   # --- Navigation Bar ---
   navbar:
-    logo: "logo.png"
+    logo: "img/beaver.webp"
     pinned: true
     search: true
     left:
-      - href: index.html
+      # The product page sits one level up, at the site root.
+      - href: ../index.html
         text: Home
-      - href: intro.md
+      - href: index.md
         text: Introduction
       - href: quickstart.md
         text: Quickstart
@@ -77,13 +83,14 @@ website:
 format:
   html:
     theme:
-      light: cosmo
+      light: [cosmo, beaver.scss]
       # dark:
     toc: true
     toc-depth: 3
     code-fold: true
     code-copy: true
-    mainfont: "Inter"
+    # Plain math keeps the docs free of CDN scripts; the docs only write $T$.
+    html-math-method: plain
 
 # # --- PDF Output Format (Optional) ---
 # # This format can still be used to generate a PDF of individual pages
