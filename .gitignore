@@ -14,3 +14,4 @@ wheels/
 .coverage
 _site
 benchmark
+public/

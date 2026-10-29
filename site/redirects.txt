@@ -1,0 +1,24 @@
+# Pages of the old docs at the site root, and where each one lives now.
+# One "old new" pair per line; site/build.py writes a small page at each old
+# path that sends the visitor on. Paths are relative to the site root.
+intro.html               docs/
+quickstart.html          docs/quickstart.html
+guide.html               docs/guide.html
+guide-dicts.html         docs/guide-dicts.html
+guide-blobs.html         docs/guide-blobs.html
+guide-lists.html         docs/guide-lists.html
+guide-queues.html        docs/guide-queues.html
+guide-logs.html          docs/guide-logs.html
+guide-channels.html      docs/guide-channels.html
+guide-collections.html   docs/guide-collections.html
+guide-sketches.html      docs/guide-sketches.html
+guide-locks.html         docs/guide-locks.html
+guide-deployment.html    docs/guide-deployment.html
+guide-dicts-blobs.html   docs/guide-dicts.html
+guide-lists-queues.html  docs/guide-lists.html
+guide-realtime.html      docs/guide-channels.html
+guide-concurrency.html   docs/guide-locks.html
+dev-architecture.html    docs/dev-architecture.html
+dev-concurrency.html     docs/dev-concurrency.html
+dev-search.html          docs/dev-search.html
+dev-contributing.html    docs/dev-contributing.html

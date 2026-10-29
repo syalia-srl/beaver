@@ -6,7 +6,17 @@ sync:
 
 .PHONY: docs
 docs:
-	cd docs && quarto publish gh-pages
+	quarto preview docs
+
+# The Pages artifact, built as .github/workflows/pages.yml builds it.
+.PHONY: site
+site:
+	quarto render docs
+	uv run python site/build.py public
+
+.PHONY: check-snippets
+check-snippets:
+	uv run python site/check_snippets.py
 
 .PHONY: bugfix
 bugfix:
