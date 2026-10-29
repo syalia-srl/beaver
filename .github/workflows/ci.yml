@@ -25,3 +25,6 @@ jobs:
 
       - name: Run CI (format-check + unit tests)
         run: make ci
+
+      - name: Check the snippets on the product page
+        run: uv run python site/check_snippets.py
