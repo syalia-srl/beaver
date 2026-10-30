@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from . import indexing
 from .queries import Filter
-from .manager import AsyncBeaverBase, atomic, emits
+from .manager import AsyncBeaverBase, atomic, read_atomic, emits
 from .interfaces import Document, ScoredDocument, IDocumentQuery
 
 
@@ -106,6 +106,41 @@ class DocumentQuery[T: BaseModel](IDocumentQuery[T]):
             yield doc
 
 
+def _fts_id_filter(item_id: str) -> str | None:
+    """The FTS5 query that finds an id's rows, or None if it has no tokens."""
+    if not any(c.isalnum() for c in item_id):
+        return None
+    return 'item_id:"' + item_id.replace('"', '""') + '"'
+
+
+async def _delete_fts_rows(conn, collection: str, item_ids: list[str]) -> None:
+    """Delete the FTS rows of these ids.
+
+    FTS5 cannot use an index for `item_id = ?`, so that filter alone scans the whole
+    table for every id. MATCH finds the candidates through the index, and the
+    equality then drops other ids that tokenize alike. An id with no tokens cannot
+    be found by MATCH and takes the scan.
+    """
+    matched, scanned = [], []
+    for item_id in item_ids:
+        query = _fts_id_filter(item_id)
+        if query is None:
+            scanned.append((collection, item_id))
+        else:
+            matched.append((query, collection, item_id))
+    await conn.executemany(
+        """
+        DELETE FROM __beaver_fts_index__
+        WHERE __beaver_fts_index__ MATCH ? AND collection = ? AND item_id = ?
+        """,
+        matched,
+    )
+    await conn.executemany(
+        "DELETE FROM __beaver_fts_index__ WHERE collection = ? AND item_id = ?",
+        scanned,
+    )
+
+
 class AsyncDocumentsBatch[T: BaseModel]:
     """Async context manager for buffered bulk document indexing.
 
@@ -144,7 +179,7 @@ class AsyncDocumentsBatch[T: BaseModel]:
             return
 
         doc_rows: list[tuple[str, str, str]] = []
-        fts_delete_ids: list[tuple[str, str]] = []
+        fts_delete_ids: list[str] = []
         fts_rows: list[tuple[str, str, str, str]] = []
         trigram_delete_ids: list[tuple[str, str]] = []
         trigram_rows: list[tuple[str, str, str]] = []
@@ -158,7 +193,7 @@ class AsyncDocumentsBatch[T: BaseModel]:
 
             # Always clear stale FTS / trigram rows for this id (mirrors the
             # non-batched path so re-indexing the same id is consistent).
-            fts_delete_ids.append((self._manager._name, doc.id))
+            fts_delete_ids.append(doc.id)
             trigram_delete_ids.append((self._manager._name, doc.id))
 
             flat = list(_flatten_document(doc.body))
@@ -186,10 +221,7 @@ class AsyncDocumentsBatch[T: BaseModel]:
                     """,
                     doc_rows,
                 )
-                await conn.executemany(
-                    "DELETE FROM __beaver_fts_index__ WHERE collection = ? AND item_id = ?",
-                    fts_delete_ids,
-                )
+                await _delete_fts_rows(conn, self._manager._name, fts_delete_ids)
                 if fts_rows:
                     await conn.executemany(
                         """
@@ -270,10 +302,7 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
         )
 
         # 2. FTS Update (Flatten -> Delete Old -> Insert New)
-        await self.connection.execute(
-            "DELETE FROM __beaver_fts_index__ WHERE collection = ? AND item_id = ?",
-            (self._name, doc.id),
-        )
+        await _delete_fts_rows(self.connection, self._name, [doc.id])
 
         fts_rows = []
         for field_path, content in _flatten_document(doc.body):
@@ -323,7 +352,7 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
                 [(self._name, item_id, t) for t in trigrams],
             )
 
-    @atomic
+    @read_atomic
     async def get(self, id: str) -> Document[T]:
         """Retrieves a document by ID."""
         cursor = await self.connection.execute(
@@ -369,10 +398,7 @@ class AsyncBeaverDocuments[T: BaseModel](AsyncBeaverBase[T]):
             "DELETE FROM __beaver_documents__ WHERE collection = ? AND item_id = ?",
             (self._name, doc_id),
         )
-        await self.connection.execute(
-            "DELETE FROM __beaver_fts_index__ WHERE collection = ? AND item_id = ?",
-            (self._name, doc_id),
-        )
+        await _delete_fts_rows(self.connection, self._name, [doc_id])
         await self.connection.execute(
             "DELETE FROM __beaver_trigrams__ WHERE collection = ? AND item_id = ?",
             (self._name, doc_id),
