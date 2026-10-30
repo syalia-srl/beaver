@@ -102,7 +102,7 @@ class AsyncBeaverLock(IAsyncBeaverLock):
                         """
                         SELECT waiter_id FROM __beaver_lock_waiters__
                         WHERE lock_name = ?
-                        ORDER BY requested_at ASC, rowid ASC
+                        ORDER BY rowid ASC
                         LIMIT 1
                         """,
                         (self._lock_name,),
