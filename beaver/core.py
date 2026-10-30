@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+from pathlib import Path
 import threading
 from typing import Any, Self, Type, AsyncContextManager
 
@@ -60,6 +61,15 @@ class BeaverLegacySchemaError(BeaverIncompatibleSchemaError):
     dataset beside it, so we refuse instead. See docs/migration-1x-to-2x.md."""
 
 
+class BeaverIncompleteSchemaError(BeaverIncompatibleSchemaError):
+    """Raised when a read-only database lacks required Beaver 2.x tables.
+
+    Writable connections repair additive schema gaps during ``connect()``.
+    A read-only inspector cannot do that safely, and presenting only the tables
+    that happen to exist would make partial state look like valid empty data.
+    """
+
+
 #: Core table names written by beaver 1.x. Detection keys on these exact names
 #: rather than a ``beaver_%`` prefix match so an unrelated user table in the
 #: same file cannot trigger a false refusal. 2.x never creates any of them —
@@ -81,6 +91,33 @@ LEGACY_1X_TABLES = frozenset(
         "beaver_sketches",
         "beaver_trigrams",
         "beaver_vector_change_log",
+    }
+)
+
+
+# Every table created by the current additive schema. A writable connection can
+# create a table introduced by a newer release; a read-only connection cannot,
+# so it must refuse the partial view instead of reporting missing stores empty.
+REQUIRED_2X_TABLES = frozenset(
+    {
+        "__beaver_blobs__",
+        "__beaver_manager_versions__",
+        "__beaver_dicts__",
+        "__beaver_lists__",
+        "__beaver_lock_waiters__",
+        "__beaver_logs__",
+        "__beaver_field_index__",
+        "__beaver_field_index_manifest__",
+        "__beaver_priority_queues__",
+        "__beaver_pubsub_log__",
+        "__beaver_sketches__",
+        "__beaver_documents__",
+        "__beaver_fts_index__",
+        "__beaver_trigrams__",
+        "__beaver_edges__",
+        "__beaver_vectors__",
+        "__beaver_lsh_config__",
+        "__beaver_lsh_index__",
     }
 )
 
@@ -309,6 +346,7 @@ class AsyncBeaverDB:
         db_path: str,
         /,
         *,
+        read_only: bool = False,
         connection_timeout: float = 30.0,
         cache_timeout: float = 0.0,
         pragma_wal: bool = True,
@@ -317,6 +355,9 @@ class AsyncBeaverDB:
         pragma_mmap_size: int = 256 * 1024 * 1024,
     ):
         self._db_path = db_path
+        self._read_only = read_only
+        if read_only and db_path == ":memory:":
+            raise ValueError("read-only databases must be existing files, not :memory:")
         # Bounds both ways a write can be made to wait: SQLite's busy-timeout
         # (contention from another *connection*) and the transaction lock below
         # (contention from another *task* on this one). Only the second one
@@ -361,17 +402,38 @@ class AsyncBeaverDB:
         if self._connection is not None:
             return self
 
+        database = self._db_path
+        connect_kwargs: dict[str, Any] = {}
+        if self._read_only:
+            path = Path(self._db_path).expanduser()
+            if not path.is_file():
+                raise FileNotFoundError(
+                    f"read-only Beaver database does not exist: {self._db_path!r}"
+                )
+            database = f"{path.resolve().as_uri()}?mode=ro"
+            connect_kwargs["uri"] = True
+
         self._connection = await aiosqlite.connect(
-            self._db_path,
+            database,
             timeout=self._timeout,
             # We will manage transactions manually via .transaction()
             isolation_level=None,
+            **connect_kwargs,
         )
         # If any setup step below fails (e.g. an incompatible-schema version
         # check), close the just-opened connection so we don't leak its
         # background aiosqlite thread.
         try:
             self._connection.row_factory = aiosqlite.Row
+
+            if self._read_only:
+                # Connection-local defense in depth. ``mode=ro`` is the actual
+                # file-level guarantee; query_only also rejects writes to any
+                # attached database without changing persistent file state.
+                await self._connection.execute("PRAGMA query_only = ON")
+                await self._check_version(allow_upgrade=False)
+                await self._check_complete_schema()
+                return self
 
             # Apply Pragmas
             if self._pragma_wal:
@@ -390,7 +452,7 @@ class AsyncBeaverDB:
                     f"PRAGMA mmap_size = {self._pragma_mmap_size};"
                 )
 
-            await self._check_version()
+            await self._check_version(allow_upgrade=True)
             await self._create_all_tables()
             await self._connection.execute(f"PRAGMA user_version = {BEAVER_DB_VERSION}")
         except BaseException:
@@ -428,6 +490,16 @@ class AsyncBeaverDB:
 
         return self._connection
 
+    @property
+    def read_only(self) -> bool:
+        """Whether this connection was opened through SQLite's ``mode=ro``."""
+        return self._read_only
+
+    @property
+    def path(self) -> str:
+        """The database path supplied by the caller."""
+        return self._db_path
+
     def transaction(self, *, timeout: float | None = None) -> AsyncContextManager:
         """
         Returns an async context manager for an atomic transaction.
@@ -458,6 +530,18 @@ class AsyncBeaverDB:
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name GLOB '__beaver_*__'"
         )
         return sorted(row[0] for row in await cursor.fetchall())
+
+    async def _check_complete_schema(self) -> None:
+        """Refuse a partial current schema that read-only mode cannot repair."""
+        present = set(await self._tables_named(REQUIRED_2X_TABLES))
+        missing = sorted(REQUIRED_2X_TABLES - present)
+        if missing:
+            raise BeaverIncompleteSchemaError(
+                f"Database {self._db_path!r} has an incomplete Beaver 2.x "
+                "schema and cannot be opened read-only. Missing tables: "
+                f"{', '.join(missing)}. Open it once in writable mode with "
+                "this Beaver version to add compatible schema tables."
+            )
 
     async def _legacy_version_label(self) -> str:
         """Read the version beaver 1.x stamped into beaver_dicts.__metadata__."""
@@ -527,7 +611,7 @@ class AsyncBeaverDB:
             "see docs/migration-1x-to-2x.md."
         )
 
-    async def _check_version(self) -> None:
+    async def _check_version(self, *, allow_upgrade: bool = True) -> None:
         """Verify the open database is compatible with this beaver version.
 
         Fresh databases have user_version=0; we accept that and stamp the
@@ -570,6 +654,13 @@ class AsyncBeaverDB:
                     "rc4 changed __beaver_lists__.item_order from REAL to TEXT "
                     "(fractional indexing) and no automatic migration is "
                     "provided. See docs/migration-rc3-to-rc4-lists.md."
+                )
+            if not allow_upgrade:
+                raise BeaverIncompatibleSchemaError(
+                    "This database was created by beaver < 2.0rc4 and uses "
+                    "the old REAL persistent-list ordering format. Its empty "
+                    "lists table can be upgraded only by opening the database "
+                    "in writable mode."
                 )
             await self._connection.execute("DROP TABLE __beaver_lists__")
 

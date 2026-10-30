@@ -71,6 +71,9 @@ remote = [
 security = [
     { name = "cryptography" },
 ]
+studio = [
+    { name = "fastapi", extra = ["standard"] },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -88,15 +91,17 @@ requires-dist = [
     { name = "aiosqlite", specifier = ">=0.21.0" },
     { name = "beaver-db", extras = ["remote"], marker = "extra == 'full'" },
     { name = "beaver-db", extras = ["security"], marker = "extra == 'full'" },
+    { name = "beaver-db", extras = ["studio"], marker = "extra == 'full'" },
     { name = "cryptography", marker = "extra == 'security'", specifier = ">=46.0.3" },
     { name = "fastapi", extras = ["standard"], marker = "extra == 'remote'", specifier = ">=0.118.0" },
+    { name = "fastapi", extras = ["standard"], marker = "extra == 'studio'", specifier = ">=0.118.0" },
     { name = "httpx", marker = "extra == 'remote'", specifier = ">=0.27.0" },
     { name = "numpy", specifier = ">=2.3.4" },
     { name = "pydantic", specifier = ">=2.12.3" },
     { name = "rich", specifier = ">=14.2.0" },
     { name = "typer", specifier = ">=0.20.0" },
 ]
-provides-extras = ["remote", "security", "full"]
+provides-extras = ["remote", "studio", "security", "full"]
 
 [package.metadata.requires-dev]
 dev = [

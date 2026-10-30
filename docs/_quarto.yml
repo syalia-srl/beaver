@@ -68,6 +68,8 @@ website:
             text: Locks & Concurrency
           - href: guide-deployment.md
             text: Deployment
+          - href: guide-studio.md
+            text: Beaver Studio
       - text: "Developer Guide"
         menu:
           - href: dev-architecture.md

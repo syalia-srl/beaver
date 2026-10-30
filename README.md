@@ -34,12 +34,11 @@ Install the core library:
 pip install beaver-db
 ```
 
-> **Note:** `beaver-db 2.0` is currently in release-candidate cycle. The
-> CLI (`beaver` command), REST API server (`beaver serve`), `BeaverClient`
-> remote, and the published Docker image are all **landing in 2.0 final**
-> (target: June 2026). Today the library is consumed as a Python API only.
-> Track progress at `vault/Atlas/Architecture/2026-05-15-beaver-v2-release-plan.md`
-> in the workspace, or watch the `2.0` issues on GitHub.
+Install the optional local database inspector:
+
+```bash
+pip install "beaver-db[studio]"
+```
 
 ## Quickstart
 
@@ -77,6 +76,29 @@ print(f"FTS Result: '{top.document.body}' (score={top.score:.2f})")
 
 db.close()
 ```
+
+## Inspect a database with Beaver Studio
+
+Inspect an existing database from the terminal:
+
+```bash
+beaver info --db app.db
+```
+
+Or launch the local browser interface:
+
+```bash
+beaver studio --db app.db
+```
+
+The Studio MVP is a read-only inspector. It binds to the loopback interface and
+lets you inventory Beaver stores and safely browse dictionaries, lists, queues,
+logs, documents, vectors, graphs, blobs, channels, sketches, and locks without
+modifying the database. Document collections support bounded FTS and fuzzy
+search; payload-heavy modalities expose safe summaries and explicit previews.
+See the
+[Beaver Studio guide](docs/guide-studio.md) for its guarantees and current
+boundaries.
 
 ## Features
 

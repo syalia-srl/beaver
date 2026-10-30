@@ -4,6 +4,7 @@ import pydantic
 from pydantic import BaseModel
 
 from .core import (
+    BeaverIncompleteSchemaError,
     BeaverIncompatibleSchemaError,
     BeaverLegacySchemaError,
     TransactionTimeoutError,
@@ -29,6 +30,7 @@ _REGISTRY: dict[str, type[Exception]] = {
     "ValueError": ValueError,
     "TimeoutError": TimeoutError,
     "BeaverIncompatibleSchemaError": BeaverIncompatibleSchemaError,
+    "BeaverIncompleteSchemaError": BeaverIncompleteSchemaError,
     "BeaverLegacySchemaError": BeaverLegacySchemaError,
     "TransactionTimeoutError": TransactionTimeoutError,
     "ValidationError": pydantic.ValidationError,
