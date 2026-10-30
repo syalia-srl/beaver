@@ -22,30 +22,13 @@ In **WAL mode**:
 
 This allows BeaverDB to handle high-throughput scenarios (e.g., a logger writing events while an API server queries them) without lock contention errors.
 
-## Thread Safety (`threading.local`)
+## Thread Safety (one connection)
 
-SQLite connections cannot be shared across threads. If two threads try to write to the same `sqlite3.Connection` object, the application will crash or corrupt memory.
+`AsyncBeaverDB` opens **one** aiosqlite connection, and aiosqlite runs every statement on one worker thread. `BeaverDB`, the synchronous facade, runs that engine on a reactor thread and sends each call there, so any number of threads can share one instance.
 
-BeaverDB manages this automatically using **Thread-Local Storage**.
+Every statement in a process therefore runs in turn: a slow query delays all the others, including reads of unrelated data. A second `BeaverDB` on the same file opens its own connection, and SQLite's file locking mediates between them.
 
-```python
-# Internal Logic
-class BeaverDB:
-    def __init__(self):
-        self._thread_local = threading.local()
-
-    @property
-    def connection(self):
-        # If this thread has never asked for a connection, open one.
-        if not hasattr(self._thread_local, "conn"):
-            self._thread_local.conn = sqlite3.connect(...)
-
-        return self._thread_local.conn
-```
-
-  * When Thread A calls `db.dict("x")`, it gets a connection dedicated to Thread A.
-  * When Thread B calls `db.dict("x")`, it gets a different connection dedicated to Thread B.
-  * Both connections talk to the same file, mediated by SQLite's file locking.
+Reads that take a transaction (`dict.get`, `list.get`, `docs.get` and others) do so to avoid seeing another task's uncommitted writes on the shared connection. They do not take the manager's lock, whose acquire and release each write a row.
 
 ## The in-process write lock (`Transaction`)
 

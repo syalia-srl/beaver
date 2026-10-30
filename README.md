@@ -34,13 +34,6 @@ Install the core library:
 pip install beaver-db
 ```
 
-> **Note:** `beaver-db 2.0` is currently in release-candidate cycle. The
-> CLI (`beaver` command), REST API server (`beaver serve`), `BeaverClient`
-> remote, and the published Docker image are all **landing in 2.0 final**
-> (target: June 2026). Today the library is consumed as a Python API only.
-> Track progress at `vault/Atlas/Architecture/2026-05-15-beaver-v2-release-plan.md`
-> in the workspace, or watch the `2.0` issues on GitHub.
-
 ## Quickstart
 
 Get up and running in 30 seconds. This example showcases a dictionary, a list, and full-text search in a single script.

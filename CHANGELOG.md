@@ -2,6 +2,23 @@
 
 All notable changes to beaver-db will be recorded here.
 
+## 2.4.2 — 2026-10-30
+
+### Fixed
+
+- **`db.lock()` could admit two waiters at once (#38).** The queue was ordered by a timestamp taken before the waiter's insert, so a waiter that stamped first and inserted second sorted ahead of the holder. The queue is now ordered by `rowid`, the order of arrival. A read-increment-write loop under the lock, 24 increments from 8 threads over two objects on one file, gave a duplicate in 2 of 30 runs on 2.4.1 and in 0 of 100 on 2.4.2.
+- **Indexing documents in several batches was quadratic (#40).** Each document's delete scanned the whole FTS5 table. It now finds the rows through a `MATCH` on the id. Three batches of 5,000 short documents took 0.3 s, 25.7 s and 50.4 s on 2.4.1, and about 0.3 s each on 2.4.2. Ids with no tokens, such as `___`, still take the scan.
+- **An expired `dict` key was not removed when read.** The delete ran inside the transaction that the `KeyError` rolled back, so the row stayed until it was overwritten.
+
+### Changed
+
+- **Reads no longer write.** `dict.get`, `list.get`, `queue.peek`, `docs.get`, `vectors.get`, `blob.get` and `blob.fetch` took the manager's internal lock, which writes a row to acquire and another to release. They now take only a transaction. `dict.get` went from about 200 to about 700 calls per second through `BeaverDB`.
+- **Several processes writing to one manager wait less.** The internal lock polls every 5 ms instead of every 100 ms. Two processes writing to one `dict` went from 22 to 156 writes per second, and four from 21 to 34.
+
+### Corrected
+
+- The 2.4.0 entry said Starlette and uvicorn cancel a request task whenever a client disconnects. In our measurement 12,800 client aborts against a fast plain handler caused no cancellation, while a streaming response was cancelled on every disconnect. The fix stands, and what started the 2026-08-10 outage is not known.
+
 ## 2.4.1 — 2026-08-10
 
 ### Fixed
