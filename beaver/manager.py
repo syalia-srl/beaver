@@ -59,6 +59,7 @@ class AsyncBeaverBase[T: BaseModel]:
             internal_lock_name,
             timeout=5.0,  # Short timeout for internal operations
             lock_ttl=5.0,  # Short TTL to clear crashes
+            poll_interval=0.005,  # Held for milliseconds, so wait about as long
         )
 
     @property
@@ -169,6 +170,23 @@ def atomic(func):
         async with self._internal_lock:
             async with self._db.transaction():
                 return await func(self, *args, **kwargs)
+
+    return wrapper
+
+
+def read_atomic(func):
+    """
+    A decorator to run a read in a database transaction.
+
+    The transaction keeps it from seeing another task's uncommitted writes on the
+    shared connection. It takes no manager lock: that lock writes a row to acquire
+    and another to release, which would make every read a write.
+    """
+
+    @functools.wraps(func)
+    async def wrapper(self: AsyncBeaverBase, *args, **kwargs):
+        async with self._db.transaction():
+            return await func(self, *args, **kwargs)
 
     return wrapper
 

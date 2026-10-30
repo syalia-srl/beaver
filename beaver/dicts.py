@@ -210,17 +210,17 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverDict[T]):
     @expose(
         path="/{key}", method="GET", cli_name="get", cli_help="Get the value for a key."
     )
-    @atomic
     async def get(self, key: str) -> T:
         """Retrieves a value for a key. Raises KeyError if missing or expired."""
         if self._secret_arg and not self._cipher:
             await self._setup_security(self._secret_arg)
 
-        cursor = await self.connection.execute(
-            "SELECT value, expires_at FROM __beaver_dicts__ WHERE dict_name = ? AND key = ?",
-            (self._name, key),
-        )
-        result = await cursor.fetchone()
+        async with self._db.transaction():
+            cursor = await self.connection.execute(
+                "SELECT value, expires_at FROM __beaver_dicts__ WHERE dict_name = ? AND key = ?",
+                (self._name, key),
+            )
+            result = await cursor.fetchone()
 
         if result is None:
             raise KeyError(f"Key '{key}' not found in dictionary '{self._name}'")
@@ -228,15 +228,20 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverDict[T]):
         raw_value, expires_at = result["value"], result["expires_at"]
 
         if expires_at is not None and time.time() > expires_at:
-            await self.connection.execute(
-                "DELETE FROM __beaver_dicts__ WHERE dict_name = ? AND key = ?",
-                (self._name, key),
-            )
+            # Outside the read's transaction: the KeyError would roll this back.
+            await self._delete_expired(key)
             raise KeyError(
                 f"Key '{key}' not found in dictionary '{self._name}' (expired)"
             )
 
         return self._deserialize(raw_value)
+
+    @atomic
+    async def _delete_expired(self, key: str):
+        await self.connection.execute(
+            "DELETE FROM __beaver_dicts__ WHERE dict_name = ? AND key = ? AND expires_at < ?",
+            (self._name, key, time.time()),
+        )
 
     @expose(path="/{key}", method="DELETE", cli_name="delete", cli_help="Delete a key.")
     @emits("del", payload=lambda key, *args, **kwargs: dict(key=key))

@@ -7,7 +7,7 @@ from typing import (
 
 from pydantic import BaseModel
 
-from .manager import AsyncBeaverBase, atomic, emits
+from .manager import AsyncBeaverBase, atomic, read_atomic, emits
 from .interfaces import IAsyncBeaverBlob, BlobItem
 
 
@@ -75,7 +75,7 @@ class AsyncBeaverBlob[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverBlob[T]):
             (self._name, key, data, meta_json),
         )
 
-    @atomic
+    @read_atomic
     async def fetch(self, key: str) -> BlobItem:
         """
         Retrieves the full BlobItem (data + metadata).
@@ -93,7 +93,7 @@ class AsyncBeaverBlob[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverBlob[T]):
         meta = json.loads(row["metadata"]) if row["metadata"] else None
         return BlobItem(key=key, data=row["data"], metadata=meta)
 
-    @atomic
+    @read_atomic
     async def get(self, key: str) -> bytes:
         """
         Retrieves just the binary data for a key.

@@ -9,7 +9,7 @@ from typing import (
 
 from pydantic import BaseModel
 
-from .manager import AsyncBeaverBase, atomic, emits
+from .manager import AsyncBeaverBase, atomic, read_atomic, emits
 from .interfaces import IAsyncBeaverVectors, VectorItem
 from .queries import Filter
 
@@ -169,7 +169,7 @@ class AsyncBeaverVectors[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverVectors[T
             (self._name, bucket_id, id),
         )
 
-    @atomic
+    @read_atomic
     async def get(self, id: str) -> VectorItem[T]:
         cursor = await self.connection.execute(
             "SELECT vector, metadata FROM __beaver_vectors__ WHERE collection = ? AND item_id = ?",

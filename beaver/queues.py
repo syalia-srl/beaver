@@ -9,7 +9,7 @@ from typing import (
 from pydantic import BaseModel
 
 from .api import expose, local_only
-from .manager import AsyncBeaverBase, atomic, emits
+from .manager import AsyncBeaverBase, atomic, read_atomic, emits
 from .interfaces import QueueItem, IAsyncBeaverQueue
 
 
@@ -76,7 +76,7 @@ class AsyncBeaverQueue[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverQueue[T]):
     @expose(
         path="/peek", method="GET", cli_name="peek", cli_help="Peek at the next item."
     )
-    @atomic
+    @read_atomic
     async def peek(self) -> QueueItem[T] | None:
         """
         Retrieves the first item of the queue without removing it.

@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pydantic import BaseModel
 
 from .api import expose, local_only
-from .manager import AsyncBeaverBase, atomic, emits
+from .manager import AsyncBeaverBase, atomic, read_atomic, emits
 from .interfaces import IAsyncBeaverList
 from ._fracdex import key_between
 
@@ -201,7 +201,7 @@ class AsyncBeaverList[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverList[T]):
         cli_name="get",
         cli_help="Retrieve an item at an index.",
     )
-    @atomic
+    @read_atomic
     async def get(self, index: Union[int, slice]) -> T | list[T]:
         """
         Retrieves an item or slice from the list.
