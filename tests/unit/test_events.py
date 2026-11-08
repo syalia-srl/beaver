@@ -112,3 +112,25 @@ async def test_events_event_metadata(async_db_mem: AsyncBeaverDB):
 
     await events.emit("click", "button1")
     await asyncio.sleep(0.1)
+
+
+async def test_close_stops_listener_tasks(db_path):
+    """close() cancels the event dispatch and pub/sub tasks (issue #47)."""
+    db = AsyncBeaverDB(db_path)
+    await db.connect()
+    events = db.events("desk")
+    await events.attach("closed", lambda event: None)
+    await events.emit("closed", {"ticket": "T-1"})
+    owners = db.dict("owners")
+    await owners.on("set", lambda event: None)
+    await owners.set("T-1", "ana")
+    await asyncio.sleep(0.1)
+
+    await db.close()
+
+    pending = [
+        t
+        for t in asyncio.all_tasks()
+        if t is not asyncio.current_task() and not t.done()
+    ]
+    assert pending == []

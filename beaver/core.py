@@ -402,6 +402,20 @@ class AsyncBeaverDB:
 
     async def close(self):
         """Closes the database connection."""
+        # Stop the background tasks first: event dispatch loops wait on the
+        # pub/sub engine, which polls the connection (issue #47).
+        managers = list(self._manager_cache.values())
+        # A collection's own bus (`db.dict(...).on(...)`) is not in the cache.
+        managers += [e for m in managers if (e := getattr(m, "_event_manager", None))]
+        for manager in managers:
+            task = getattr(manager, "_listener_task", None)
+            if task is not None:
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+        if self._pubsub_engine is not None:
+            await self._pubsub_engine.stop()
+            self._pubsub_engine = None
+
         if self._connection:
             await self._connection.close()
             self._connection = None
