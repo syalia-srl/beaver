@@ -111,14 +111,21 @@ print([i.id for i in vectors.near(embed("squeaky brakes"), k=3, candidate_ids=["
 
 `metric=` replaces the cosine distance with any function that takes the
 matrix of stored vectors and the query and returns one score per row, lower
-being better. Euclidean distance, for instance:
+being better. `beaver.vectors` has three: `cosine`, the default, `euclid` for
+Euclidean distance and `manhattan` for the sum of absolute differences. A
+function of your own has the same shape:
 
 ```{python continue}
-def euclidean(matrix, query):
-    return np.linalg.norm(matrix - query, axis=1)
+from beaver.vectors import euclid, manhattan
 
 
-print([(i.id, round(i.score, 3)) for i in vectors.near(embed("squeaky brakes"), k=2, metric=euclidean)])
+def chebyshev(matrix, query):
+    return np.max(np.abs(matrix - query), axis=1)
+
+
+for metric in (euclid, manhattan, chebyshev):
+    hits = vectors.near(embed("squeaky brakes"), k=2, metric=metric)
+    print(metric.__name__, [(i.id, round(i.score, 3)) for i in hits])
 ```
 
 ## Many vectors

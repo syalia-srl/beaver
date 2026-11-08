@@ -39,7 +39,8 @@ wrote this month, needs a set of addresses that grows the same way.
 `db.sketch(name)` is an approximate set with a fixed size. It answers two
 questions: whether an item was added (a Bloom filter), and about how many
 distinct items were added (a HyperLogLog). Its size is set by the
-`capacity` and the `error_rate` you ask for, not by what you add.
+`capacity` and the `error_rate` you ask for, not by what you add. Both
+structures live in one `ApproximateSet`, stored as a single blob in the file.
 
 ```{python continue}
 os.remove("helpdesk.db")

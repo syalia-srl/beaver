@@ -123,12 +123,15 @@ Every collection also has a lock of its own. Using a dictionary, list or
 queue in a `with` statement holds it, which keeps other processes that do the
 same out while you make several changes that belong together. It does not
 block plain reads and writes from code that does not take the lock.
+`locked` says whether this `BeaverDB` holds it.
 
 ```{python continue}
 owners = db.dict("owners")
 with owners:
+    print("locked:", owners.locked)
     for ticket in ("T-5005", "T-5006", "T-5007"):
         owners[ticket] = "ana"
+print("locked:", owners.locked)
 print({t: owners[t] for t in ("T-5005", "T-5006", "T-5007")})
 other.close()
 db.close()
