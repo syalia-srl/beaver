@@ -19,81 +19,34 @@
 
 `beaver` is built with a minimalistic philosophy for small, local use cases where a full-blown database server would be overkill.
 
-  * **Minimal Dependencies**: The core library has minimal dependencies (`numpy`, `pydantic`, `rich`, `typer`). Advanced features (like the REST server) are optional extras.
-  * **Safe Concurrency**: Thread-safe and multi-process-safe by default, with robust inter-process locking.
+  * **Minimal Dependencies**: The core library depends on `aiosqlite`, `numpy`, `pydantic`, `rich` and `typer`. The HTTP server and encryption are optional extras.
+  * **Safe Concurrency**: Thread-safe and multi-process-safe, with inter-process locks stored in the file.
   * **Local-First**: A single, portable SQLite file is the default.
-  * **Fast & Performant**: Zero network latency for local operations and an optional, in-memory read cache.
-  * **Standard SQLite**: The database file is 100% compatible with any standard SQLite tool, ensuring data portability.
+  * **Standard SQLite**: The database file is a standard SQLite file that any SQLite tool can open.
   * **Pythonic API**: Designed to feel like a natural extension of your code, using standard Python data structures and Pydantic models.
 
 ## Installation
 
-Install the core library:
-
 ```bash
-pip install beaver-db
+pip install beaver-db                 # the core
+pip install "beaver-db[full]"         # plus encryption and the HTTP server
 ```
-
-## Quickstart
-
-Get up and running in 30 seconds. This example showcases a dictionary, a list, and full-text search in a single script.
-
-```python
-from beaver import BeaverDB, Document
-
-# 1. Initialize the database
-db = BeaverDB("data.db")
-
-# 2. Use a namespaced dictionary for app configuration
-config = db.dict("app_config")
-config["theme"] = "dark"
-print(f"Theme set to: {config['theme']}")
-
-# 3. Use a persistent list to manage a task queue
-tasks = db.list("daily_tasks")
-tasks.push("Write the project report")
-tasks.push("Deploy the new feature")
-print(f"First task is: {tasks[0]}")
-
-# 4. Use a document collection for storage + full-text search
-articles = db.docs("articles")
-doc = Document(
-    id="sqlite-001",
-    body="SQLite is a powerful embedded database ideal for local apps.",
-)
-articles.index(document=doc)
-
-# Perform a full-text search
-results = articles.search("database")
-top = results[0]
-print(f"FTS Result: '{top.document.body}' (score={top.score:.2f})")
-
-db.close()
-```
-
-## Features
-
-  * [**Key-Value Dictionaries**](https://syalia.com/beaver/guide-dicts.html): A Pythonic, dictionary-like interface for storing any JSON-serializable object or Pydantic model within separate namespaces. Includes TTL support for caching.
-  * [**Blob Storage**](https://syalia.com/beaver/guide-blobs.html): A dictionary-like interface for storing binary data (e.g., images, PDFs) with associated JSON metadata.
-  * [**Persistent Lists**](https://syalia.com/beaver/guide-lists.html): A full-featured, persistent Python list supporting `push`, `pop`, `prepend`, `deque`, slicing, and in-place updates.
-  * [**Persistent Priority Queue**](https://syalia.com/beaver/guide-queues.html): A high-performance, persistent priority queue perfect for task orchestration across multiple processes.
-  * [**Probabilistic Sketches:**]() Track cardinality and membership for millions of items in constant space using HyperLogLog and Bloom Filters.
-  * [**Document Collections**](https://syalia.com/beaver/guide-collections.html): Store rich documents combining a vector embedding and Pydantic-based metadata.
-  * [**Vector Search**](https://syalia.com/beaver/guide-collections.html#vector-search-semantic): Fast, multi-process-safe linear vector search using an in-memory `numpy`-based index.
-  * [**Full-Text & Fuzzy Search**](https://syalia.com/beaver/guide-collections.html#full-text-search-fts): Automatically index and search through document metadata using SQLite's FTS5 engine, with optional fuzzy search for typo-tolerant matching.
-  * [**Knowledge Graph**](https://syalia.com/beaver/guide-collections.html#graph-relationships): Create directed, labeled relationships between documents and traverse the graph to find neighbors or perform multi-hop walks.
-  * [**Pub/Sub System**](https://syalia.com/beaver/guide-channels.html): A powerful, thread and process-safe publish-subscribe system for real-time messaging with a fan-out architecture.
-  * [**Time-Indexed Logs**](https://syalia.com/beaver/guide-logs.html): A specialized data structure for structured, time-series logs. Query historical data by time range or create a live, aggregated view.
-  * [**Event-Driven Callbacks**](https://syalia.com/beaver/guide-channels.html): Listen for database changes in real-time. Subscribe to events on specific managers to trigger workflows or update UIs.
-  * [**Inter-Process Locking**](https://syalia.com/beaver/guide-locks.html): Robust, deadlock-proof locks. Use `db.lock('task_name')` to coordinate arbitrary scripts, or `with db.list('my_list') as l:` to perform atomic, multi-step operations.
-  * [**Pydantic Support**](https://syalia.com/beaver/guide.html#type-safe-models-with-pydantic): Optionally associate `pydantic.BaseModel`s with any data structure for automatic, recursive data validation and (de)serialization.
-  * **Data Export**: Dump most data structures to a portable JSON file with a single `.dump()` command. (Full backup/restore symmetry — `.load()` across all managers, plus the `beaver` CLI and REST server — lands in `2.0` final; tracked in issues #15, #18, #36.)
 
 ## Documentation
 
-For a complete API reference, in-depth guides, and more examples, please visit the official documentation at:
+The guide at [**beaver.syalia.com/docs**](https://beaver.syalia.com/docs/) follows one small project, a bike shop's support desk, from a dictionary of settings to the whole helpdesk on several machines. Every code block in it runs against the package when the site is built. One chapter per need:
 
-[**https://syalia.com/beaver**](https://syalia.com/beaver)
+  * [Settings that survive a restart](https://beaver.syalia.com/docs/the-shops-settings.html): `BeaverDB` and dictionaries.
+  * [Typed records, hashed passwords, encryption and expiring keys](https://beaver.syalia.com/docs/signing-agents-in.html).
+  * [Ordered lists](https://beaver.syalia.com/docs/a-tickets-thread.html) and [priority queues shared by workers](https://beaver.syalia.com/docs/the-ticket-queue.html).
+  * [Locks across processes](https://beaver.syalia.com/docs/one-agent-per-ticket.html).
+  * [Full-text and fuzzy search with filters](https://beaver.syalia.com/docs/finding-a-ticket.html), [vector search](https://beaver.syalia.com/docs/similar-tickets.html) and [graphs](https://beaver.syalia.com/docs/who-is-related-to-what.html).
+  * [Blobs, and exporting a collection](https://beaver.syalia.com/docs/attachments.html).
+  * [Time-indexed logs](https://beaver.syalia.com/docs/what-happened-and-when.html), [channels and event callbacks](https://beaver.syalia.com/docs/telling-agents-right-away.html), and [probabilistic sketches](https://beaver.syalia.com/docs/the-same-email-twice.html).
+  * [The async engine and transactions](https://beaver.syalia.com/docs/a-web-handler.html), [the HTTP server and client](https://beaver.syalia.com/docs/several-machines.html), and [typing your code against the protocols](https://beaver.syalia.com/docs/testing-without-a-database.html).
+  * [Migrating a 1.x file](https://beaver.syalia.com/docs/opening-a-1x-file.html), [the whole helpdesk in one program](https://beaver.syalia.com/docs/the-helpdesk-end-to-end.html), and [how beaver is built](https://beaver.syalia.com/docs/inside-beaver.html).
+
+The programs of each chapter are in [`docs/examples/`](docs/examples/).
 
 ## Contributing
 

@@ -1,15 +1,16 @@
 """Assemble the Pages artifact: the product page, the docs and the redirects.
 
-    quarto render docs
+    uv run scriptorium render docs/scriptorium.yaml --only site
     python site/build.py public
 
-public/ gets site/ (without its tooling), docs/_site/ as public/docs/, one
+public/ gets site/ (without its tooling), docs/site/ as public/docs/, one
 redirect page per line of site/redirects.txt, the version from pyproject.toml
 and a CNAME. Every link is relative, so the same artifact works at the custom
 domain and under the organisation's project path.
 """
 
 import html
+import posixpath
 import re
 import shutil
 import sys
@@ -25,23 +26,23 @@ REDIRECT = """<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Moved to {new}</title>
-<link rel="canonical" href="https://{domain}/{new}">
-<meta http-equiv="refresh" content="0; url={new}">
+<title>Moved to {canonical}</title>
+<link rel="canonical" href="https://{domain}/{canonical}">
+<meta http-equiv="refresh" content="0; url={link}">
 <meta name="robots" content="noindex">
-<script>location.replace("{new}" + location.hash)</script>
+<script>location.replace("{link}" + location.hash)</script>
 </head>
 <body>
-<p>This page moved to <a href="{new}">{new}</a>.</p>
+<p>This page moved to <a href="{link}">{canonical}</a>.</p>
 </body>
 </html>
 """
 
 
 def main(out: Path) -> None:
-    docs = ROOT / "docs" / "_site"
+    docs = ROOT / "docs" / "site"
     if not (docs / "index.html").exists():
-        sys.exit("docs/_site/index.html is missing: run `quarto render docs` first")
+        sys.exit("docs/site/index.html is missing: run `make docs` first")
     if out.exists():
         shutil.rmtree(out)
     shutil.copytree(SITE, out, ignore=lambda d, names: TOOLING & set(names))
@@ -64,7 +65,13 @@ def main(out: Path) -> None:
         target = out / old
         if target.exists():
             sys.exit(f"redirect {old} would overwrite a real page")
-        target.write_text(REDIRECT.format(new=html.escape(new), domain=DOMAIN))
+        # The link is relative to the old page, so it works for old pages under docs/ too.
+        link = posixpath.relpath(new, posixpath.dirname(old) or ".")
+        target.write_text(
+            REDIRECT.format(
+                link=html.escape(link), canonical=html.escape(new), domain=DOMAIN
+            )
+        )
         redirects += 1
 
     (out / "CNAME").write_text(DOMAIN + "\n")

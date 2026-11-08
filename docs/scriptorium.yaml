@@ -1,0 +1,40 @@
+# Beaver, the guide. Every Python block runs against the installed package when
+# the docs render (`make docs`); the chapters also tangle docs/examples/.
+theme: book
+base-url: https://beaver.syalia.com/docs/
+execute: {timeout: 120, freeze: file}
+
+vars:
+  title: "Beaver"
+  subtitle: "One SQLite file, every kind of data"
+
+files:
+  - chapters/00-index.md
+  - chapters/01-the-shop-settings.md
+  - chapters/02-signing-agents-in.md
+  - chapters/03-a-tickets-thread.md
+  - chapters/04-the-ticket-queue.md
+  - chapters/05-one-agent-per-ticket.md
+  - chapters/06-finding-a-ticket.md
+  - chapters/07-similar-tickets.md
+  - chapters/08-who-is-related-to-what.md
+  - chapters/09-attachments.md
+  - chapters/10-what-happened-and-when.md
+  - chapters/11-telling-agents-right-away.md
+  - chapters/12-the-same-email-twice.md
+  - chapters/13-a-web-handler.md
+  - chapters/14-several-machines.md
+  - chapters/15-testing-without-a-database.md
+  - chapters/16-opening-a-1x-file.md
+  - chapters/17-the-helpdesk-end-to-end.md
+  - chapters/18-inside-beaver.md
+
+outputs:
+  site:
+    format: docs
+    dir: site
+    repo-url: https://github.com/syalia-srl/beaver
+    version: auto
+    logo: img/beaver.webp
+    palette: {primary: "#7c4a1e", accent: "#0e7490"}
+    footer: "Beaver is MIT-licensed. Made by Syalia."

@@ -4,14 +4,24 @@ default: test-unit
 sync:
 	uv sync --extra security --extra remote
 
+# The guide: every Python block runs against the package as it renders.
 .PHONY: docs
 docs:
-	quarto preview docs
+	uv run scriptorium render docs/scriptorium.yaml --only site
+
+# The docs gate: the guide renders without a failing block, docs/examples/ matches
+# the chapters, the examples run, and rift finds every public class in the docs.
+.PHONY: docs-check
+docs-check: docs
+	! grep -l 'Traceback (most recent call last)' docs/site/*.html
+	for c in docs/chapters/*.md; do uv run scriptorium tangle --test $$c -d docs || exit 1; done
+	for e in docs/examples/*.py; do [ $$(basename $$e) = __init__.py ] || grep -q "export=$${e#docs/}" docs/chapters/*.md || { echo "$$e is not tangled from the docs"; exit 1; }; done
+	tmp=$$(mktemp -d) && for e in docs/examples/*.py; do (cd $$tmp && uv run --project $(CURDIR) python $(CURDIR)/$$e > /dev/null) || exit 1; done
+	uvx --from git+https://github.com/apiad/rift@v0.9.0 rift check .
 
 # The Pages artifact, built as .github/workflows/pages.yml builds it.
 .PHONY: site
-site:
-	quarto render docs
+site: docs
 	uv run python site/build.py public
 
 .PHONY: check-snippets

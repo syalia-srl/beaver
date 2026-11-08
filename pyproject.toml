@@ -44,8 +44,14 @@ dev = [
     "pytest-timeout>=2.4.0",
     "textual>=6.1.0",
 ]
+docs = [
+    "scriptorium",
+]
 
 [tool.mypy]
 strict = false
 ignore_missing_imports = true
 files = ["beaver"]
+
+[tool.uv.sources]
+scriptorium = { git = "https://github.com/apiad/scriptorium", tag = "v0.14.0" }

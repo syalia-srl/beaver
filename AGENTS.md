@@ -28,7 +28,7 @@ what is real versus missing in the v2 cycle.
                             locks, channels, sketches — one module each
     beaver/migrate.py       1.x → 2.x migration
     beaver/cli/             the typer CLI (entry point `beaver`)
-    docs/                   Quarto site: guide-*.md (users), dev-*.md (contributors)
+    docs/                   scriptorium guide: chapters/*.md, tangled examples/
     issues/                 numbered issue/spec files, synced with GitHub
     tests/{unit,integration,concurrency}
 
@@ -37,7 +37,7 @@ one connection, WAL). `BeaverDB` is the *synchronous facade*: it spins a reactor
 thread running the async loop and bridges every call to it through
 `BeaverBridge` (the Portal pattern). "Synchronous facade, asynchronous engine" —
 so write the real logic in the async class, and the sync surface follows. See
-`docs/dev-architecture.md` and `docs/dev-concurrency.md`.
+chapter 18 of the guide, `docs/chapters/18-inside-beaver.md`.
 
 ## Conventions
 
@@ -83,6 +83,7 @@ so write the real logic in the async class, and the sync surface follows. See
     make test-unit      pytest tests/unit --cov=beaver     ← the default target
     make test-all       every suite, including concurrency
     make ci             format-check + test-unit
+    make docs-check     the docs gate: render the guide, tangle, run examples, rift
 
 `pytest.ini` sets `asyncio_mode = auto` (no `@pytest.mark.asyncio` needed) and a
 **30 s timeout** — a test that hangs on a lock fails rather than wedging the run.
@@ -93,6 +94,14 @@ Markers: `unit`, `integration`, `concurrency`.
 > tree** — including work from a concurrent session that has nothing to do with
 > yours. Use **`uv run black .`** and commit the paths you touched yourself.
 > `make format-check` is safe and is what `test-unit` actually gates on.
+
+**The guide is executable.** `docs/chapters/` is a scriptorium book: every
+Python block runs against the package when it renders, each chapter tangles
+its program into `docs/examples/` (never edit those files; edit the chapter),
+and `rift check` fails on a public class no chapter names. A change to
+behaviour changes the chapter that shows it. `pages.yml` runs `make docs-check`
+on every PR that touches `beaver/` or `docs/`, and the release workflow runs it
+before publishing.
 
 **Releases:** `NEW_VERSION=x.y.z make release` — runs `test-all`, bumps the
 version in `pyproject.toml` *and* `beaver/__init__.py`, commits, tags, pushes and

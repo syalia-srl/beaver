@@ -1,24 +1,45 @@
-# Pages of the old docs at the site root, and where each one lives now.
-# One "old new" pair per line; site/build.py writes a small page at each old
-# path that sends the visitor on. Paths are relative to the site root.
-intro.html               docs/
-quickstart.html          docs/quickstart.html
-guide.html               docs/guide.html
-guide-dicts.html         docs/guide-dicts.html
-guide-blobs.html         docs/guide-blobs.html
-guide-lists.html         docs/guide-lists.html
-guide-queues.html        docs/guide-queues.html
-guide-logs.html          docs/guide-logs.html
-guide-channels.html      docs/guide-channels.html
-guide-collections.html   docs/guide-collections.html
-guide-sketches.html      docs/guide-sketches.html
-guide-locks.html         docs/guide-locks.html
-guide-deployment.html    docs/guide-deployment.html
-guide-dicts-blobs.html   docs/guide-dicts.html
-guide-lists-queues.html  docs/guide-lists.html
-guide-realtime.html      docs/guide-channels.html
-guide-concurrency.html   docs/guide-locks.html
-dev-architecture.html    docs/dev-architecture.html
-dev-concurrency.html     docs/dev-concurrency.html
-dev-search.html          docs/dev-search.html
-dev-contributing.html    docs/dev-contributing.html
+# Pages of the old docs, and where each one lives now. One "old new" pair per
+# line; site/build.py writes a small page at each old path that sends the
+# visitor on. Paths are relative to the site root.
+
+# The first site's pages, at the root.
+intro.html                           docs/
+quickstart.html                      docs/the-shops-settings.html
+guide.html                           docs/
+guide-dicts.html                     docs/the-shops-settings.html
+guide-blobs.html                     docs/attachments.html
+guide-lists.html                     docs/a-tickets-thread.html
+guide-queues.html                    docs/the-ticket-queue.html
+guide-logs.html                      docs/what-happened-and-when.html
+guide-channels.html                  docs/telling-agents-right-away.html
+guide-collections.html               docs/finding-a-ticket.html
+guide-sketches.html                  docs/the-same-email-twice.html
+guide-locks.html                     docs/one-agent-per-ticket.html
+guide-deployment.html                docs/several-machines.html
+guide-dicts-blobs.html               docs/the-shops-settings.html
+guide-lists-queues.html              docs/a-tickets-thread.html
+guide-realtime.html                  docs/telling-agents-right-away.html
+guide-concurrency.html               docs/one-agent-per-ticket.html
+dev-architecture.html                docs/inside-beaver.html
+dev-concurrency.html                 docs/inside-beaver.html
+dev-search.html                      docs/inside-beaver.html
+dev-contributing.html                docs/inside-beaver.html
+
+# The Quarto guide's pages, under docs/, before the scriptorium guide.
+docs/quickstart.html                 docs/the-shops-settings.html
+docs/guide.html                      docs/
+docs/guide-dicts.html                docs/the-shops-settings.html
+docs/guide-blobs.html                docs/attachments.html
+docs/guide-lists.html                docs/a-tickets-thread.html
+docs/guide-queues.html               docs/the-ticket-queue.html
+docs/guide-logs.html                 docs/what-happened-and-when.html
+docs/guide-channels.html             docs/telling-agents-right-away.html
+docs/guide-collections.html          docs/finding-a-ticket.html
+docs/guide-sketches.html             docs/the-same-email-twice.html
+docs/guide-locks.html                docs/one-agent-per-ticket.html
+docs/guide-deployment.html           docs/several-machines.html
+docs/dev-architecture.html           docs/inside-beaver.html
+docs/dev-concurrency.html            docs/inside-beaver.html
+docs/dev-search.html                 docs/inside-beaver.html
+docs/dev-contributing.html           docs/inside-beaver.html
+docs/migration-1x-to-2x.html         docs/opening-a-1x-file.html
