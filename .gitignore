@@ -15,3 +15,8 @@ wheels/
 _site
 benchmark
 public/
+
+# scriptorium docs
+docs/site/
+docs/.scriptorium/
+docs/build/

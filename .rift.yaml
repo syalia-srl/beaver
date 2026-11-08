@@ -1,0 +1,22 @@
+# The docs cover the library: every public class is named in the chapters, and
+# every public function and method is named somewhere (a warning, because a
+# short name such as `get` passes on any use of the word).
+
+rules:
+
+  - name: "every public class is named in the docs"
+    extract:
+      file: "beaver/**/*.py"
+      regex: '^class ([A-Za-z]\w*)'
+    require:
+      in: "docs/chapters/*.md"
+      as: word
+
+  - name: "every public function and method is named in the docs"
+    severity: warning
+    extract:
+      file: "beaver/**/*.py"
+      regex: '^def ([a-z]\w*)|^    def ([a-z]\w*)\((?:self|cls)\b'
+    require:
+      in: "docs/chapters/*.md"
+      as: word
