@@ -6,7 +6,9 @@ HOUR = 3600
 
 
 def record(db: BeaverDB, agent: str, action: str, ticket: str, at: float | None = None):
-    db.log("audit").log({"agent": agent, "action": action, "ticket": ticket}, timestamp=at)
+    db.log("audit").log(
+        {"agent": agent, "action": action, "ticket": ticket}, timestamp=at
+    )
 
 
 def ticket_history(db: BeaverDB, ticket: str) -> list[str]:

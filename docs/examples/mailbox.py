@@ -19,12 +19,27 @@ def main():
         db.sketch("seen-ids", capacity=1_000_000, error_rate=0.01).clear()
         db.sketch("senders", capacity=100_000, error_rate=0.01).clear()
         inbox = [
-            {"message_id": "<1@mail.example>", "from": "maria@example.com", "subject": "Brakes"},
-            {"message_id": "<2@mail.example>", "from": "omar@example.com", "subject": "Chain"},
-            {"message_id": "<1@mail.example>", "from": "maria@example.com", "subject": "Brakes"},
+            {
+                "message_id": "<1@mail.example>",
+                "from": "maria@example.com",
+                "subject": "Brakes",
+            },
+            {
+                "message_id": "<2@mail.example>",
+                "from": "omar@example.com",
+                "subject": "Chain",
+            },
+            {
+                "message_id": "<1@mail.example>",
+                "from": "maria@example.com",
+                "subject": "Brakes",
+            },
         ]
         print("new tickets:", read_mailbox(db, inbox))
-        print("distinct senders:", len(db.sketch("senders", capacity=100_000, error_rate=0.01)))
+        print(
+            "distinct senders:",
+            len(db.sketch("senders", capacity=100_000, error_rate=0.01)),
+        )
 
 
 if __name__ == "__main__":

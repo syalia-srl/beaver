@@ -25,6 +25,8 @@ class Ticket(BaseModel):
 class Message(BaseModel):
     author: str
     text: str
+
+
 def priority_for(subject: str) -> int:
     s = subject.lower()
     if any(w in s for w in ("brake", "crash", "broke")):
@@ -41,7 +43,9 @@ def intake(db: BeaverDB, emails: list[dict]) -> list[str]:
         seen.add(email["message_id"])
         ticket_id = f"T-{db.dict('counters').fetch('ticket', 1000) + 1}"
         db.dict("counters")["ticket"] = int(ticket_id[2:])
-        ticket = Ticket(subject=email["subject"], text=email["text"], customer=email["from"])
+        ticket = Ticket(
+            subject=email["subject"], text=email["text"], customer=email["from"]
+        )
         db.docs("tickets", model=Ticket).index(id=ticket_id, body=ticket, fuzzy=True)
         db.list(f"thread:{ticket_id}", model=Message).push(
             Message(author=email["from"], text=email["text"])
@@ -51,8 +55,12 @@ def intake(db: BeaverDB, emails: list[dict]) -> list[str]:
         db.log("audit").log({"agent": "mailbox", "action": "open", "ticket": ticket_id})
         created.append(ticket_id)
     return created
+
+
 def add_agent(db: BeaverDB, login: str, name: str, password: str) -> None:
-    db.dict("accounts", model=Agent)[login] = Agent(name=name, password=Secret(password))
+    db.dict("accounts", model=Agent)[login] = Agent(
+        name=name, password=Secret(password)
+    )
 
 
 def sign_in(db: BeaverDB, login: str, password: str) -> str | None:
@@ -78,7 +86,9 @@ def take_next(db: BeaverDB, token: str) -> str | None:
     return ticket_id
 
 
-def reply(db: BeaverDB, token: str, ticket_id: str, text: str, close: bool = False) -> None:
+def reply(
+    db: BeaverDB, token: str, ticket_id: str, text: str, close: bool = False
+) -> None:
     login = db.dict("sessions")[token]
     db.list(f"thread:{ticket_id}", model=Message).push(Message(author=login, text=text))
     db.log("audit").log({"agent": login, "action": "reply", "ticket": ticket_id})
@@ -87,11 +97,17 @@ def reply(db: BeaverDB, token: str, ticket_id: str, text: str, close: bool = Fal
         ticket = docs.get(ticket_id).body
         ticket.status = "closed"
         docs.index(id=ticket_id, body=ticket, fuzzy=True)
-        db.channel("desk").publish({"ticket": ticket_id, "event": "closed", "by": login})
+        db.channel("desk").publish(
+            {"ticket": ticket_id, "event": "closed", "by": login}
+        )
+
+
 def other_tickets(db: BeaverDB, ticket_id: str) -> list[str]:
     g = db.graph("desk")
     customers = list(g.parents(ticket_id, label="wrote"))
-    return [t for c in customers for t in g.children(c, label="wrote") if t != ticket_id]
+    return [
+        t for c in customers for t in g.children(c, label="wrote") if t != ticket_id
+    ]
 
 
 def search(db: BeaverDB, text: str, status: str = "open") -> list[str]:
@@ -105,15 +121,33 @@ def search(db: BeaverDB, text: str, status: str = "open") -> list[str]:
 def history(db: BeaverDB, ticket_id: str) -> list[str]:
     entries = db.log("audit").range(where=[q().ticket == ticket_id])
     return [f"{e.data['agent']} {e.data['action']}" for e in entries]
+
+
 MAILBOX = [
-    {"message_id": "<a1@mail>", "from": "maria", "subject": "Which saddle for touring?",
-     "text": "Looking for a comfortable saddle."},
-    {"message_id": "<a2@mail>", "from": "omar", "subject": "Front brake broke",
-     "text": "The lever snapped on a descent."},
-    {"message_id": "<a1@mail>", "from": "maria", "subject": "Which saddle for touring?",
-     "text": "Looking for a comfortable saddle."},
-    {"message_id": "<a3@mail>", "from": "maria", "subject": "Invoice copy",
-     "text": "Please send the invoice for my saddle."},
+    {
+        "message_id": "<a1@mail>",
+        "from": "maria",
+        "subject": "Which saddle for touring?",
+        "text": "Looking for a comfortable saddle.",
+    },
+    {
+        "message_id": "<a2@mail>",
+        "from": "omar",
+        "subject": "Front brake broke",
+        "text": "The lever snapped on a descent.",
+    },
+    {
+        "message_id": "<a1@mail>",
+        "from": "maria",
+        "subject": "Which saddle for touring?",
+        "text": "Looking for a comfortable saddle.",
+    },
+    {
+        "message_id": "<a3@mail>",
+        "from": "maria",
+        "subject": "Invoice copy",
+        "text": "Please send the invoice for my saddle.",
+    },
 ]
 
 
@@ -129,7 +163,11 @@ def main():
         token = sign_in(db, "ana", "correct-horse")
 
         first = take_next(db, token)
-        print("ana takes:", first, db.docs("tickets", model=Ticket).get(first).body.subject)
+        print(
+            "ana takes:",
+            first,
+            db.docs("tickets", model=Ticket).get(first).body.subject,
+        )
         reply(db, token, first, "Please don't ride it, bring it in today.", close=True)
 
         print("search 'sadle':", search(db, "sadle"))

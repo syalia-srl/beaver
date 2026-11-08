@@ -9,7 +9,9 @@ def open_desk():
 
 
 def import_email(desk, ticket: str, subject: str, urgent: bool) -> None:
-    desk.queue("tickets").put({"id": ticket, "subject": subject}, priority=1 if urgent else 5)
+    desk.queue("tickets").put(
+        {"id": ticket, "subject": subject}, priority=1 if urgent else 5
+    )
     desk.log("audit").log({"agent": "mailbox", "action": "import", "ticket": ticket})
 
 

@@ -121,7 +121,10 @@ def customer_view(db: BeaverDB, customer: str) -> list[str]:
     for order in g.children(customer, label="ordered"):
         for ticket in g.children(order, label="about"):
             escalations = [e for e in g.edges(ticket) if e.label == "escalated"]
-            note = "".join(f" (escalated to {e.target}, case {e.metadata['case']})" for e in escalations)
+            note = "".join(
+                f" (escalated to {e.target}, case {e.metadata['case']})"
+                for e in escalations
+            )
             lines.append(f"{order} / {ticket}{note}")
     return lines
 

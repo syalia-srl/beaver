@@ -263,7 +263,9 @@ async def claim_and_reply(db: AsyncBeaverDB, ticket: str, agent: str, text: str)
             async with db.transaction(timeout=2):
                 await db.dict("owners").set(ticket, agent)
                 await db.list(f"thread:{ticket}").push({"author": agent, "text": text})
-                await db.log("audit").log({"ticket": ticket, "agent": agent, "action": "reply"})
+                await db.log("audit").log(
+                    {"ticket": ticket, "agent": agent, "action": "reply"}
+                )
     except (TimeoutError, TransactionTimeoutError):
         return f"{ticket} is busy, try again"
     return f"{agent} replied on {ticket}"
