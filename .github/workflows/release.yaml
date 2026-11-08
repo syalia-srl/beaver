@@ -34,8 +34,11 @@ jobs:
           files: ./coverage.xml
           fail_ci_if_error: false
 
+  docs:
+    uses: ./.github/workflows/docs.yaml
+
   publish-pypi:
-    needs: test
+    needs: [test, docs]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

@@ -1,14 +1,15 @@
 name: pages
-# beaver.syalia.com: the product page in site/ at the root, the Quarto docs
-# under /docs/, and a redirect page for each old docs URL. One artifact,
-# assembled by site/build.py. Pull requests build it; main deploys it.
+# beaver.syalia.com: the product page in site/ at the root, the scriptorium
+# guide under /docs/, and a redirect page for each old docs URL. One artifact,
+# assembled by site/build.py. The guide is built through the docs gate.
+# Pull requests build it; main deploys it.
 on:
   push:
     branches: [main]
-    paths: ["site/**", "docs/**", "pyproject.toml", ".github/workflows/pages.yml"]
+    paths: ["site/**", "docs/**", "beaver/**", "pyproject.toml", "uv.lock", "makefile", ".rift.yaml", ".github/workflows/pages.yml"]
   pull_request:
     branches: [main]
-    paths: ["site/**", "docs/**", "pyproject.toml", ".github/workflows/pages.yml"]
+    paths: ["site/**", "docs/**", "beaver/**", "pyproject.toml", "uv.lock", "makefile", ".rift.yaml", ".github/workflows/pages.yml"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -27,13 +28,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - uses: quarto-dev/quarto-actions/setup@v2
-        with:
-          version: 1.9.37
-      - name: Render the docs
-        run: quarto render docs
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Install dependencies
+        run: uv sync --all-extras --all-groups
+      - name: Render the docs through the docs gate
+        run: make docs-check
       - name: Assemble the site
-        run: python site/build.py public
+        run: uv run python site/build.py public
       - uses: actions/upload-pages-artifact@v3
         with:
           path: public

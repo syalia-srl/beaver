@@ -72,7 +72,5 @@ Full release plan: `vault/Atlas/Architecture/2026-05-15-beaver-v2-release-plan.m
 
 | Doc | Honest? | Notes |
 |---|---|---|
-| `README.md` | ✅ as of Phase 0 | Quickstart now uses real API (`db.docs(...)`, `articles.search(...)`); banner notes CLI/server/Docker land in 2.0 final |
-| `docs/guide-deployment.md` | ⚠️ marked | Banner at top notes "landing in 2.0 final"; body still describes the intended end-state |
-| `docs/guide-collections.md` | not yet audited | TBD Phase 3 |
-| Other `docs/guide-*.md` | not yet audited | TBD Phase 3 |
+| `README.md` | ✅ | Points to the guide's chapters; no walkthrough of its own |
+| `docs/chapters/` | ✅ executable | scriptorium guide; every block runs at render, gated by `make docs-check` (#44) |
