@@ -18,9 +18,11 @@ WORKDIR /app
 # Copy only the files needed for dependency installation
 COPY pyproject.toml uv.lock README.md ./
 
-# Install all dependencies, including the 'full' extras
+# Install the package with all extras; no dependency groups: dev and docs
+# (docs pulls scriptorium from git, and the image has no git) are not needed
+# to serve
 # The 'full' extra includes 'remote', which is needed for 'beaver serve'
-RUN uv sync --all-extras --all-groups --no-editable
+RUN uv sync --all-extras --no-default-groups --no-editable
 
 # Copy the rest of the source code
 COPY . .
