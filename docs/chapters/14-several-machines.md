@@ -160,6 +160,54 @@ server.terminate()
 server.wait()
 ```
 
+## A sealed database
+
+Once the desk's data is baked into an image, the file arrives sealed: mode
+0444, in a directory the runtime mounts 0555. A normal open fails there twice
+over. beaver asks for `journal_mode = WAL`, creates its tables and stamps
+`user_version`, and SQLite takes the file `O_RDWR`, which on an overlay
+filesystem copies the whole thing into the writable layer on the first read.
+`read_only=True` opens it the other way:
+
+```{python continue}
+import os
+
+from beaver import BeaverReadOnlyError
+
+with BeaverDB("sealed-desk.db") as db:
+    db.dict("settings")["shop"] = "Spoke & Chain"
+    db.docs("tickets").index(id="T-1", body={"title": "Broken bell"})
+    db.list("thread").push("My bell is broken")
+
+os.chmod("sealed-desk.db", 0o444)
+try:
+    with BeaverDB("sealed-desk.db", read_only=True) as sealed:
+        print(sealed.dict("settings")["shop"])
+        print(sealed.docs("tickets").search("bell")[0].document.id)
+        print(list(sealed.list("thread")))
+        try:
+            sealed.dict("settings")["shop"] = "somewhere else"
+        except BeaverReadOnlyError as e:
+            print("BeaverReadOnlyError:", str(e).splitlines()[0][:64])
+finally:
+    os.chmod("sealed-desk.db", 0o644)
+```
+
+It opens the path as `file:<path>?immutable=1`, so SQLite never takes a write
+lock and creates no `-wal`, `-shm` or `-journal` beside it. beaver skips the
+journal, synchronous, table-creation and `user_version` steps on that open,
+keeps the version check, and turns every write into `BeaverReadOnlyError`
+instead of SQLite's `attempt to write a readonly database`. A read that meets
+an expired key raises `KeyError` and leaves the row alone, since a sealed file
+cannot delete it. `AsyncBeaverDB(path, read_only=True)` is the same open for
+async code, and `read_only=True` on a missing path raises `FileNotFoundError`
+rather than creating a file.
+
+The other edge is older files: a 1.x file is refused as always, and a pre-rc4
+file cannot be upgraded without writing, so a read-only open says so instead of
+trying. Reopening a current file read-write writes `user_version` only when it
+differs, so an ordinary restart no longer touches the header at all.
+
 ## The program
 
 The mailbox reader, now on its own machine. It reads the server's address
