@@ -1,8 +1,10 @@
 import asyncio
 import json
 import logging
+import os
 import threading
 from typing import Any, Self, Type, AsyncContextManager
+from urllib.parse import quote
 
 import aiosqlite
 from pydantic import BaseModel
@@ -49,6 +51,10 @@ class BeaverIncompatibleSchemaError(RuntimeError):
     """Raised when opening a database whose schema is incompatible with this
     version of beaver. The user must dump-and-reload to migrate.
     See docs/migration-rc3-to-rc4-lists.md."""
+
+
+class BeaverReadOnlyError(RuntimeError):
+    """Raised when a write is attempted on a database opened read_only."""
 
 
 class BeaverLegacySchemaError(BeaverIncompatibleSchemaError):
@@ -107,12 +113,25 @@ class Transaction:
     at the outermost level.
     """
 
-    def __init__(self, db: "AsyncBeaverDB", *, timeout: float | None = None):
+    def __init__(
+        self, db: "AsyncBeaverDB", *, timeout: float | None = None, write: bool = True
+    ):
         self.db = db
         self._is_root = False
+        self._write = write
         self._timeout = db._timeout if timeout is None else timeout
 
     async def __aenter__(self):
+        # Read-only opens have no single place that every write passes through
+        # except here: every manager writes inside a transaction, so one check
+        # turns each of them into beaver's error instead of SQLite's.
+        if self.db._read_only and self._write:
+            raise BeaverReadOnlyError(
+                f"Database {self.db._db_path!r} was opened read-only "
+                "(read_only=True), so writes are not allowed. Open it without "
+                "read_only to write."
+            )
+
         current_task = asyncio.current_task()
 
         # 1. Check Reentrancy: Do we already own the transaction?
@@ -134,8 +153,11 @@ class Transaction:
         #    next transaction through as a no-op.
         #
         #    Using isolation_level=None globally means we MUST start manually.
+        #    A read-only database takes DEFERRED: IMMEDIATE would ask for a
+        #    write lock on a file SQLite opened for reading.
         try:
-            await self.db.connection.execute("BEGIN IMMEDIATE")
+            begin = "BEGIN DEFERRED" if self.db._read_only else "BEGIN IMMEDIATE"
+            await self.db.connection.execute(begin)
         except BaseException:
             self._clean_up_in_the_background()
             raise
@@ -315,6 +337,7 @@ class AsyncBeaverDB:
         pragma_synchronous: bool = False,
         pragma_temp_memory: bool = True,
         pragma_mmap_size: int = 256 * 1024 * 1024,
+        read_only: bool = False,
     ):
         self._db_path = db_path
         # Bounds both ways a write can be made to wait: SQLite's busy-timeout
@@ -337,6 +360,8 @@ class AsyncBeaverDB:
         # Manager Singleton Cache
         self._manager_cache: dict[tuple[type, str], Any] = {}
 
+        self._read_only = read_only
+
         # Store pragma settings
         self._pragma_wal = pragma_wal
         self._pragma_synchronous = pragma_synchronous
@@ -357,12 +382,35 @@ class AsyncBeaverDB:
         """
         Initializes the async database connection and creates tables.
         Must be awaited before using the DB.
+
+        With ``read_only=True`` the file is opened through SQLite's URI mode as
+        ``file:<path>?immutable=1``: SQLite takes no write lock and creates no
+        ``-wal``/``-shm``/``-journal`` beside it, so a sealed file (mode 0444,
+        read-only image layer) stays untouched. Nothing that writes is run on
+        that path — no journal, synchronous, schema or user_version statements —
+        and any write method raises ``BeaverReadOnlyError``.
         """
         if self._connection is not None:
             return self
 
+        if self._read_only:
+            if self._db_path == ":memory:":
+                raise ValueError(
+                    "read_only=True needs a file path; a :memory: database has "
+                    "nothing to read and nothing to seal."
+                )
+            if not os.path.exists(self._db_path):
+                raise FileNotFoundError(
+                    f"Cannot open {self._db_path!r} read-only: the file does not "
+                    "exist, and read_only=True never creates one."
+                )
+            dsn = f"file:{quote(os.path.abspath(self._db_path))}?immutable=1"
+        else:
+            dsn = self._db_path
+
         self._connection = await aiosqlite.connect(
-            self._db_path,
+            dsn,
+            uri=self._read_only,
             timeout=self._timeout,
             # We will manage transactions manually via .transaction()
             isolation_level=None,
@@ -373,14 +421,17 @@ class AsyncBeaverDB:
         try:
             self._connection.row_factory = aiosqlite.Row
 
-            # Apply Pragmas
-            if self._pragma_wal:
-                await self._connection.execute("PRAGMA journal_mode = WAL;")
+            # Apply Pragmas. journal_mode and synchronous pick write settings,
+            # so they are skipped read-only; temp_store and mmap only affect
+            # this connection and are safe either way.
+            if not self._read_only:
+                if self._pragma_wal:
+                    await self._connection.execute("PRAGMA journal_mode = WAL;")
 
-            if self._pragma_synchronous:
-                await self._connection.execute("PRAGMA synchronous = FULL;")
-            else:
-                await self._connection.execute("PRAGMA synchronous = NORMAL;")
+                if self._pragma_synchronous:
+                    await self._connection.execute("PRAGMA synchronous = FULL;")
+                else:
+                    await self._connection.execute("PRAGMA synchronous = NORMAL;")
 
             if self._pragma_temp_memory:
                 await self._connection.execute("PRAGMA temp_store = MEMORY;")
@@ -390,9 +441,25 @@ class AsyncBeaverDB:
                     f"PRAGMA mmap_size = {self._pragma_mmap_size};"
                 )
 
-            await self._check_version()
-            await self._create_all_tables()
-            await self._connection.execute(f"PRAGMA user_version = {BEAVER_DB_VERSION}")
+            current = await self._check_version()
+
+            if self._read_only:
+                if current != BEAVER_DB_VERSION:
+                    raise BeaverIncompatibleSchemaError(
+                        f"Database {self._db_path!r} has user_version {current}, "
+                        f"not {BEAVER_DB_VERSION}: read_only=True cannot create "
+                        "beaver's tables or stamp a version. Open it once without "
+                        "read_only."
+                    )
+            else:
+                await self._create_all_tables()
+                # Only stamp when it differs: a plain reopen used to rewrite
+                # the header on every connect, which dirties a sealed image
+                # layer and the file's mtime for nothing.
+                if current != BEAVER_DB_VERSION:
+                    await self._connection.execute(
+                        f"PRAGMA user_version = {BEAVER_DB_VERSION}"
+                    )
         except BaseException:
             await self._connection.close()
             self._connection = None
@@ -442,7 +509,14 @@ class AsyncBeaverDB:
 
         return self._connection
 
-    def transaction(self, *, timeout: float | None = None) -> AsyncContextManager:
+    @property
+    def read_only(self) -> bool:
+        """Whether the file was opened for reading only (issue #55)."""
+        return self._read_only
+
+    def transaction(
+        self, *, timeout: float | None = None, write: bool = True
+    ) -> AsyncContextManager:
         """
         Returns an async context manager for an atomic transaction.
         Use: async with db.transaction(): ...
@@ -452,8 +526,13 @@ class AsyncBeaverDB:
         its own latency budget — a healthcheck, a request handler — so a
         contended write fails fast with `TransactionTimeoutError` instead of
         holding the caller for the full default.
+
+        `write=False` marks a read: on a read-only open it begins DEFERRED
+        instead of raising, and writes from this scope fail with
+        `BeaverReadOnlyError`. Reads already take no manager lock, so this is
+        what keeps a sealed database readable.
         """
-        return Transaction(self, timeout=timeout)
+        return Transaction(self, timeout=timeout, write=write)
 
     async def _tables_named(self, names) -> list[str]:
         """Return which of `names` exist as tables in the open database."""
@@ -541,13 +620,16 @@ class AsyncBeaverDB:
             "see docs/migration-1x-to-2x.md."
         )
 
-    async def _check_version(self) -> None:
+    async def _check_version(self) -> int:
         """Verify the open database is compatible with this beaver version.
 
         Fresh databases have user_version=0; we accept that and stamp the
         current version after _create_all_tables runs. rc3-era databases also
         have user_version=0 but already have __beaver_lists__ with REAL
         item_order — we reject those unless the lists table is empty.
+
+        Returns the version the file carries now, so the caller can write the
+        stamp only when it differs.
         """
         # Runs before the user_version fast path below: a split-brain database
         # has already been stamped to the current version by the accidental
@@ -559,7 +641,7 @@ class AsyncBeaverDB:
         current = row[0] if row else 0
 
         if current == BEAVER_DB_VERSION:
-            return
+            return current
 
         if current > BEAVER_DB_VERSION:
             raise BeaverIncompatibleSchemaError(
@@ -585,7 +667,15 @@ class AsyncBeaverDB:
                     "(fractional indexing) and no automatic migration is "
                     "provided. See docs/migration-rc3-to-rc4-lists.md."
                 )
+            if self._read_only:
+                raise BeaverIncompatibleSchemaError(
+                    f"Database {self._db_path!r} predates beaver 2.0rc4 and "
+                    "needs a writable open to drop its old lists table; "
+                    "read_only=True cannot migrate it."
+                )
             await self._connection.execute("DROP TABLE __beaver_lists__")
+
+        return current
 
     async def _create_all_tables(self):
         """Initializes all required tables with the new __beaver__ naming convention."""

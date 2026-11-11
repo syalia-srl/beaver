@@ -215,7 +215,7 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverDict[T]):
         if self._secret_arg and not self._cipher:
             await self._setup_security(self._secret_arg)
 
-        async with self._db.transaction():
+        async with self._db.transaction(write=False):
             cursor = await self.connection.execute(
                 "SELECT value, expires_at FROM __beaver_dicts__ WHERE dict_name = ? AND key = ?",
                 (self._name, key),
@@ -229,7 +229,10 @@ class AsyncBeaverDict[T: BaseModel](AsyncBeaverBase[T], IAsyncBeaverDict[T]):
 
         if expires_at is not None and time.time() > expires_at:
             # Outside the read's transaction: the KeyError would roll this back.
-            await self._delete_expired(key)
+            # A read-only open cannot delete, and should not: the row is stale
+            # for this reader, still expired for the next writer.
+            if not self._db.read_only:
+                await self._delete_expired(key)
             raise KeyError(
                 f"Key '{key}' not found in dictionary '{self._name}' (expired)"
             )

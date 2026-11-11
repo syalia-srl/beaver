@@ -3,6 +3,7 @@ from .core import (
     AsyncBeaverDB,
     BeaverIncompatibleSchemaError,
     BeaverLegacySchemaError,
+    BeaverReadOnlyError,
     TransactionTimeoutError,
 )
 from .docs import Document
@@ -40,6 +41,7 @@ __all__ = [
     "BeaverDB",
     "BeaverIncompatibleSchemaError",
     "BeaverLegacySchemaError",
+    "BeaverReadOnlyError",
     "TransactionTimeoutError",
     "Document",
     "Secret",

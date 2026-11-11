@@ -181,11 +181,14 @@ def read_atomic(func):
     The transaction keeps it from seeing another task's uncommitted writes on the
     shared connection. It takes no manager lock: that lock writes a row to acquire
     and another to release, which would make every read a write.
+
+    ``write=False`` keeps the read readable on a ``read_only=True`` open, where a
+    write transaction raises ``BeaverReadOnlyError``.
     """
 
     @functools.wraps(func)
     async def wrapper(self: AsyncBeaverBase, *args, **kwargs):
-        async with self._db.transaction():
+        async with self._db.transaction(write=False):
             return await func(self, *args, **kwargs)
 
     return wrapper
