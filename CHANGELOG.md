@@ -2,6 +2,21 @@
 
 All notable changes to beaver-db will be recorded here.
 
+## 2.5.0 — 2026-11-11
+
+### Added
+
+- **Open a database read-only (#55).** `BeaverDB(path, read_only=True)` and `AsyncBeaverDB(path, read_only=True)` open the file as `file:<path>?immutable=1`. Nothing that writes runs: no `journal_mode`, no schema creation, no `user_version` stamp, and no `-wal`, `-shm` or `-journal` file appears beside it. A sealed file (mode 0444 in a read-only directory, or a file in a read-only image layer) can now be served. Any write raises the new `BeaverReadOnlyError`. A file older than the current schema, or a missing file, fails with a clear error instead of being created or migrated.
+- **A `py.typed` marker (#52),** so type checkers read beaver's annotations.
+
+### Changed
+
+- **Opening a database no longer rewrites its header when the version already matches.** `PRAGMA user_version` was written on every open; it is now written only when it differs, so reopening an unchanged file leaves its bytes and mtime alone.
+
+### Fixed
+
+- **`close()` stops the pub/sub engine and the event dispatch tasks (#49).**
+
 ## 2.4.2 — 2026-10-30
 
 ### Fixed

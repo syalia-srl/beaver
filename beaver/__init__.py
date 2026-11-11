@@ -12,7 +12,7 @@ from .queries import q
 from .security import Secret
 from .errors import BeaverRemoteError, LocalOnlyError
 
-__version__ = "2.4.2"
+__version__ = "2.5.0"
 
 
 def connect(source: str, *, sync: bool = True, api_key: str | None = None):
